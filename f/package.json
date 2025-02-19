@@ -5,11 +5,12 @@
   "homepage": "https://dikanevn.github.io/ynftnext",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && next export",
     "predeploy": "npm run build",
     "deploy": "type nul > out/.nojekyll && gh-pages -d out --dotfiles",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export": "next export"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
