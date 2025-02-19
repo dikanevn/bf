@@ -3,30 +3,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   basePath: '/ynftnext',
   assetPrefix: '/ynftnext/',
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      os: false,
-      path: false,
-      crypto: require.resolve('crypto-browserify'),
-      stream: require.resolve('stream-browserify'),
-    };
-    config.module.rules.push({
-      test: /\.mjs$/,
-      include: /node_modules/,
-      type: 'javascript/auto',
-    });
-    return config;
-  },
-  transpilePackages: [
-    '@solana/wallet-adapter-react-ui',
-    '@solana/wallet-adapter-base',
-    '@solana/wallet-adapter-react',
-    '@solana/wallet-adapter-wallets',
-    '@coral-xyz/anchor',
-  ],
   output: 'export',
+  transpilePackages: [
+    '@metaplex-foundation/js',
+    '@metaplex-foundation/mpl-token-metadata',
+    '@metaplex-foundation/mpl-candy-machine',
+    '@metaplex-foundation/umi',
+    '@metaplex-foundation/umi-bundle-defaults',
+    '@metaplex-foundation/umi-signer-wallet-adapters',
+    '@metaplex-foundation/mpl-toolbox'
+  ]
 };
 
 export default nextConfig;
