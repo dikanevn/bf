@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  basePath: '/bf',
-  assetPrefix: '/bf/',
+  basePath: '/ynftnext',
+  assetPrefix: '/ynftnext/',
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -27,9 +27,6 @@ const nextConfig: NextConfig = {
     '@coral-xyz/anchor',
   ],
   output: 'export',
-  images: {
-    unoptimized: true,
-  },
 };
 
 export default nextConfig;

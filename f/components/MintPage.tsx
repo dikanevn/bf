@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -22,10 +23,9 @@ import { getMplTokenAuthRulesProgramId } from "@metaplex-foundation/mpl-candy-ma
 import { findAssociatedTokenPda } from "@metaplex-foundation/mpl-toolbox";
 import * as anchor from '@coral-xyz/anchor';
 
+// Удаляем неиспользуемые функции
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
-const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL; // 0.001 SOL в лампортах
-
-// Определяем константу для программы метаданных
+const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
 const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 // Локальная реализация поиска PDA для метаданных
