@@ -2,7 +2,7 @@ extern crate mpl_token_metadata;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount, MintTo};
 use anchor_spl::associated_token::AssociatedToken;
-// Импорт CPI‑билдера для создания мастер-эдишн (mpl-token-metadata v5.1.0)
+//  Импорт CPI‑билдера для создания мастер-эдишн (mpl-token-metadata v5.1.0)
 // use mpl_token_metadata::instructions::create_master_edition_v3;
 
 // Определяем константы с жёстко заданными адресами.
