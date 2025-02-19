@@ -17,9 +17,14 @@ import {
 } from "@metaplex-foundation/mpl-token-metadata";
 import { getMplTokenAuthRulesProgramId } from "@metaplex-foundation/mpl-candy-machine";
 import { findAssociatedTokenPda } from "@metaplex-foundation/mpl-toolbox";
+import * as anchor from '@coral-xyz/anchor';
+import idl from '../idl/l.json';
 
+const PROGRAM_ID = new PublicKey("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 export function MintPage() {
   const { publicKey, signTransaction } = useWallet();
@@ -165,7 +170,85 @@ export function MintPage() {
   };
 
   const onCreateToken = async () => {
-    alert("Функционал создания SPL токена временно недоступен");
+    if (!publicKey || !signTransaction) {
+      alert("Пожалуйста, подключите кошелек!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Создаем провайдер для Anchor
+      const provider = new anchor.AnchorProvider(
+        connection,
+        wallet,
+        { preflightCommitment: 'processed' }
+      );
+      anchor.setProvider(provider);
+
+      // Создаем программу напрямую с IDL
+      const program = new anchor.Program(idl as anchor.Idl, PROGRAM_ID, provider);
+
+      // Генерируем keypair для mint аккаунта
+      const mintKeypair = anchor.web3.Keypair.generate();
+
+      // Получаем PDA для metadata и master edition
+      const [metadataPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          METADATA_PROGRAM_ID.toBuffer(),
+          mintKeypair.publicKey.toBuffer(),
+        ],
+        METADATA_PROGRAM_ID
+      );
+
+      const [masterEditionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          METADATA_PROGRAM_ID.toBuffer(),
+          mintKeypair.publicKey.toBuffer(),
+          Buffer.from("edition"),
+        ],
+        METADATA_PROGRAM_ID
+      );
+
+      // Получаем ATA для authority
+      const [ata] = await PublicKey.findProgramAddress(
+        [
+          publicKey.toBuffer(),
+          TOKEN_PROGRAM_ID.toBuffer(),
+          mintKeypair.publicKey.toBuffer(),
+        ],
+        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
+      );
+
+      // Создаем инструкцию для create_token
+      const tx = await program.methods
+        .createToken()
+        .accounts({
+          authority: publicKey,
+          mint: mintKeypair.publicKey,
+          ata: ata,
+          metadata: metadataPda,
+          masterEdition: masterEditionPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'),
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          tokenMetadataProgram: METADATA_PROGRAM_ID,
+        })
+        .signers([mintKeypair])
+        .rpc();
+
+      console.log("SPL Token создан! TXID:", tx);
+      alert(`SPL Token создан успешно! TXID: ${tx}`);
+
+    } catch (error) {
+      console.error("Ошибка при создании SPL токена:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

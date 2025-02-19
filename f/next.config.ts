@@ -12,7 +12,14 @@ const nextConfig: NextConfig = {
     '@metaplex-foundation/umi-bundle-defaults',
     '@metaplex-foundation/umi-signer-wallet-adapters',
     '@metaplex-foundation/mpl-toolbox'
-  ]
+  ],
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.json$/,
+      type: 'json',
+    });
+    return config;
+  },
 };
 
 export default nextConfig;
