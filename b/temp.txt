@@ -1,0 +1,82 @@
+dikanevn@user-pc:~/u1/l$ ts-node p11s.ts DqSm2pMtfJSn1yX7PQKxrB3XNfPaet9zz11aaQhYHn8a
+(node:86046) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Информация о токене:
+Mint: DqSm2pMtfJSn1yX7PQKxrB3XNfPaet9zz11aaQhYHn8a
+Metadata PDA: Bou2RfixkAfxNpeEXvL3VfaX7nuAUQURpcyL9LspnsjS,253
+Master Edition PDA: 2m9L5aRMgpYHo9G9gkoBYkysNYg5B4zrT8prVvff5ncx,255
+Детали цифрового актива:
+{
+  publicKey: 'DqSm2pMtfJSn1yX7PQKxrB3XNfPaet9zz11aaQhYHn8a',
+  mint: {
+    publicKey: 'DqSm2pMtfJSn1yX7PQKxrB3XNfPaet9zz11aaQhYHn8a',
+    header: {
+      executable: false,
+      owner: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+      lamports: { basisPoints: 2770080n, identifier: 'SOL', decimals: 9 },
+      rentEpoch: 18446744073709551616n,
+      exists: true
+    },
+    mintAuthority: {
+      __option: 'Some',
+      value: '2m9L5aRMgpYHo9G9gkoBYkysNYg5B4zrT8prVvff5ncx'
+    },
+    supply: 0n,
+    decimals: 0,
+    isInitialized: true,
+    freezeAuthority: {
+      __option: 'Some',
+      value: '2m9L5aRMgpYHo9G9gkoBYkysNYg5B4zrT8prVvff5ncx'
+    }
+  },
+  metadata: {
+    publicKey: 'Bou2RfixkAfxNpeEXvL3VfaX7nuAUQURpcyL9LspnsjS',
+    header: {
+      executable: false,
+      owner: 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s',
+      lamports: { basisPoints: 15115600n, identifier: 'SOL', decimals: 9 },
+      rentEpoch: 18446744073709551616n,
+      exists: true
+    },
+    key: 4,
+    updateAuthority: 'GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6',
+    mint: 'DqSm2pMtfJSn1yX7PQKxrB3XNfPaet9zz11aaQhYHn8a',
+    name: 'My Programmable NFT',
+    symbol: '',
+    uri: 'https://example.com/my-programmable-nft.json',
+    sellerFeeBasisPoints: 0,
+    creators: {
+      __option: 'Some',
+      value: [
+        {
+          address: 'GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6',
+          verified: true,
+          share: 100
+        }
+      ]
+    },
+    primarySaleHappened: false,
+    isMutable: true,
+    editionNonce: { __option: 'Some', value: 255 },
+    tokenStandard: { __option: 'Some', value: 4 },
+    collection: { __option: 'None' },
+    uses: { __option: 'None' },
+    collectionDetails: { __option: 'None' },
+    programmableConfig: {
+      __option: 'Some',
+      value: { __kind: 'V1', ruleSet: { __option: 'None' } }
+    }
+  },
+  edition: {
+    isOriginal: true,
+    publicKey: '2m9L5aRMgpYHo9G9gkoBYkysNYg5B4zrT8prVvff5ncx',
+    header: {
+080n, identifier: 'SOL', decimals: 9 },
+      rentEpoch: 18446744073709551616n,
+      exists: true
+    },
+    key: 6,
+    supply: 0n,
+    maxSupply: { __option: 'Some', value: 0n }
+  }
+}

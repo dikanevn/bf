@@ -1,0 +1,71 @@
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
+import { L } from "../target/types/l";
+import { Keypair, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+
+describe("l", () => {
+  // Создаем keypair из нашего массива байтов
+  const payerSecretKey = new Uint8Array([
+    170, 97, 193, 219, 129, 39, 25, 207, 56, 119, 15, 231, 19, 35, 186, 165,
+    89, 2, 98, 31, 12, 33, 131, 230, 131, 172, 16, 191, 168, 235, 55, 20,
+    33, 223, 119, 212, 121, 58, 1, 159, 40, 18, 163, 17, 147, 42, 56, 93,
+    221, 70, 55, 97, 162, 189, 148, 101, 178, 131, 97, 147, 248, 87, 27, 156
+  ]);
+  const payer = Keypair.fromSecretKey(payerSecretKey);
+
+  // Создаем кастомный провайдер с нашим payer
+  const provider = new anchor.AnchorProvider(
+    anchor.getProvider().connection,
+    new anchor.Wallet(payer),
+    {}
+  );
+  anchor.setProvider(provider);
+
+  const program = anchor.workspace.L as Program<L>;
+
+  it("Create token", async () => {
+    try {
+      // Создаем новый keypair для mint аккаунта
+      const mintKeypair = Keypair.generate();
+      
+      // Получаем адрес ассоциированного токен аккаунта для payer
+      const [tokenAccount] = await anchor.web3.PublicKey.findProgramAddress(
+        [
+          payer.publicKey.toBuffer(),
+          TOKEN_PROGRAM_ID.toBuffer(),
+          mintKeypair.publicKey.toBuffer(),
+        ],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      console.log("Program ID:", program.programId.toString());
+      console.log("Mint Keypair:", mintKeypair.publicKey.toString());
+      console.log("Token Account:", tokenAccount.toString());
+      console.log("Payer:", payer.publicKey.toString());
+
+      // Вызываем инструкцию create_token
+      const tx = await program.methods
+        .createToken(9) // 9 decimals
+        .accounts({
+          mint: mintKeypair.publicKey,
+          payer: payer.publicKey,
+          tokenAccount: tokenAccount,
+          rent: SYSVAR_RENT_PUBKEY,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([mintKeypair])
+        .rpc();
+
+      console.log("Create token transaction signature", tx);
+    } catch (error) {
+      console.error("Error:", error);
+      throw error;
+    }
+  });
+});

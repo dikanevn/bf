@@ -1,0 +1,12 @@
+/* walletAdapterOverrides.css */
+/* Переопределяем скругление для кнопки WalletMultiButton */
+.wallet-adapter-button {
+  border-radius: 0 !important;
+  background-color: #767999 !important;
+  color: white !important;
+  border: 2px outset #8b8fb3 !important;
+  font-size: 8px !important;
+  padding: 0.25rem 0.5rem !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+}

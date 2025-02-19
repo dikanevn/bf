@@ -1,0 +1,27 @@
+import * as anchor from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+
+// Настраиваем провайдер, используя окружение, указанное в .env
+anchor.setProvider(anchor.AnchorProvider.env());
+
+const program = anchor.workspace.l as anchor.Program;
+
+async function main() {
+  try {
+    // Вызываем инструкцию mintOne для чеканки одного токена
+    const txSignature = await program.methods.mintOne()
+      .accounts({
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+    // Логируем успешное получение подписи транзакции
+    console.log("Transaction signature:", txSignature);
+  } catch (error) {
+    // Логируем ошибку, если она произошла во время выполнения транзакции
+    console.error("Ошибка при выполнении транзакции:", error);
+  }
+}
+
+// Вызываем main для запуска процесса
+main();

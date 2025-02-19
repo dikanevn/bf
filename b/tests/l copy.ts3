@@ -1,0 +1,20 @@
+import * as anchor from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+
+// Настраиваем провайдер
+anchor.setProvider(anchor.AnchorProvider.env());
+
+const program = anchor.workspace.l as anchor.Program;
+
+async function main() {
+  // Вызываем инструкцию «минт!»
+  const txSignature = await program.methods.mintOne()
+    .accounts({
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+  console.log("Transaction signature:", txSignature);
+}
+
+main();

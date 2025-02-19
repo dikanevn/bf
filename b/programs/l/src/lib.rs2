@@ -1,0 +1,60 @@
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, MintTo, Token, TokenAccount, Mint};
+// Импортируем константы размера для mint-аккаунта и token-аккаунта
+use spl_token::state::{Mint as SplMint, Account as SplAccount};
+
+declare_id!("XYJtL89sKbSSpEp5vESkLKZEwsgaNq2Ac5z6Xmxw3wZ");
+
+#[program]
+pub mod my_mint {
+    use super::*;
+    
+    /// Функция mint_tokens выполняет mint токенов без дополнительных проверок.
+    /// Вызывающему необходимо быть mint authority токена.
+    pub fn mint_tokens(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+        // Проверка размера данных аккаунта mint
+        if ctx.accounts.mint.to_account_info().data_len() < SplMint::LEN as usize {
+            return Err(MyError::MintAccountTooSmall.into());
+        }
+        // Проверка размера данных аккаунта получателя (TokenAccount)
+        if ctx.accounts.destination.to_account_info().data_len() < SplAccount::LEN as usize {
+            return Err(MyError::DestinationAccountTooSmall.into());
+        }
+        
+        // Подготавливаем CPI для вызова инструкции mint_to из программы SPL Token
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.destination.to_account_info(),
+            authority: ctx.accounts.mint_authority.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::mint_to(cpi_ctx, amount)?;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct MintTokens<'info> {
+    /// Аккаунт-мят токена (mint). Он должен быть mutable, так как в нём меняется количество выпущенных токенов.
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+
+    /// Токен-аккаунт получателя, в который будут зачислены новые токены.
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
+
+    /// Аккаунт-авторитет mint'а. Для вызова mint_tokens требуется подпись этого аккаунта.
+    pub mint_authority: Signer<'info>,
+
+    /// Программа SPL Token, которая обрабатывает инструкцию mint_to.
+    pub token_program: Program<'info, Token>,
+}
+
+#[error_code]
+pub enum MyError {
+    #[msg("Размер данных аккаунта mint слишком мал")]
+    MintAccountTooSmall,
+    #[msg("Размер данных токен-аккаунта получателя слишком мал")]
+    DestinationAccountTooSmall,
+}

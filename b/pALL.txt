@@ -1,0 +1,44 @@
+Параметры запуска:
+  Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
+  Mint-адрес токена: HAU9DidF8mNswhzHoNATJBvBu9JaJroDphJeztDyxDLV
+(node:343709) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+=== Ассоциированный токен-аккаунт (ATA) ===
+ATA: 9wk4Uer2PTSRFhnkJa7q6AdUMM1Xa4x1Up9s5QWdcGre
+
+=== Информация об аккаунте mint ===
+Mint Account Data: {
+  "parsed": {
+    "info": {
+      "decimals": 0,
+      "freezeAuthority": "GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6",
+      "isInitialized": true,
+      "mintAuthority": "GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6",
+      "supply": "1"
+    },
+    "type": "mint"
+  },
+  "program": "spl-token",
+  "space": 82
+}
+
+=== Информация о токен-аккаунте (ATA) ===
+Mint: HAU9DidF8mNswhzHoNATJBvBu9JaJroDphJeztDyxDLV
+Owner: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
+Amount: 1
+Delegate: нет
+State: initialized
+Is Native: false
+Delegated Amount: 0
+Close Authority: нет
+
+=== Метаданные цифрового актива ===
+Metadata PDA: DFfLrThCLfVgqh29qCLATAvfZz5zxZcPVZgnrRDyeeF7,255
+Master Edition PDA: 6WA5YHvH525jczcjaraMVZctQRNxfaeuqckatYbd97cc,254
+
+=== Детали цифрового актива ===
+Данные цифрового актива не получены.
+
+Всё вычислено. Готово.
+Завершено успешно.

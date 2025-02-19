@@ -1,0 +1,33 @@
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
+import { ArrayContract } from "../target/types/array_contract";
+import { assert } from "chai";
+
+describe("PDA Initialization", () => {
+  it("инициализирует PDA аккаунт", async () => {
+    // Настройка провайдера и привязка к программе
+    const provider = anchor.AnchorProvider.env();
+    anchor.setProvider(provider);
+    const program = anchor.workspace.ArrayContract as Program<ArrayContract>;
+
+    // Вычисляем PDA на основе seed "my_account"
+    const [pda, bump] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from("my_account")],
+      program.programId
+    );
+
+    // Вызов инструкции инициализации
+    await program.methods.initialize().accounts({
+      myAccount: pda,
+      user: provider.wallet.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    }).signers([]).rpc(); // Указываем пустой массив signers
+    
+
+    // Проверяем, что аккаунт был создан
+    const account = await program.account.myAccount.fetch(pda);
+    assert.isDefined(account, "PDA аккаунт должен существовать");
+
+    console.log("✅ PDA аккаунт инициализирован:", pda.toBase58());
+  });
+});

@@ -1,0 +1,37 @@
+# Dependencies
+/*/node_modules
+/b/target
+.anchor
+.yarn
+.pnp.*
+
+# Build outputs
+/f/.next
+/f/out
+/f/build
+/b/test-ledger
+
+# Environment
+.env*
+
+# IDE and OS
+.DS_Store
+.idea
+.vscode
+*.pem
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Rust
+**/*.rs.bk
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel 

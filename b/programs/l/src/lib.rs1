@@ -1,0 +1,42 @@
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, MintTo, mint_to};
+
+declare_id!("2BESDrxqXxBWYwhiuzC4SgsoCmqoMiiEGwZ1en6gT4Se");
+
+#[program]
+pub mod l {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        msg!("Greetings from: {:?}", ctx.program_id);
+        Ok(())
+    }
+
+    pub fn mint_tokens(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+        let cpi_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.token_account.to_account_info(),
+            authority: ctx.accounts.mint_authority.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        mint_to(CpiContext::new(cpi_program, cpi_accounts), amount)?;
+        msg!("Minted {} tokens", amount);
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize {}
+
+#[derive(Accounts)]
+pub struct MintTokens<'info> {
+    #[account(mut)]
+    /// CHECK: Поле mint является небезопасным, поскольку оно не десериализуется Anchor. 
+    /// Убедитесь, что передаваемый аккаунт действительно является корректным mint-аккаунтом для SPL токен программы.
+    pub mint: UncheckedAccount<'info>,
+    #[account(mut)]
+    /// CHECK: Этот аккаунт используется для передачи в CPI инструкцию, дополнительная проверка может быть добавлена
+    pub token_account: AccountInfo<'info>,
+    pub mint_authority: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}

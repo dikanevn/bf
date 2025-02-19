@@ -1,0 +1,67 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+use merkletreers::tree::MerkleTree;
+use merkletreers::utils::hash_it;
+use solana_program::{entrypoint::ProgramResult, msg, pubkey::Pubkey};
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct WhitelistArgs {
+    pub accounts: Vec<Pubkey>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct Whitelist {
+    pub root: [u8; 32], // Store the Merkle root onchain
+}
+
+pub fn whitelist_account(args: &WhitelistArgs) -> ProgramResult {
+    // Hash each account
+    let leaves: Vec<[u8; 32]> = args
+        .accounts
+        .iter()
+        .map(|account| {
+            let mut buffer = [0u8; 32];
+            hash_it(account.as_ref(), &mut buffer);
+            buffer
+        })
+        .collect();
+
+    // Create the Merkle Tree
+    let whitelist_tree = MerkleTree::new(leaves);
+    let root = whitelist_tree.root;
+
+    msg!("Merkle Root: {:?}", root);
+
+    // Example: Generate proof for the first account
+    let mut leaf = [0u8; 32];
+    hash_it(args.accounts[0].as_ref(), &mut leaf);
+    let proof = whitelist_tree.make_proof(leaf);
+    msg!("Proof: {:?}", proof);
+
+    // Verify the proof
+    let is_valid = whitelist_tree.check_proof(proof, leaf);
+    msg!("Is valid proof: {:?}", is_valid);
+
+    Ok(())
+}
+
+/// validate if a given account is in the whitelist
+pub fn validate_leaf(root: [u8; 32], account: Pubkey, proof: Vec<[u8; 32]>) -> ProgramResult {
+    // Hash the account to create the leaf
+    let mut leaf = [0u8; 32];
+    hash_it(account.as_ref(), &mut leaf);
+
+    msg!("Verifying leaf for account: {:?}", account);
+    msg!("Generated leaf hash: {:?}", leaf);
+    
+    // Verify the proof against the stored root
+    let is_valid = MerkleTree::check_proof(proof, leaf);
+    assert_eq!(is_valid, root);
+
+    if is_valid {
+        msg!("Leaf is valid and exists in the Merkle tree");
+        Ok(())
+    } else {
+        msg!("Leaf verification failed");
+        Err(solana_program::program_error::ProgramError::InvalidArgument)
+    }
+}

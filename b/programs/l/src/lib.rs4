@@ -1,0 +1,62 @@
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, MintTo, mint_to};
+
+declare_id!("2BESDrxqXxBWYwhiuzC4SgsoCmqoMiiEGwZ1en6gT4Se");
+
+#[program]
+pub mod array_contract {
+    use super::*;
+    
+    // Инициализация аккаунта: заполняем массив нулями.
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = [0, 0, 0, 0];
+        Ok(())
+    }
+    
+    // Обновление: записываем переданное число в указанную ячейку массива.
+    pub fn update_cell(ctx: Context<Update>, cell_index: u8, value: u64) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        let index = cell_index as usize;
+        // Проверяем, что индекс не выходит за границы массива.
+        if index >= my_account.data.len() {
+            return Err(ErrorCode::InvalidIndex.into());
+        }
+        my_account.data[index] = value;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(
+        init, 
+        seeds = [b"my_account"],
+        bump,
+        payer = user,
+        space = 8 + 32
+    )]
+    pub my_account: Account<'info, MyAccount>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+
+#[derive(Accounts)]
+pub struct Update<'info> {
+    #[account(mut)]
+    pub my_account: Account<'info, MyAccount>,
+}
+
+#[account]
+pub struct MyAccount {
+    // Массив из 4 чисел (u64)
+    pub data: [u64; 4],
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Недопустимый индекс ячейки")]
+    InvalidIndex,
+}
