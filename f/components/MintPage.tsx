@@ -120,6 +120,118 @@ export function MintPage() {
     }
   };
 
+  const onInitializeToken = async () => {
+    if (!publicKey || !signTransaction) {
+      alert("Пожалуйста, подключите кошелек!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const programId = new PublicKey(idl.address);
+      
+      const initializeTokenIx = idl.instructions.find(ix => ix.name === 'initialize_token');
+      if (!initializeTokenIx || !initializeTokenIx.discriminator) {
+        throw new Error("Инструкция initialize_token не найдена в IDL");
+      }
+
+      // Генерируем новый keypair для mint аккаунта
+      const mintKeypair = anchor.web3.Keypair.generate();
+
+      // Получаем PDA для authority
+      const [authority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("token_authority")],
+        programId
+      );
+
+      // Создаем буфер с discriminator
+      const data = Buffer.from(initializeTokenIx.discriminator);
+
+      const instruction = new TransactionInstruction({
+        programId: programId,
+        keys: [
+          // payer
+          {
+            pubkey: publicKey,
+            isSigner: true,
+            isWritable: true,
+          },
+          // mint аккаунт
+          {
+            pubkey: mintKeypair.publicKey,
+            isSigner: true,
+            isWritable: true,
+          },
+          // authority (PDA)
+          {
+            pubkey: authority,
+            isSigner: false,
+            isWritable: false,
+          },
+          // system program
+          {
+            pubkey: anchor.web3.SystemProgram.programId,
+            isSigner: false,
+            isWritable: false,
+          },
+          // token program
+          {
+            pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+            isSigner: false,
+            isWritable: false,
+          },
+          // rent
+          {
+            pubkey: anchor.web3.SYSVAR_RENT_PUBKEY,
+            isSigner: false,
+            isWritable: false,
+          }
+        ],
+        data: data
+      });
+
+      const transaction = new Transaction().add(instruction);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      // Подписываем транзакцию и mint keypair
+      transaction.sign(mintKeypair);
+      const signedTx = await signTransaction(transaction);
+      
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      console.log("Transaction ID:", txid);
+      console.log("Mint address:", mintKeypair.publicKey.toString());
+
+      // Ждем подтверждения и получаем логи
+      const confirmation = await connection.confirmTransaction(txid);
+      const txInfo = await connection.getTransaction(txid, {
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (txInfo?.meta?.logMessages) {
+        console.log("Transaction logs:", txInfo.meta.logMessages);
+        
+        // Ищем результат в логах
+        const resultLog = txInfo.meta.logMessages.find(log => 
+          log.includes("Начало инициализации токена...")
+        );
+        
+        if (resultLog) {
+          alert(`Токен успешно создан! Mint address: ${mintKeypair.publicKey.toString()}`);
+        } else {
+          alert("Транзакция выполнена, но результат не найден в логах");
+        }
+      }
+
+    } catch (error) {
+      console.error("Ошибка при инициализации токена:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-3">
       <WalletMultiButton className="rounded-none bg-purple-700 text-white shadow-xl" />
@@ -138,6 +250,13 @@ export function MintPage() {
             className="mt-5 px-4 py-2 bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-400"
           >
             {loading ? 'Проверка...' : 'Проверить инициализацию'}
+          </button>
+          <button 
+            onClick={onInitializeToken} 
+            disabled={loading}
+            className="mt-5 px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-gray-400"
+          >
+            {loading ? 'Создание...' : 'Создать токен'}
           </button>
         </div>
       )}
