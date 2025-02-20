@@ -1,18 +1,10 @@
-extern crate mpl_token_metadata;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
-use anchor_spl::associated_token::AssociatedToken;
-//  Импорт CPI‑билдера для создания мастер-эдишн (mpl-token-metadata v5.1.0)
-// use mpl_token_metadata::instructions::create_master_edition_v3;
 
-// Определяем константы с жёстко заданными адресами.
-pub const MY_SYSTEM_PROGRAM: Pubkey = pubkey!("11111111111111111111111111111111");
-pub const MY_TOKEN_PROGRAM: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+// Определяем константы
+pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-// Жёстко заданный адрес Metaplex Token Metadata программы
-pub const METADATA_PROGRAM_ID: Pubkey = pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-
-// Объявляем идентификатор программы
+// Объявляем ID программы
 declare_id!("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 
 #[program]
@@ -21,7 +13,10 @@ pub mod l {
 
     pub fn initialize_token(ctx: Context<InitializeToken>) -> Result<()> {
         msg!("Начало инициализации токена...");
-        // Нам не нужно делать CPI вызов, так как Anchor уже инициализировал mint
+        
+        // Используем constraint для инициализации mint
+        // Все остальное берется из констант и PDA
+        
         msg!("Токен успешно создан");
         Ok(())
     }
@@ -35,11 +30,11 @@ pub mod l {
 #[derive(Accounts)]
 pub struct InitializeToken<'info> {
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub signer: Signer<'info>,
     
     #[account(
         init,
-        payer = payer,
+        payer = signer,
         mint::decimals = 0,
         mint::authority = authority,
         mint::freeze_authority = authority,
@@ -53,15 +48,14 @@ pub struct InitializeToken<'info> {
     )]
     pub authority: AccountInfo<'info>,
 
+    #[account(address = TOKEN_PROGRAM_ID)]
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
-// Добавляем структуру для новой инструкции
 #[derive(Accounts)]
-pub struct IsInitialized {
-}
+pub struct IsInitialized {}
 
 #[error_code]
 pub enum ErrorCode {

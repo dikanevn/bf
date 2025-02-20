@@ -34,22 +34,12 @@ describe("l", () => {
       // Генерируем новый keypair для mint аккаунта
       const mintKeypair = anchor.web3.Keypair.generate();
 
-      // Получаем PDA для authority
-      const [authority] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("token_authority")],
-        program.programId
-      );
-
       // Вызываем initialize_token
       await program.methods
         .initializeToken()
         .accounts({
-          payer: provider.wallet.publicKey,
           mint: mintKeypair.publicKey,
-          authority: authority,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          // signer добавится автоматически из provider.wallet
         })
         .signers([mintKeypair])
         .rpc();

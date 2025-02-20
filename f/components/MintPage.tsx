@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection, useAnchorWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useState, useEffect } from 'react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionInstruction } from '@solana/web3.js';
@@ -8,6 +8,8 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { L } from "../../b/target/types/l"; // Убедитесь что путь правильный
 import idl from "../../b/target/idl/l.json"; // Импортируем IDL как модуль
+import { Idl } from "@coral-xyz/anchor";
+import { AnchorProvider } from "@coral-xyz/anchor";
 
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
@@ -17,6 +19,7 @@ export function MintPage() {
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const wallet = useAnchorWallet();
 
   useEffect(() => {
     setIsClient(true);
@@ -121,7 +124,7 @@ export function MintPage() {
   };
 
   const onInitializeToken = async () => {
-    if (!publicKey || !signTransaction) {
+    if (!wallet) {
       alert("Пожалуйста, подключите кошелек!");
       return;
     }
@@ -129,80 +132,33 @@ export function MintPage() {
     try {
       setLoading(true);
 
-      const programId = new PublicKey(idl.address);
+      // Создаем AnchorProvider с полноценным wallet объектом
+      const provider = new AnchorProvider(
+        connection,
+        wallet,
+        {commitment: 'confirmed'}
+      );
       
-      const initializeTokenIx = idl.instructions.find(ix => ix.name === 'initialize_token');
-      if (!initializeTokenIx || !initializeTokenIx.discriminator) {
-        throw new Error("Инструкция initialize_token не найдена в IDL");
-      }
+      const program = new Program(
+        idl as Idl, 
+        new PublicKey(idl.address),
+        provider
+      );
 
       // Генерируем новый keypair для mint аккаунта
       const mintKeypair = anchor.web3.Keypair.generate();
 
-      // Получаем PDA для authority
-      const [authority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_authority")],
-        programId
-      );
+      const txid = await program.methods
+        .initializeToken()
+        .accounts({
+          mint: mintKeypair.publicKey,
+        })
+        .signers([mintKeypair])
+        .rpc();
 
-      // Создаем буфер с discriminator
-      const data = Buffer.from(initializeTokenIx.discriminator);
-
-      const instruction = new TransactionInstruction({
-        programId: programId,
-        keys: [
-          // payer
-          {
-            pubkey: publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          // mint аккаунт
-          {
-            pubkey: mintKeypair.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-          // authority (PDA)
-          {
-            pubkey: authority,
-            isSigner: false,
-            isWritable: false,
-          },
-          // token program
-          {
-            pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-            isSigner: false,
-            isWritable: false,
-          },
-          // system program
-          {
-            pubkey: anchor.web3.SystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-          },
-          // rent
-          {
-            pubkey: anchor.web3.SYSVAR_RENT_PUBKEY,
-            isSigner: false,
-            isWritable: false,
-          }
-        ],
-        data: data
-      });
-
-      const transaction = new Transaction().add(instruction);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-      transaction.sign(mintKeypair);
-      const signedTx = await signTransaction(transaction);
-      
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
       console.log("Transaction ID:", txid);
       console.log("Mint address:", mintKeypair.publicKey.toString());
 
-      // Ждем подтверждения и получаем логи
       const confirmation = await connection.confirmTransaction(txid);
       const txInfo = await connection.getTransaction(txid, {
         maxSupportedTransactionVersion: 0,
@@ -210,8 +166,6 @@ export function MintPage() {
 
       if (txInfo?.meta?.logMessages) {
         console.log("Transaction logs:", txInfo.meta.logMessages);
-        
-        // Ищем результат в логах
         const resultLog = txInfo.meta.logMessages.find(log => 
           log.includes("Токен успешно создан")
         );
