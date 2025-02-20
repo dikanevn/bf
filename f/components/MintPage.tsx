@@ -2,9 +2,10 @@
 
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import idl from '../../b/target/idl/l.json';
 
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
@@ -15,37 +16,10 @@ export function MintPage() {
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [program, setProgram] = useState<anchor.Program | null>(null);
-
-  const initializeProgram = useCallback(async () => {
-    if (!window.solana || !publicKey || !signTransaction || !connection) return;
-
-    try {
-      const programId = new PublicKey(idl.address);
-      
-      const provider = new anchor.AnchorProvider(
-        connection,
-        {
-          publicKey,
-          signTransaction,
-          signAllTransactions: signTransaction,
-        },
-        { commitment: 'processed' }
-      );
-      
-      anchor.setProvider(provider);
-      
-      const program = new anchor.Program(idl as anchor.Idl, programId, provider);
-      setProgram(program);
-    } catch (error) {
-      console.error("Ошибка инициализации программы:", error);
-    }
-  }, [connection, publicKey, signTransaction]);
 
   useEffect(() => {
     setIsClient(true);
-    initializeProgram();
-  }, [initializeProgram]);
+  }, []);
 
   if (!isClient) {
     return null;
@@ -84,17 +58,34 @@ export function MintPage() {
   };
 
   const onCreateToken = async () => {
-    if (!publicKey || !signTransaction || !program) {
+    if (!publicKey || !signTransaction) {
       alert("Пожалуйста, подключите кошелек!");
       return;
     }
 
     try {
       setLoading(true);
+
+      // Создаем провайдер для браузера
+      const provider = new anchor.AnchorProvider(
+        connection,
+        window.solana,
+        { commitment: 'processed' }
+      );
+      anchor.setProvider(provider);
+
+      // Создаем программу с провайдером
+      const program = new anchor.Program(
+        idl as anchor.Idl, 
+        new PublicKey(idl.address),
+        provider
+      );
+
+      // Вызываем метод is_initialized
       const isInit = await program.methods
         .isInitialized()
         .accounts({})
-        .rpc();
+        .view();
       
       alert(`Программа инициализирована: ${isInit}`);
     } catch (error) {
@@ -119,7 +110,7 @@ export function MintPage() {
           </button>
           <button 
             onClick={onCreateToken} 
-            disabled={loading || !program}
+            disabled={loading}
             className="mt-5 px-4 py-2 bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-400"
           >
             {loading ? 'Проверка...' : 'Проверить инициализацию'}
