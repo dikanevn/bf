@@ -14,12 +14,12 @@
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
     "@metaplex-foundation/js": "^0.19.5",
-    "@metaplex-foundation/mpl-candy-machine": "^6.0.1",
+    "@metaplex-foundation/mpl-candy-machine": "^6.1.0",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
-    "@metaplex-foundation/mpl-toolbox": "^0.9.1",
-    "@metaplex-foundation/umi": "^0.8.9",
-    "@metaplex-foundation/umi-bundle-defaults": "^0.8.9",
-    "@metaplex-foundation/umi-signer-wallet-adapters": "^0.8.9",
+    "@metaplex-foundation/mpl-toolbox": "^0.9.4",
+    "@metaplex-foundation/umi": "^0.8.10",
+    "@metaplex-foundation/umi-bundle-defaults": "^0.8.10",
+    "@metaplex-foundation/umi-signer-wallet-adapters": "^0.8.10",
     "@solana/spl-token": "^0.4.12",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
@@ -28,7 +28,8 @@
     "@solana/web3.js": "^1.98.0",
     "next": "15.1.7",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@types/node": "^22",
