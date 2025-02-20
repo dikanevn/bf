@@ -246,79 +246,82 @@ export function MintPage() {
 
   const onCreateTokenRust = async () => {
     if (!publicKey || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек!");
-      return;
+        alert("Пожалуйста, подключите кошелек!");
+        return;
     }
 
     try {
-      setLoading(true);
+        setLoading(true);
 
-      // Создаем keypair для нового минта
-      const mintKeypair = Keypair.generate();
+        // Создаем keypair для нового минта и токен аккаунта
+        const mintKeypair = Keypair.generate();
+        const tokenAccountKeypair = Keypair.generate();
 
-      // Создаем инструкцию для вызова нашей программы
-      const instruction = new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          // Mint аккаунт
-          { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
-          // Mint authority (владелец минта)
-          { pubkey: publicKey, isSigner: true, isWritable: false },
-          // Payer (платит за создание аккаунта)
-          { pubkey: publicKey, isSigner: true, isWritable: true },
-          // System Program для создания аккаунта
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          // Token Program для инициализации минта
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          // Rent sysvar для проверки rent exemption
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        data: Buffer.from([1]) // индекс 1 для create_mint инструкции
-      });
+        // Создаем инструкцию для вызова нашей программы
+        const instruction = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                // Mint аккаунт
+                { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
+                // Mint authority (владелец минта)
+                { pubkey: publicKey, isSigner: true, isWritable: false },
+                // Payer (платит за создание аккаунта)
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                // System Program для создания аккаунта
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                // Token Program для инициализации минта
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                // Rent sysvar для проверки rent exemption
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                // Token Account для хранения токенов
+                { pubkey: tokenAccountKeypair.publicKey, isSigner: true, isWritable: true },
+            ],
+            data: Buffer.from([1]) // индекс 1 для create_and_mint_token инструкции
+        });
 
-      const transaction = new Transaction();
-      transaction.add(instruction);
-      
-      // Устанавливаем feePayer и recentBlockhash
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-      // Подписываем транзакцию mintKeypair
-      transaction.partialSign(mintKeypair);
-      
-      // Подписываем транзакцию через wallet adapter
-      const signedTx = await signTransaction(transaction);
-      
-      // Отправляем транзакцию
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-      
-      console.log("Transaction ID:", txid);
-      console.log("Mint address:", mintKeypair.publicKey.toString());
-
-      // Ждем подтверждения и получаем логи
-      const confirmation = await connection.confirmTransaction(txid);
-      const txInfo = await connection.getTransaction(txid, {
-        maxSupportedTransactionVersion: 0,
-      });
-
-      if (txInfo?.meta?.logMessages) {
-        console.log("Transaction logs:", txInfo.meta.logMessages);
-        const resultLog = txInfo.meta.logMessages.find(log => 
-          log.includes("Token mint created successfully!")
-        );
+        const transaction = new Transaction();
+        transaction.add(instruction);
         
-        if (resultLog) {
-          alert(`Токен успешно создан! Mint address: ${mintKeypair.publicKey.toString()}`);
-        } else {
-          alert("Транзакция выполнена, но результат не найден в логах");
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+        // Подписываем транзакцию обоими keypair'ами
+        transaction.partialSign(mintKeypair);
+        transaction.partialSign(tokenAccountKeypair);
+        
+        // Подписываем транзакцию через wallet adapter
+        const signedTx = await signTransaction(transaction);
+        
+        const txid = await connection.sendRawTransaction(signedTx.serialize());
+        
+        console.log("Transaction ID:", txid);
+        console.log("Mint address:", mintKeypair.publicKey.toString());
+        console.log("Token Account address:", tokenAccountKeypair.publicKey.toString());
+
+        // Ждем подтверждения и получаем логи
+        const confirmation = await connection.confirmTransaction(txid);
+        const txInfo = await connection.getTransaction(txid, {
+            maxSupportedTransactionVersion: 0,
+        });
+
+        if (txInfo?.meta?.logMessages) {
+            console.log("Transaction logs:", txInfo.meta.logMessages);
+            const resultLog = txInfo.meta.logMessages.find(log => 
+                log.includes("Token mint and account created successfully!")
+            );
+            
+            if (resultLog) {
+                alert(`Токен успешно создан!\nMint address: ${mintKeypair.publicKey.toString()}\nToken Account: ${tokenAccountKeypair.publicKey.toString()}`);
+            } else {
+                alert("Транзакция выполнена, но результат не найден в логах");
+            }
         }
-      }
 
     } catch (error) {
-      console.error("Ошибка при создании токена:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+        console.error("Ошибка при создании токена:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 

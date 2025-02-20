@@ -31,7 +31,7 @@ pub fn process_instruction(
             msg!("Program is initialized!");
             Ok(())
         }
-        Some(1) => create_mint(program_id, accounts),
+        Some(1) => create_and_mint_token(program_id, accounts),
         _ => {
             msg!("Invalid instruction");
             Ok(())
@@ -39,8 +39,8 @@ pub fn process_instruction(
     }
 }
 
-fn create_mint(
-    _program_id: &Pubkey,
+fn create_and_mint_token(
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -52,14 +52,15 @@ fn create_mint(
     let system_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let rent_sysvar = next_account_info(account_info_iter)?;
+    let token_account = next_account_info(account_info_iter)?;
 
-    // Создаем инструкцию для инициализации минта
+    // Создаем минт с 0 decimals
     let init_mint_ix = token_instruction::initialize_mint(
-        &spl_token::id(),    // token_program_id
-        &mint_account.key,   // mint_pubkey
-        &mint_authority.key, // mint_authority
-        None,               // freeze_authority
-        0,                  // decimals
+        &spl_token::id(),
+        &mint_account.key,
+        &mint_authority.key,
+        None,
+        0, 
     )?;
 
     // Создаем минт аккаунт
@@ -92,7 +93,61 @@ fn create_mint(
         ],
     )?;
 
-    msg!("Token mint created successfully!");
+    // Создаем токен аккаунт для PDA
+    let token_account_len = Account::LEN;
+    let token_account_lamports = rent.minimum_balance(token_account_len);
+
+    invoke(
+        &system_instruction::create_account(
+            &payer.key,
+            &token_account.key,
+            token_account_lamports,
+            token_account_len as u64,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            token_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+
+    // Инициализируем токен аккаунт
+    invoke(
+        &token_instruction::initialize_account(
+            &spl_token::id(),
+            &token_account.key,
+            &mint_account.key,
+            &mint_authority.key,
+        )?,
+        &[
+            token_account.clone(),
+            mint_account.clone(),
+            mint_authority.clone(),
+            rent_sysvar.clone(),
+            token_program.clone(),
+        ],
+    )?;
+
+    
+    invoke(
+        &token_instruction::mint_to(
+            &spl_token::id(),
+            &mint_account.key,
+            &token_account.key,
+            &mint_authority.key,
+            &[],
+            1,
+        )?,
+        &[
+            mint_account.clone(),
+            token_account.clone(),
+            mint_authority.clone(),
+            token_program.clone(),
+        ],
+    )?;
+
+    msg!("Token mint and account created successfully! Minted 1 token");
     Ok(())
 }
 
