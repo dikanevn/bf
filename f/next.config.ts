@@ -20,8 +20,9 @@ const nextConfig: NextConfig = {
     });
     
     config.resolve.fallback = { 
-      fs: false, 
-      path: false 
+      fs: false,
+      path: false,
+      os: false
     };
     
     return config;

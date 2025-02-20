@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import idl from '../../b/target/idl/l.json';
+import { L } from "../../b/target/types/l"; // Убедитесь что путь правильный
+import idl from "../../b/target/idl/l.json"; // Импортируем IDL как модуль
 
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
@@ -66,30 +67,47 @@ export function MintPage() {
     try {
       setLoading(true);
 
-      // Создаем провайдер для браузера
+      // Создаем AnchorProvider
       const provider = new anchor.AnchorProvider(
         connection,
-        window.solana,
-        { commitment: 'processed' }
+        {
+          publicKey,
+          signTransaction,
+          signAllTransactions: async (txs) => {
+            if (!signTransaction) throw new Error("Wallet not connected");
+            return Promise.all(txs.map((t) => signTransaction(t)));
+          },
+        },
+        { commitment: "confirmed" }
       );
+
+      // Устанавливаем провайдер как глобальный
       anchor.setProvider(provider);
 
-      // Создаем программу с провайдером
-      const program = new anchor.Program(
-        idl as anchor.Idl, 
-        new PublicKey(idl.address),
+      // Получаем ID программы напрямую из IDL
+      const programId = new PublicKey(idl.address);
+      
+      // Инициализируем программу с правильной типизацией
+      const program = new Program<L>(
+        idl as any,
+        programId,
         provider
       );
 
-      // Вызываем метод is_initialized
+      // Вызываем метод is_initialized как в тесте
       const isInit = await program.methods
         .isInitialized()
         .accounts({})
         .view();
-      
-      alert(`Программа инициализирована: ${isInit}`);
+
+      if (isInit) {
+        alert("Программа успешно инициализирована! ✅");
+      } else {
+        alert("Программа не инициализирована ❌");
+      }
+
     } catch (error) {
-      console.error("Ошибка:", error);
+      console.error("Ошибка при проверке инициализации:", error);
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
