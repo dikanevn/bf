@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
       test: /\.json$/,
       type: 'json',
     });
+    
+    config.resolve.fallback = { 
+      fs: false, 
+      path: false 
+    };
+    
     return config;
   },
 };

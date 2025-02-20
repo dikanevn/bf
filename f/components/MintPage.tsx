@@ -2,81 +2,50 @@
 
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import * as anchor from '@coral-xyz/anchor';
+import * as anchor from "@coral-xyz/anchor";
+import idl from '../../b/target/idl/l.json';
 
-const PROGRAM_ID = new PublicKey("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
-const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
-const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
-
-// Импортируем полный IDL из сгенерированного файла
-const idl = {
-  "version": "0.1.0",
-  "name": "l",
-  "address": "DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj",
-  "metadata": {
-    "name": "l",
-    "version": "0.1.0",
-    "spec": "0.1.0",
-    "description": "Created with Anchor"
-  },
-  "instructions": [
-    {
-      "name": "initialize_token",
-      "discriminator": [38, 209, 150, 50, 190, 117, 16, 54],
-      "accounts": [
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "mint",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [116, 111, 107, 101, 110, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]
-              }
-            ]
-          }
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    }
-  ]
-};
 
 export function MintPage() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const wallet = useWallet();
   const [isClient, setIsClient] = useState(false);
+  const [program, setProgram] = useState<anchor.Program | null>(null);
+
+  const initializeProgram = useCallback(async () => {
+    if (!window.solana || !publicKey || !signTransaction || !connection) return;
+
+    try {
+      const programId = new PublicKey(idl.address);
+      
+      const provider = new anchor.AnchorProvider(
+        connection,
+        {
+          publicKey,
+          signTransaction,
+          signAllTransactions: signTransaction,
+        },
+        { commitment: 'processed' }
+      );
+      
+      anchor.setProvider(provider);
+      
+      const program = new anchor.Program(idl as anchor.Idl, programId, provider);
+      setProgram(program);
+    } catch (error) {
+      console.error("Ошибка инициализации программы:", error);
+    }
+  }, [connection, publicKey, signTransaction]);
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    initializeProgram();
+  }, [initializeProgram]);
 
   if (!isClient) {
     return null;
@@ -115,58 +84,21 @@ export function MintPage() {
   };
 
   const onCreateToken = async () => {
-    if (!publicKey || !signTransaction) {
+    if (!publicKey || !signTransaction || !program) {
       alert("Пожалуйста, подключите кошелек!");
       return;
     }
 
     try {
       setLoading(true);
-      console.log("1. Начинаем создание токена");
-
-      const provider = new anchor.AnchorProvider(
-        connection,
-        wallet as any,
-        { preflightCommitment: 'processed' }
-      );
-      anchor.setProvider(provider);
-
-      const program = new anchor.Program(
-        idl,
-        PROGRAM_ID,
-        provider
-      );
-
-      const mintKeypair = anchor.web3.Keypair.generate();
-      console.log("2. Mint keypair создан:", mintKeypair.publicKey.toString());
-
-      const ix = await program.methods
-        .initialize_token()
-        .accounts({
-          payer: publicKey,
-          mint: mintKeypair.publicKey,
-        })
-        .instruction();
-
-      console.log("3. Инструкция создана");
-
-      const transaction = new Transaction().add(ix);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-      transaction.sign(mintKeypair);
+      const isInit = await program.methods
+        .isInitialized()
+        .accounts({})
+        .rpc();
       
-      console.log("4. Подписываем транзакцию");
-      const signedTx = await signTransaction(transaction);
-      
-      console.log("5. Отправляем транзакцию");
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-
-      console.log("6. Токен создан! TXID:", txid);
-      alert(`Токен создан успешно! TXID: ${txid}`);
-
+      alert(`Программа инициализирована: ${isInit}`);
     } catch (error) {
-      console.error("Ошибка при создании токена:", error);
+      console.error("Ошибка:", error);
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
@@ -187,10 +119,10 @@ export function MintPage() {
           </button>
           <button 
             onClick={onCreateToken} 
-            disabled={loading}
+            disabled={loading || !program}
             className="mt-5 px-4 py-2 bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-400"
           >
-            {loading ? 'Создание токена...' : 'Создать SPL токен'}
+            {loading ? 'Проверка...' : 'Проверить инициализацию'}
           </button>
         </div>
       )}

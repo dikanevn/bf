@@ -19,10 +19,17 @@ declare_id!("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 pub mod l {
     use super::*;
 
-    pub fn initialize_token(ctx: Context<InitializeToken>) -> Result<()> {
+    pub fn initialize_token(_ctx: Context<InitializeToken>) -> Result<()> {
         msg!("Начало инициализации токена...");
         msg!("Токен успешно создан");
         Ok(())
+    }
+
+    // Добавляем простую функцию проверки
+    pub fn is_initialized(_ctx: Context<IsInitialized>) -> Result<bool> {
+        msg!("Проверка инициализации программы...");
+        // Программа уже инициализирована, если мы можем вызвать эту функцию
+        Ok(true)
     }
 }
 
@@ -54,6 +61,11 @@ pub struct InitializeToken<'info> {
     pub token_program: Program<'info, Token>,
     
     pub rent: Sysvar<'info, Rent>,
+}
+
+// Добавляем структуру для новой инструкции
+#[derive(Accounts)]
+pub struct IsInitialized {
 }
 
 #[error_code]
