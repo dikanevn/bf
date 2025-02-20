@@ -19,40 +19,40 @@ declare_id!("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 pub mod l {
     use super::*;
 
-    pub fn create_token(ctx: Context<CreateToken>) -> Result<()> {
-        msg!("Начало выполнения create_token...");
-        // Здесь мы просто создаем токен без выполнения mint_to
-        msg!("Токен успешно создан.");
+    pub fn initialize_token(ctx: Context<InitializeToken>) -> Result<()> {
+        msg!("Начало инициализации токена...");
+        msg!("Токен успешно создан");
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct CreateToken<'info> {
-    /// CHECK: Этот аккаунт является плательщиком транзакции и должен подписывать её.
-    #[account(mut, signer)]
-    pub authority: AccountInfo<'info>,
-
-    // Новый mint токена, который будет создан
+pub struct InitializeToken<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    
     #[account(
-        init, 
-        payer = authority, 
-        mint::decimals = 0, 
-        mint::authority = authority, 
-        mint::freeze_authority = authority
+        init,
+        payer = payer,
+        mint::decimals = 0,
+        mint::authority = authority,
+        mint::freeze_authority = authority,
     )]
     pub mint: Account<'info, Mint>,
 
-    // Системная программа
+    /// CHECK: PDA как authority
+    #[account(
+        seeds = [b"token_authority"],
+        bump,
+    )]
+    pub authority: AccountInfo<'info>,
+
+    #[account(address = MY_SYSTEM_PROGRAM)]
     pub system_program: Program<'info, System>,
     
-    // Программа SPL Token
+    #[account(address = MY_TOKEN_PROGRAM)]
     pub token_program: Program<'info, Token>,
-
-    // Associated Token Program
-    pub associated_token_program: Program<'info, AssociatedToken>,
-
-    // Sysvar rent
+    
     pub rent: Sysvar<'info, Rent>,
 }
 

@@ -12,63 +12,54 @@ const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
-// Определяем IDL напрямую
+// Импортируем полный IDL из сгенерированного файла
 const idl = {
   "version": "0.1.0",
   "name": "l",
+  "address": "DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj",
+  "metadata": {
+    "name": "l",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
   "instructions": [
     {
-      "name": "createToken",
+      "name": "initialize_token",
+      "discriminator": [38, 209, 150, 50, 190, 117, 16, 54],
       "accounts": [
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": true
+          "name": "payer",
+          "writable": true,
+          "signer": true
         },
         {
           "name": "mint",
-          "isMut": true,
-          "isSigner": true
+          "writable": true,
+          "signer": true
         },
         {
-          "name": "ata",
-          "isMut": true,
-          "isSigner": false
+          "name": "authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [116, 111, 107, 101, 110, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]
+              }
+            ]
+          }
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "metadata",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "masterEdition",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenMetadataProgram",
-          "isMut": false,
-          "isSigner": false
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": []
@@ -139,90 +130,43 @@ export function MintPage() {
         { preflightCommitment: 'processed' }
       );
       anchor.setProvider(provider);
-      console.log("2. Provider создан");
 
       const program = new anchor.Program(
         idl,
         PROGRAM_ID,
         provider
       );
-      console.log("3. Программа создана:", {
-        programId: program.programId.toString()
-      });
 
       const mintKeypair = anchor.web3.Keypair.generate();
-      console.log("4. Mint keypair создан:", mintKeypair.publicKey.toString());
-
-      const [metadataPda] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("metadata"),
-          METADATA_PROGRAM_ID.toBuffer(),
-          mintKeypair.publicKey.toBuffer(),
-        ],
-        METADATA_PROGRAM_ID
-      );
-      console.log("5. Metadata PDA получен:", metadataPda.toString());
-
-      const [masterEditionPda] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("metadata"),
-          METADATA_PROGRAM_ID.toBuffer(),
-          mintKeypair.publicKey.toBuffer(),
-          Buffer.from("edition"),
-        ],
-        METADATA_PROGRAM_ID
-      );
-      console.log("6. Master Edition PDA получен:", masterEditionPda.toString());
-
-      const associatedTokenProgram = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-      const [ata] = await PublicKey.findProgramAddress(
-        [
-          publicKey.toBuffer(),
-          TOKEN_PROGRAM_ID.toBuffer(),
-          mintKeypair.publicKey.toBuffer(),
-        ],
-        associatedTokenProgram
-      );
-      console.log("7. ATA получен:", ata.toString());
+      console.log("2. Mint keypair создан:", mintKeypair.publicKey.toString());
 
       const ix = await program.methods
-        .createToken()
+        .initialize_token()
         .accounts({
-          authority: publicKey,
+          payer: publicKey,
           mint: mintKeypair.publicKey,
-          ata: ata,
-          metadata: metadataPda,
-          masterEdition: masterEditionPda,
-          systemProgram: SystemProgram.programId,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: associatedTokenProgram,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-          tokenMetadataProgram: METADATA_PROGRAM_ID,
         })
         .instruction();
 
-      console.log("8. Инструкция создана успешно");
+      console.log("3. Инструкция создана");
 
       const transaction = new Transaction().add(ix);
       transaction.feePayer = publicKey;
       transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
       transaction.sign(mintKeypair);
-
-      console.log("9. Подписываем транзакцию");
+      
+      console.log("4. Подписываем транзакцию");
       const signedTx = await signTransaction(transaction);
       
-      console.log("10. Отправляем транзакцию");
+      console.log("5. Отправляем транзакцию");
       const txid = await connection.sendRawTransaction(signedTx.serialize());
 
-      console.log("11. SPL Token создан! TXID:", txid);
-      alert(`SPL Token создан успешно! TXID: ${txid}`);
+      console.log("6. Токен создан! TXID:", txid);
+      alert(`Токен создан успешно! TXID: ${txid}`);
 
     } catch (error) {
-      console.error("Ошибка при создании SPL токена:", error);
-      if (error instanceof Error) {
-        console.error("Stack trace:", error.stack);
-      }
+      console.error("Ошибка при создании токена:", error);
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
