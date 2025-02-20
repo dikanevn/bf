@@ -169,15 +169,15 @@ export function MintPage() {
             isSigner: false,
             isWritable: false,
           },
-          // system program
-          {
-            pubkey: anchor.web3.SystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-          },
           // token program
           {
             pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+            isSigner: false,
+            isWritable: false,
+          },
+          // system program
+          {
+            pubkey: anchor.web3.SystemProgram.programId,
             isSigner: false,
             isWritable: false,
           },
@@ -195,7 +195,6 @@ export function MintPage() {
       transaction.feePayer = publicKey;
       transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-      // Подписываем транзакцию и mint keypair
       transaction.sign(mintKeypair);
       const signedTx = await signTransaction(transaction);
       
@@ -214,7 +213,7 @@ export function MintPage() {
         
         // Ищем результат в логах
         const resultLog = txInfo.meta.logMessages.find(log => 
-          log.includes("Начало инициализации токена...")
+          log.includes("Токен успешно создан")
         );
         
         if (resultLog) {

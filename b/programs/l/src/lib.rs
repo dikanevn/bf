@@ -19,16 +19,15 @@ declare_id!("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 pub mod l {
     use super::*;
 
-    pub fn initialize_token(_ctx: Context<InitializeToken>) -> Result<()> {
+    pub fn initialize_token(ctx: Context<InitializeToken>) -> Result<()> {
         msg!("Начало инициализации токена...");
+        // Нам не нужно делать CPI вызов, так как Anchor уже инициализировал mint
         msg!("Токен успешно создан");
         Ok(())
     }
 
-    // Добавляем простую функцию проверки
     pub fn is_initialized(_ctx: Context<IsInitialized>) -> Result<bool> {
         msg!("Проверка инициализации программы...");
-        // Программа уже инициализирована, если мы можем вызвать эту функцию
         Ok(true)
     }
 }
@@ -46,7 +45,7 @@ pub struct InitializeToken<'info> {
         mint::freeze_authority = authority,
     )]
     pub mint: Account<'info, Mint>,
-
+    
     /// CHECK: PDA как authority
     #[account(
         seeds = [b"token_authority"],
@@ -54,12 +53,8 @@ pub struct InitializeToken<'info> {
     )]
     pub authority: AccountInfo<'info>,
 
-    #[account(address = MY_SYSTEM_PROGRAM)]
-    pub system_program: Program<'info, System>,
-    
-    #[account(address = MY_TOKEN_PROGRAM)]
     pub token_program: Program<'info, Token>,
-    
+    pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
