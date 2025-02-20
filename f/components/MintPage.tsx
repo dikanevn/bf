@@ -3,7 +3,7 @@
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useState, useEffect } from 'react';
-import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionInstruction } from '@solana/web3.js';
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { L } from "../../b/target/types/l"; // Убедитесь что путь правильный
@@ -58,7 +58,7 @@ export function MintPage() {
     }
   };
 
-  const onCreateToken = async () => {
+  const onCheckInitialized = async () => {
     if (!publicKey || !signTransaction) {
       alert("Пожалуйста, подключите кошелек!");
       return;
@@ -67,43 +67,49 @@ export function MintPage() {
     try {
       setLoading(true);
 
-      // Создаем AnchorProvider
-      const provider = new anchor.AnchorProvider(
-        connection,
-        {
-          publicKey,
-          signTransaction,
-          signAllTransactions: async (txs) => {
-            if (!signTransaction) throw new Error("Wallet not connected");
-            return Promise.all(txs.map((t) => signTransaction(t)));
-          },
-        },
-        { commitment: "confirmed" }
-      );
-
-      // Устанавливаем провайдер как глобальный
-      anchor.setProvider(provider);
-
-      // Получаем ID программы напрямую из IDL
       const programId = new PublicKey(idl.address);
       
-      // Инициализируем программу с правильной типизацией
-      const program = new Program<L>(
-        idl as any,
-        programId,
-        provider
-      );
+      const isInitializedIx = idl.instructions.find(ix => ix.name === 'is_initialized');
+      if (!isInitializedIx || !isInitializedIx.discriminator) {
+        throw new Error("Инструкция is_initialized не найдена в IDL");
+      }
 
-      // Вызываем метод is_initialized как в тесте
-      const isInit = await program.methods
-        .isInitialized()
-        .accounts({})
-        .view();
+      const data = Buffer.from(isInitializedIx.discriminator);
 
-      if (isInit) {
-        alert("Программа успешно инициализирована! ✅");
-      } else {
-        alert("Программа не инициализирована ❌");
+      const instruction = new TransactionInstruction({
+        programId: programId,
+        keys: [],
+        data: data
+      });
+
+      const transaction = new Transaction().add(instruction);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      const signedTx = await signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      
+      console.log("Transaction ID:", txid);
+
+      // Ждем подтверждения и получаем логи
+      const confirmation = await connection.confirmTransaction(txid);
+      const txInfo = await connection.getTransaction(txid, {
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (txInfo?.meta?.logMessages) {
+        console.log("Transaction logs:", txInfo.meta.logMessages);
+        
+        // Ищем результат в логах
+        const resultLog = txInfo.meta.logMessages.find(log => 
+          log.includes("Program log: Проверка инициализации программы...")
+        );
+        
+        if (resultLog) {
+          alert(`Транзакция выполнена. Результат: ${resultLog}`);
+        } else {
+          alert("Транзакция выполнена, но результат не найден в логах");
+        }
       }
 
     } catch (error) {
@@ -127,7 +133,7 @@ export function MintPage() {
             {loading ? 'Processing...' : 'Send 0.001 SOL'}
           </button>
           <button 
-            onClick={onCreateToken} 
+            onClick={onCheckInitialized} 
             disabled={loading}
             className="mt-5 px-4 py-2 bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-400"
           >
