@@ -10,9 +10,13 @@ import { L } from "../../b/target/types/l"; // Убедитесь что пут�
 import idl from "../../b/target/idl/l.json"; // Импортируем IDL как модуль
 import { Idl } from "@coral-xyz/anchor";
 import { AnchorProvider } from "@coral-xyz/anchor";
+import { Buffer } from 'buffer';
 
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
+
+// Добавляем ID нашей программы
+const PROGRAM_ID = new PublicKey("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 
 export function MintPage() {
   const { publicKey, signTransaction } = useWallet();
@@ -140,9 +144,9 @@ export function MintPage() {
       );
       
       const program = new Program(
-        idl as Idl, 
-        new PublicKey(idl.address),
-        provider
+        idl as Idl,
+        new PublicKey(idl.metadata.address),
+        provider as anchor.Provider
       );
 
       // Генерируем новый keypair для mint аккаунта
@@ -185,6 +189,60 @@ export function MintPage() {
     }
   };
 
+  const onCheckInitializedRust = async () => {
+    if (!publicKey || !signTransaction) {
+      alert("Пожалуйста, подключите кошелек!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Создаем инструкцию для вызова программы
+      const instruction = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [], // Пустой массив, так как нам не нужны аккаунты
+        data: Buffer.from([0]) // 0 - индекс для инструкции is_initialized
+      });
+
+      const transaction = new Transaction().add(instruction);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      const signedTx = await signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      
+      console.log("Transaction ID:", txid);
+
+      // Ждем подтверждения и получаем логи
+      const confirmation = await connection.confirmTransaction(txid);
+      const txInfo = await connection.getTransaction(txid, {
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (txInfo?.meta?.logMessages) {
+        console.log("Transaction logs:", txInfo.meta.logMessages);
+        
+        // Ищем результат в логах
+        const resultLog = txInfo.meta.logMessages.find(log => 
+          log.includes("Program is initialized!")
+        );
+        
+        if (resultLog) {
+          alert("Программа инициализирована!");
+        } else {
+          alert("Программа не инициализирована или произошла ошибка");
+        }
+      }
+
+    } catch (error) {
+      console.error("Ошибка при проверке инициализации:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-3">
       <WalletMultiButton className="rounded-none bg-purple-700 text-white shadow-xl" />
@@ -210,6 +268,13 @@ export function MintPage() {
             className="mt-5 px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600 disabled:bg-gray-400"
           >
             {loading ? 'Создание...' : 'Создать токен'}
+          </button>
+          <button 
+            onClick={onCheckInitializedRust} 
+            disabled={loading}
+            className="mt-5 px-4 py-2 bg-red-500 text-white hover:bg-red-600 disabled:bg-gray-400"
+          >
+            {loading ? 'Проверка...' : 'Проверить инициализацию (Rust)'}
           </button>
         </div>
       )}

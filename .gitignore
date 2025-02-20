@@ -11,6 +11,8 @@
 /f/build
 /b/test-ledger
 
+/r/target
+/r/node_modules
 # Environment
 .env*
 
