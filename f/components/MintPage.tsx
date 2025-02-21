@@ -7,6 +7,9 @@ import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, TransactionIns
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 
+// Импортируем только PROGRAM_ID из метаплекса
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+
 const RECIPIENT_ADDRESS = new PublicKey("3HE6EtGGxMRBuqqhz2gSs3TDRXebSc8HDDikZd1FYyJj");
 const TRANSFER_AMOUNT = 0.001 * LAMPORTS_PER_SOL;
 
@@ -70,6 +73,16 @@ export function MintPage() {
 
         const mintKeypair = Keypair.generate();
         const tokenAccountKeypair = Keypair.generate();
+        
+        // Вычисляем PDA для метадаты
+        const [metadataAddress] = PublicKey.findProgramAddressSync(
+            [
+                Buffer.from("metadata"),
+                TOKEN_METADATA_PROGRAM_ID.toBytes(),
+                mintKeypair.publicKey.toBytes(),
+            ],
+            TOKEN_METADATA_PROGRAM_ID
+        );
 
         const instruction = new TransactionInstruction({
             programId: PROGRAM_ID,
@@ -81,6 +94,8 @@ export function MintPage() {
                 { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
                 { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
                 { pubkey: tokenAccountKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: metadataAddress, isSigner: false, isWritable: true },
             ],
             data: Buffer.from([1])
         });
@@ -100,24 +115,11 @@ export function MintPage() {
         console.log("Transaction ID:", txid);
         console.log("Mint address:", mintKeypair.publicKey.toString());
         console.log("Token Account address:", tokenAccountKeypair.publicKey.toString());
+        console.log("Metadata address:", metadataAddress.toString());
 
         await connection.confirmTransaction(txid);
-        const txInfo = await connection.getTransaction(txid, {
-            maxSupportedTransactionVersion: 0,
-        });
-
-        if (txInfo?.meta?.logMessages) {
-            console.log("Transaction logs:", txInfo.meta.logMessages);
-            const resultLog = txInfo.meta.logMessages.find(log => 
-                log.includes("Token mint and account created successfully!")
-            );
-            
-            if (resultLog) {
-                alert(`Токен успешно создан!\nMint address: ${mintKeypair.publicKey.toString()}\nToken Account: ${tokenAccountKeypair.publicKey.toString()}`);
-            } else {
-                alert("Транзакция выполнена, но результат не найден в логах");
-            }
-        }
+        
+        alert(`Токен успешно создан!\nMint: ${mintKeypair.publicKey.toString()}\nMetadata: ${metadataAddress.toString()}`);
 
     } catch (error) {
         console.error("Ошибка при создании токена:", error);

@@ -15,6 +15,10 @@ use spl_token::{
     state::{Mint, Account},
 };
 use solana_program::program_pack::Pack;
+use mpl_token_metadata::{
+    instructions,
+    types::DataV2,
+};
 
 // Объявляем точку входа для программы
 entrypoint!(process_instruction);
@@ -53,6 +57,8 @@ fn create_and_mint_token(
     let token_program = next_account_info(account_info_iter)?;
     let rent_sysvar = next_account_info(account_info_iter)?;
     let token_account = next_account_info(account_info_iter)?;
+    let metadata_program = next_account_info(account_info_iter)?;
+    let metadata_account = next_account_info(account_info_iter)?;
 
     // Создаем минт с 0 decimals
     let init_mint_ix = token_instruction::initialize_mint(
@@ -147,7 +153,42 @@ fn create_and_mint_token(
         ],
     )?;
 
-    msg!("Token mint and account created successfully! Minted 1 token");
+    // Создаем метадату
+    let data = DataV2 {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 0,
+        creators: None,
+        collection: None,
+        uses: None,
+    };
+
+    invoke(
+        &instructions::CreateMetadataAccountV3 {
+            metadata: *metadata_account.key,
+            mint: *mint_account.key,
+            mint_authority: *mint_authority.key,
+            payer: *payer.key,
+            update_authority: (*mint_authority.key, true),
+            system_program: *system_program.key,
+            rent: None,
+        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
+            data,
+            is_mutable: true,
+            collection_details: None,
+        }),
+        &[
+            metadata_account.clone(),
+            mint_account.clone(),
+            mint_authority.clone(),
+            payer.clone(),
+            metadata_program.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    msg!("Metadata created successfully!");
     Ok(())
 }
 
