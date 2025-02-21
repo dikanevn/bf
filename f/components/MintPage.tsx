@@ -20,49 +20,9 @@ export function MintPage() {
   const { publicKey, signTransaction } = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [mintAddress, setMintAddress] = useState<PublicKey | null>(null);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  if (!isClient) {
-    return null;
-  }
-
-  const onTransferSol = async () => {
-    if (!publicKey || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек!");
-      return;
-    }
-    try {
-      setLoading(true);
-
-      const instruction = SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: RECIPIENT_ADDRESS,
-        lamports: TRANSFER_AMOUNT,
-      });
-
-      const transaction = new Transaction().add(instruction);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-      const signedTx = await signTransaction(transaction);
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-      
-      console.log("Transaction ID:", txid);
-      alert("Транзакция отправлена. TXID: " + txid);
-
-    } catch (error) {
-      console.error("Ошибка при отправке SOL:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onCreateTokenRust = async () => {
+  const onCreateAndMintToken = async () => {
     if (!publicKey || !signTransaction) {
         alert("Пожалуйста, подключите кошелек!");
         return;
@@ -84,7 +44,10 @@ export function MintPage() {
             TOKEN_METADATA_PROGRAM_ID
         );
 
-        const instruction = new TransactionInstruction({
+        const transaction = new Transaction();
+
+        // Создание и инициализация токена
+        transaction.add(new TransactionInstruction({
             programId: PROGRAM_ID,
             keys: [
                 { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
@@ -97,11 +60,8 @@ export function MintPage() {
                 { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
                 { pubkey: metadataAddress, isSigner: false, isWritable: true },
             ],
-            data: Buffer.from([1])
-        });
-
-        const transaction = new Transaction();
-        transaction.add(instruction);
+            data: Buffer.from([1]) // Команда для создания токена
+        }));
         
         transaction.feePayer = publicKey;
         transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -119,10 +79,61 @@ export function MintPage() {
 
         await connection.confirmTransaction(txid);
         
+        setMintAddress(mintKeypair.publicKey);
         alert(`Токен успешно создан!\nMint: ${mintKeypair.publicKey.toString()}\nMetadata: ${metadataAddress.toString()}`);
 
     } catch (error) {
         console.error("Ошибка при создании токена:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const onSetProgramAsAuthority = async () => {
+    if (!publicKey || !signTransaction || !mintAddress) {
+        alert("Пожалуйста, подключите кошелек и создайте токен сначала!");
+        return;
+    }
+
+    try {
+        setLoading(true);
+
+        // Получаем PDA программы, которая будет mint authority
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        const transaction = new Transaction();
+
+        // Установка программы как mint authority
+        transaction.add(new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: mintAddress, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+            ],
+            data: Buffer.from([2]) // Команда для установки mint authority
+        }));
+        
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        
+        const signedTx = await signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(signedTx.serialize());
+        
+        console.log("Transaction ID:", txid);
+        console.log("Program Authority (new mint authority):", programAuthority.toString());
+
+        await connection.confirmTransaction(txid);
+        
+        alert(`Mint authority успешно изменен на программу!\nProgram Authority: ${programAuthority.toString()}`);
+
+    } catch (error) {
+        console.error("Ошибка при смене mint authority:", error);
         alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
         setLoading(false);
@@ -135,18 +146,18 @@ export function MintPage() {
       {publicKey && (
         <div className="flex flex-col gap-4">
           <button 
-            onClick={onTransferSol} 
+            onClick={onCreateAndMintToken} 
             disabled={loading}
             className="mt-5"
           >
-            {loading ? 'Processing...' : 'Send 0.001 SOL'}
+            {loading ? 'Processing...' : 'Создать и минтить токен'}
           </button>
           <button 
-            onClick={onCreateTokenRust} 
-            disabled={loading}
+            onClick={onSetProgramAsAuthority} 
+            disabled={loading || !mintAddress}
             className="mt-5"
           >
-            {loading ? 'Создание...' : 'Создать токен (Rust)'}
+            {loading ? 'Processing...' : 'Установить программу как mint authority'}
           </button>
         </div>
       )}

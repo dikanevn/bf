@@ -36,6 +36,7 @@ pub fn process_instruction(
             Ok(())
         }
         Some(1) => create_and_mint_token(program_id, accounts),
+        Some(2) => set_mint_authority(program_id, accounts),
         _ => {
             msg!("Invalid instruction");
             Ok(())
@@ -189,6 +190,56 @@ fn create_and_mint_token(
     )?;
 
     msg!("Metadata created successfully!");
+    Ok(())
+}
+
+// Добавляем новую функцию для установки mint authority
+fn set_mint_authority(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    
+    // Получаем необходимые аккаунты
+    let mint_account = next_account_info(account_info_iter)?;
+    let current_authority = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
+
+    // Проверяем, что текущий authority подписал транзакцию
+    if !current_authority.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, _bump) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if program_authority.key != &expected_authority {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Создаем инструкцию для установки нового mint authority
+    let set_authority_ix = spl_token::instruction::set_authority(
+        &spl_token::id(),
+        mint_account.key,
+        Some(&expected_authority),
+        spl_token::instruction::AuthorityType::MintTokens,
+        current_authority.key,
+        &[],
+    )?;
+
+    // Выполняем инструкцию
+    invoke(
+        &set_authority_ix,
+        &[
+            mint_account.clone(),
+            current_authority.clone(),
+            program_authority.clone(),
+        ],
+    )?;
+
+    msg!("Mint authority successfully transferred to program");
     Ok(())
 }
 
