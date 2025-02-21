@@ -101,7 +101,7 @@ export function MintPage() {
         console.log("Mint address:", mintKeypair.publicKey.toString());
         console.log("Token Account address:", tokenAccountKeypair.publicKey.toString());
 
-        const confirmation = await connection.confirmTransaction(txid);
+        await connection.confirmTransaction(txid);
         const txInfo = await connection.getTransaction(txid, {
             maxSupportedTransactionVersion: 0,
         });
@@ -129,20 +129,20 @@ export function MintPage() {
 
   return (
     <div className="p-3">
-      <WalletMultiButton className="rounded-none bg-purple-700 text-white shadow-xl" />
+      <WalletMultiButton />
       {publicKey && (
         <div className="flex flex-col gap-4">
           <button 
             onClick={onTransferSol} 
             disabled={loading}
-            className="mt-5 px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-400"
+            className="mt-5"
           >
             {loading ? 'Processing...' : 'Send 0.001 SOL'}
           </button>
           <button 
             onClick={onCreateTokenRust} 
             disabled={loading}
-            className="mt-5 px-4 py-2 bg-purple-500 text-white hover:bg-purple-600 disabled:bg-gray-400"
+            className="mt-5"
           >
             {loading ? 'Создание...' : 'Создать токен (Rust)'}
           </button>
