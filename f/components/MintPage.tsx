@@ -147,7 +147,7 @@ export function MintPage() {
             disabled={loading}
             className="mt-5"
           >
-            {loading ? 'Processing...' : 'Создать и минтить токен'}
+            {loading ? 'Processing...' : 'Создать и минтить токен4'}
           </button>
           <button 
             onClick={onSetProgramAsAuthority} 

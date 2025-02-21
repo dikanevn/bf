@@ -36,4 +36,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Vercel
-.vercel 
+.vercel
+
+# gh-pages
+.gh-pages-cache 
