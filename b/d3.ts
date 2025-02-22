@@ -1,87 +1,156 @@
-import * as fs from 'fs';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
-interface Player {
-    number: number;
-    player: string;
+const COEFFICIENT = 101; // Примерное ожидаемое количество победителей
+
+// Чтение списка игроков из d2.json
+const d2Path = path.join(__dirname, 'd2.json');
+let players: { number: number, player: string }[] = [];
+try {
+    const data = fs.readFileSync(d2Path, 'utf8');
+    players = JSON.parse(data);
+} catch (error) {
+    console.error('Ошибка при чтении файла d2.json:', error);
+    process.exit(1);
 }
 
-// Конфигурация
-const COEFFICIENT = 2; // Желаемое количество победителей
-const BITCOIN_BLOCK_HASH = '00000000000000000001749dc0ab5f2bb8eaea803f8a087bf2be7ec3bb32139b';
+const TOTAL_PLAYERS = players.length;
+let WIN_CHANCE = COEFFICIENT / TOTAL_PLAYERS; // Вероятность выигрыша
 
-function generateRandomNumbers(seed: string, count: number): number[] {
-    const shake = crypto.createHash('shake256', { outputLength: count * 8 });
-    shake.update(seed);
-    const hash = shake.digest('hex');
-    const numbers: number[] = [];
+// Проверка вероятности выигрыша
+if (WIN_CHANCE > 1) {
+    console.warn('Вероятность выигрыша > 1, установлена на 1');
+    WIN_CHANCE = 1;
+}
+
+let BITCOIN_BLOCK_HASH: string = ''; // Введите хэш здесь или оставьте пустым для тестов
+
+// Генерация случайного хэша, если не задан вручную. Для тестов.
+if (!BITCOIN_BLOCK_HASH) {
+    console.warn('Хэш блока не предоставлен, генерируется случайный хэш для тестирования');
+    BITCOIN_BLOCK_HASH = crypto.createHash('sha256')
+        .update(crypto.randomBytes(32))
+        .digest('hex');
+    console.log(`Сгенерирован случайный хэш: ${BITCOIN_BLOCK_HASH}`);
+} else {
+    // Приводим хэш к нижнему регистру
+    BITCOIN_BLOCK_HASH = BITCOIN_BLOCK_HASH.toLowerCase();
     
-    for (let i = 0; i < count; i++) {
-        const hexPart = hash.slice(i * 16, (i + 1) * 16);
-        const value = BigInt('0x' + hexPart);
-        // Сжатие до диапазона 0-1
-        numbers.push(Number(value) / Number(BigInt('0xFFFFFFFFFFFFFFFF')));
+    // Проверяем, что хэш содержит только строчные hex символы и имеет длину 64
+    if (!BITCOIN_BLOCK_HASH.match(/^[0-9a-f]{64}$/)) {
+        console.error('Ошибка: Некорректный Bitcoin block hash! Хэш должен содержать 64 символа в нижнем регистре [0-9a-f]');
+        process.exit(1);
+    }
+    console.log(`Используется предоставленный хэш: ${BITCOIN_BLOCK_HASH}`);
+}
+
+function bufferToBigInt(buffer: Buffer): bigint {
+    let hex = '';
+    // Преобразуем каждый байт в hex строку
+    for (const byte of buffer) {
+        hex += byte.toString(16).padStart(2, '0');
+    }
+    return BigInt('0x' + hex);
+}
+
+function shuffleArray<T>(array: T[], seed: string): T[] {
+    const shuffled = [...array];
+    const seedBuffer = Buffer.from(seed, 'hex');
+    
+    // Алгоритм Фишера-Йетса с использованием криптографического источника случайности
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        // Генерируем случайное число для текущей позиции
+        const indexBuffer = Buffer.alloc(4);
+        indexBuffer.writeUInt32BE(i, 0);
+        
+        const hash = crypto.createHash('sha256')
+            .update(Buffer.concat([seedBuffer, indexBuffer]))
+            .digest();
+        
+        // Используем весь хэш для получения максимально случайного индекса
+        const hashBigInt = bufferToBigInt(hash);
+        // Используем модуль от большого числа для равномерного распределения
+        const j = Number(hashBigInt % BigInt(i + 1));
+        
+        // Меняем местами элементы
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     
+    return shuffled;
+}
+
+function generateRandomNumbers(seed: string, count: number): bigint[] {
+    const numbers: bigint[] = [];
+    const seedBuffer = Buffer.from(seed, 'hex');
+
+    // Генерируем случайные числа для каждого индекса
+    for (let i = 0; i < count; i++) {
+        const indexBuffer = Buffer.alloc(4);
+        indexBuffer.writeUInt32BE(i, 0);
+        
+        // Генерируем уникальный хэш для каждого индекса
+        const numberHash = crypto.createHash('sha256')
+            .update(Buffer.concat([seedBuffer, indexBuffer]))
+            .digest();
+        
+        numbers.push(bufferToBigInt(numberHash));
+    }
+
     return numbers;
 }
 
 function selectRandomPlayers() {
-    try {
-        const rawData = fs.readFileSync('d2.json', 'utf-8');
-        const players: Player[] = JSON.parse(rawData);
-        
-        const totalPlayers = players.length;
-        const winChance = COEFFICIENT / totalPlayers; // Вероятность выигрыша для каждого игрока
+    console.log(`Всего игроков: ${TOTAL_PLAYERS}`);
+    console.log(`Коэффициент (примерное ожидаемое кол-во победителей): ${COEFFICIENT}`);
+    console.log(`Используется хэш блока: ${BITCOIN_BLOCK_HASH}`);
 
-        console.log(`Всего игроков: ${totalPlayers}`);
-        console.log(`Коэффициент (желаемое кол-во победителей): ${COEFFICIENT}`);
-        console.log(`Шанс выигрыша для каждого: ${(winChance * 100).toFixed(4)}%`);
-        console.log(`Используется хэш блока: ${BITCOIN_BLOCK_HASH}`);
+    // Вычисляем порог в hex, используя 2^256 вместо (2^256 - 1)
+    const MAX_256_BIT = BigInt(2) ** BigInt(256);
+    const WIN_THRESHOLD = (MAX_256_BIT * BigInt(COEFFICIENT)) / BigInt(TOTAL_PLAYERS);
+    
+    console.log(`Порог выигрыша (hex): 0x${WIN_THRESHOLD.toString(16).padStart(64, '0')}`);
 
-        // Генерируем случайные числа для каждого игрока
-        const randomNumbers = generateRandomNumbers(BITCOIN_BLOCK_HASH, totalPlayers);
-        
-        // Определяем победителей
-        const winners = randomNumbers
-            .map((value, index) => ({ index, value }))
-            .filter(item => item.value < winChance)
-            .map(item => item.index);
+    // Сначала перемешиваем список игроков
+    const shuffledPlayers = shuffleArray(players, BITCOIN_BLOCK_HASH);
+    
+    // Генерация случайных чисел для перемешанного списка
+    const randomNumbers = generateRandomNumbers(BITCOIN_BLOCK_HASH, TOTAL_PLAYERS);
 
-        // Формируем финальный список
-        const selected = winners.map((originalIndex, newIndex) => ({
-            number: newIndex + 1,
-            player: players[originalIndex].player,
-            originalNumber: players[originalIndex].number,
-            randomValue: randomNumbers[originalIndex],
-            winThreshold: winChance
-        }));
+    // Сохраняем все случайные числа для аудита с учетом перемешивания
+    const auditData = {
+        blockHash: BITCOIN_BLOCK_HASH,
+        threshold: `0x${WIN_THRESHOLD.toString(16).padStart(64, '0')}`,
+        totalPlayers: TOTAL_PLAYERS,
+        coefficient: COEFFICIENT,
+        randomNumbers: randomNumbers.map((value, index) => ({
+            index,
+            player: shuffledPlayers[index].player,
+            number: shuffledPlayers[index].number,
+            value: `0x${value.toString(16).padStart(64, '0')}`
+        }))
+    };
+    
+    const auditPath = path.join(__dirname, 'd3_audit.json');
+    fs.writeFileSync(auditPath, JSON.stringify(auditData, null, 2));
 
-        console.log(`Выбрано ${selected.length} победителей`);
-        
-        // Сохраняем результат
-        fs.writeFileSync(
-            'd3.json',
-            JSON.stringify({
-                blockHash: BITCOIN_BLOCK_HASH,
-                totalPlayers,
-                coefficient: COEFFICIENT,
-                winChance,
-                selectedCount: selected.length,
-                selected,
-                algorithm: 'SHAKE256'
-            }, null, 2),
-            'utf-8'
-        );
-        
-        console.log('Результаты сохранены в d3.json');
+    // Фильтрация победителей по порогу
+    const eligibleWinners = randomNumbers
+        .map((num, i) => ({ index: i, value: num }))
+        .filter(entry => entry.value <= WIN_THRESHOLD);
 
-    } catch (error) {
-        console.error('Ошибка при обработке данных:', error);
-        if (error instanceof Error) {
-            console.error('Детали ошибки:', error.message);
-        }
-    }
+    console.log(`Выбрано ${eligibleWinners.length} победителей`);
+    
+    // Формируем результаты для сохранения, используя shuffledPlayers
+    const results = eligibleWinners.map((entry, idx) => ({
+        number: shuffledPlayers[entry.index].number,
+        player: shuffledPlayers[entry.index].player,
+        randomValue: `0x${entry.value.toString(16).padStart(64, '0')}`
+    }));
+
+    // Сохраняем результаты в файл
+    const d3ResultsPath = path.join(__dirname, 'd3.json');
+    fs.writeFileSync(d3ResultsPath, JSON.stringify(results, null, 2));
 }
 
 selectRandomPlayers();
