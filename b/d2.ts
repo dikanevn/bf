@@ -33,7 +33,7 @@ function processPlayers() {
                 const timestamp = new Date(row.blocktime);
                 const isInRange = timestamp >= startDate && timestamp <= endDate;
                 if (isInRange) {
-                    console.log('Найдена запись:', row.blocktime, row.raw_player);
+                    console.log('Найдена запись :', row.blocktime, row.raw_player);
                 }
                 return isInRange;
             })
