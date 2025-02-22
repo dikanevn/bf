@@ -1,40 +1,87 @@
-import hashlib
-import random
-import time
-import struct
+import * as fs from 'fs';
+import * as crypto from 'crypto';
 
-manual_hash = ""  # Вставьте свой хэш сюда, если нужно
-TOTAL_COUNT = 333
-WIN_PROBABILITY = 5.999  # Вероятность выигрыша
+interface Player {
+    number: number;
+    player: string;
+}
 
-def generate_block_hash():
-    nonce = random.randint(0, 2**32)
-    timestamp = str(time.time()).encode()
-    prev_hash = hashlib.sha256(str(random.getrandbits(256)).encode()).hexdigest()
-    
-    block_content = f"{nonce}{timestamp.decode()}{prev_hash}"
-    block_hash = hashlib.sha256(block_content.encode()).hexdigest()
-    
-    return block_hash
+// Конфигурация
+const COEFFICIENT = 2; // Желаемое количество победителей
+const BITCOIN_BLOCK_HASH = '00000000000000000001749dc0ab5f2bb8eaea803f8a087bf2be7ec3bb32139b';
 
-def hash_to_u64_pair(block_hash):
-    shake = hashlib.shake_256(block_hash.encode())
-    random_bytes = shake.digest(16)  # 16 bytes = two u64 numbers
-    u64_1, u64_2 = struct.unpack("QQ", random_bytes)
-    return u64_1, u64_2, shake
+function generateRandomNumbers(seed: string, count: number): number[] {
+    const shake = crypto.createHash('shake256', { outputLength: count * 8 });
+    shake.update(seed);
+    const hash = shake.digest('hex');
+    const numbers: number[] = [];
+    
+    for (let i = 0; i < count; i++) {
+        const hexPart = hash.slice(i * 16, (i + 1) * 16);
+        const value = BigInt('0x' + hexPart);
+        // Сжатие до диапазона 0-1
+        numbers.push(Number(value) / Number(BigInt('0xFFFFFFFFFFFFFFFF')));
+    }
+    
+    return numbers;
+}
 
-if __name__ == "__main__":
-    block_hash = manual_hash if manual_hash else generate_block_hash()
-    u64_1, u64_2, shake = hash_to_u64_pair(block_hash)
-    first_random_byte = shake.digest(1)[0] / 255.0  # Нормализация байта в диапазоне [0,1]
-    
-    if WIN_PROBABILITY < 1:
-        ZERO_OR_ONE = 1 if first_random_byte < WIN_PROBABILITY else 0
-    else:
-        ZERO_OR_ONE = int(WIN_PROBABILITY)
-    
-    print("Generated Block Hash:", block_hash)
-    print("Random u64 numbers:", u64_1, u64_2)
-    print("TOTAL COUNT:", TOTAL_COUNT)
-    print("WIN PROBABILITY:", WIN_PROBABILITY)
-    print("ZERO OR ONE:", ZERO_OR_ONE)
+function selectRandomPlayers() {
+    try {
+        const rawData = fs.readFileSync('d2.json', 'utf-8');
+        const players: Player[] = JSON.parse(rawData);
+        
+        const totalPlayers = players.length;
+        const winChance = COEFFICIENT / totalPlayers; // Вероятность выигрыша для каждого игрока
+
+        console.log(`Всего игроков: ${totalPlayers}`);
+        console.log(`Коэффициент (желаемое кол-во победителей): ${COEFFICIENT}`);
+        console.log(`Шанс выигрыша для каждого: ${(winChance * 100).toFixed(4)}%`);
+        console.log(`Используется хэш блока: ${BITCOIN_BLOCK_HASH}`);
+
+        // Генерируем случайные числа для каждого игрока
+        const randomNumbers = generateRandomNumbers(BITCOIN_BLOCK_HASH, totalPlayers);
+        
+        // Определяем победителей
+        const winners = randomNumbers
+            .map((value, index) => ({ index, value }))
+            .filter(item => item.value < winChance)
+            .map(item => item.index);
+
+        // Формируем финальный список
+        const selected = winners.map((originalIndex, newIndex) => ({
+            number: newIndex + 1,
+            player: players[originalIndex].player,
+            originalNumber: players[originalIndex].number,
+            randomValue: randomNumbers[originalIndex],
+            winThreshold: winChance
+        }));
+
+        console.log(`Выбрано ${selected.length} победителей`);
+        
+        // Сохраняем результат
+        fs.writeFileSync(
+            'd3.json',
+            JSON.stringify({
+                blockHash: BITCOIN_BLOCK_HASH,
+                totalPlayers,
+                coefficient: COEFFICIENT,
+                winChance,
+                selectedCount: selected.length,
+                selected,
+                algorithm: 'SHAKE256'
+            }, null, 2),
+            'utf-8'
+        );
+        
+        console.log('Результаты сохранены в d3.json');
+
+    } catch (error) {
+        console.error('Ошибка при обработке данных:', error);
+        if (error instanceof Error) {
+            console.error('Детали ошибки:', error.message);
+        }
+    }
+}
+
+selectRandomPlayers();

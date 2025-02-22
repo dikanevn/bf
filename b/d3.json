@@ -1,20 +1,30 @@
 {
-  "blockHash": "00000000000000000001749dc0ab5f2bb8eaea803f8a087bf2be7ec3bb32139b123",
+  "blockHash": "200000000000000000001749dc0ab5f2bb8eaea803f8a087bf2be7ec3bb32139b",
   "totalPlayers": 333,
-  "winProbability": 0.9,
-  "selectedCount": 2,
+  "coefficient": 2,
+  "winChance": 0.006006006006006006,
+  "selectedCount": 3,
   "selected": [
     {
       "number": 1,
-      "player": "BLe2JczYkvbheaRXH88QraoLdEfjMBJVyw7BrZZ6kkqc",
-      "originalNumber": 182,
-      "randomValue": 0.002251184479542435
+      "player": "4uqwDWc74ao13fXgG91uJWq14tazXEdK9CxRE3RqGxxm",
+      "originalNumber": 47,
+      "randomValue": 0.0018772535226496399,
+      "winThreshold": 0.006006006006006006
     },
     {
       "number": 2,
-      "player": "D389kTSvt7Jz7zY456cyRz9yrbunix8NFevq6urSLwcF",
-      "originalNumber": 209,
-      "randomValue": 0.005167459879739663
+      "player": "7GMR63yaohaqUYmKgAoGq7NnAoNfWdbZHmxc6vqc9K8d",
+      "originalNumber": 101,
+      "randomValue": 0.003425782778090785,
+      "winThreshold": 0.006006006006006006
+    },
+    {
+      "number": 3,
+      "player": "Ci32wsh5HtzBgno2GLgiBdMQybN1c1fLFkKVEncMLYWg",
+      "originalNumber": 203,
+      "randomValue": 0.004051358715835003,
+      "winThreshold": 0.006006006006006006
     }
   ],
   "algorithm": "SHAKE256"
