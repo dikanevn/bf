@@ -56,21 +56,20 @@ function bufferToBigInt(buffer: Buffer): bigint {
 
 function shuffleArray<T>(array: T[], seed: string): T[] {
     const shuffled = [...array];
-    const seedBuffer = Buffer.from(seed, 'hex');
     
-    // Алгоритм Фишера-Йетса с использованием криптографического источника случайности
+    // Алгоритм Фишера-Йетса с использованием HMAC для лучшего распределения
     for (let i = shuffled.length - 1; i > 0; i--) {
         // Генерируем случайное число для текущей позиции
         const indexBuffer = Buffer.alloc(4);
         indexBuffer.writeUInt32BE(i, 0);
         
-        const hash = crypto.createHash('sha256')
-            .update(Buffer.concat([seedBuffer, indexBuffer]))
+        // Используем HMAC-SHA256 вместо простого SHA-256
+        const hmac = crypto.createHmac('sha256', seed)
+            .update(indexBuffer)
             .digest();
         
         // Используем весь хэш для получения максимально случайного индекса
-        const hashBigInt = bufferToBigInt(hash);
-        // Используем модуль от большого числа для равномерного распределения
+        const hashBigInt = bufferToBigInt(hmac);
         const j = Number(hashBigInt % BigInt(i + 1));
         
         // Меняем местами элементы
@@ -89,9 +88,13 @@ function generateRandomNumbers(seed: string, count: number): bigint[] {
         const indexBuffer = Buffer.alloc(4);
         indexBuffer.writeUInt32BE(i, 0);
         
-        // Генерируем уникальный хэш для каждого индекса
+        // Двойной SHA-256 для лучшей случайности
         const numberHash = crypto.createHash('sha256')
-            .update(Buffer.concat([seedBuffer, indexBuffer]))
+            .update(
+                crypto.createHash('sha256')
+                    .update(Buffer.concat([seedBuffer, indexBuffer]))
+                    .digest()
+            )
             .digest();
         
         numbers.push(bufferToBigInt(numberHash));
