@@ -1,0 +1,21 @@
+{
+  "blockHash": "00000000000000000001749dc0ab5f2bb8eaea803f8a087bf2be7ec3bb32139b123",
+  "totalPlayers": 333,
+  "winProbability": 0.9,
+  "selectedCount": 2,
+  "selected": [
+    {
+      "number": 1,
+      "player": "BLe2JczYkvbheaRXH88QraoLdEfjMBJVyw7BrZZ6kkqc",
+      "originalNumber": 182,
+      "randomValue": 0.002251184479542435
+    },
+    {
+      "number": 2,
+      "player": "D389kTSvt7Jz7zY456cyRz9yrbunix8NFevq6urSLwcF",
+      "originalNumber": 209,
+      "randomValue": 0.005167459879739663
+    }
+  ],
+  "algorithm": "SHAKE256"
+}
