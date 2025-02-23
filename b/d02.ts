@@ -15,6 +15,7 @@ interface Round {
     BLOCK_DELAY_MINUTES_AFTER_GAME_START: number; // Задержка в минутах после начала игры до получения блока
     TOTAL_TICKETS: string; // Общее количество билетов
     TOKEN_ADDRESS: string; // Адрес токена
+    RNG_ALGORITHM: string; // Добавляем новое поле
 }
 
 function generateRounds(): Round[] {
@@ -48,7 +49,8 @@ function generateRounds(): Round[] {
             IS_TOKEN_LAUNCHED: false,
             BLOCK_DELAY_MINUTES_AFTER_GAME_START: 30, // 30 минут задержки после начала игры до получения блока
             TOTAL_TICKETS: "", // Пустое значение для общего количества билетов
-            TOKEN_ADDRESS: "" // Пустое значение для адреса токена
+            TOKEN_ADDRESS: "", // Пустое значение для адреса токена
+            RNG_ALGORITHM: "SHA-256(SHA-256(BTC_HASH + Solana_pubkey[1:-4]))"
         });
 
         // Вычисляем следующий коэффициент

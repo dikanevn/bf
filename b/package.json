@@ -18,7 +18,8 @@
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.7",
     "keccak256": "^1.0.6",
-    "merkletreejs": "^0.4.1"
+    "merkletreejs": "^0.4.1",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

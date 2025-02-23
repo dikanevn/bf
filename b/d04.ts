@@ -76,16 +76,34 @@ function processPlayers(roundConfig: RoundConfig): Player[] {
         console.log(`Начало: ${startDate.toISOString()}`);
         console.log(`Конец:  ${endDate.toISOString()}`);
 
-        const filteredPlayers = data.result.rows
-            .filter(row => {
-                const timestamp = new Date(row.blocktime);
-                const isInRange = timestamp >= startDate && timestamp <= endDate;
-                return isInRange;
-            })
-            .map(row => row.raw_player)
-            .filter((value, index, self) => self.indexOf(value) === index)
-            .sort();
+        // Фильтруем по временному диапазону
+        const filteredRows = data.result.rows.filter(row => {
+            const timestamp = new Date(row.blocktime);
+            return timestamp >= startDate && timestamp <= endDate;
+        });
 
+        // Проверяем на дубликаты
+        const addressCounts = new Map<string, number>();
+        filteredRows.forEach(row => {
+            const count = addressCounts.get(row.raw_player) || 0;
+            addressCounts.set(row.raw_player, count + 1);
+        });
+
+        // Находим дубликаты
+        const duplicates = Array.from(addressCounts.entries())
+            .filter(([_, count]) => count > 1)
+            .map(([address, count]) => ({ address, count }));
+
+        if (duplicates.length > 0) {
+            console.error('\nНайдены дубликаты адресов:');
+            duplicates.forEach(dup => {
+                console.error(`Адрес ${dup.address} встречается ${dup.count} раз`);
+            });
+            throw new Error('Обнаружены повторяющиеся адреса в выборке');
+        }
+
+        const filteredPlayers = Array.from(addressCounts.keys()).sort();
+        
         const numberedPlayers = filteredPlayers.map((player, index) => ({
             number: index + 1,
             player: player
