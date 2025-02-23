@@ -8,7 +8,8 @@ interface Round {
     BITCOIN_BLOCK_HASH: string;
     BITCOIN_BLOCK_NUMBER: string;
     BITCOIN_BLOCK_TIME: string;  // Время блока биткоина
-    firstTicketsBuyTime: string;
+    GAME_ID: string;
+    GAME_TIME: string;
     lastTicketsBuyTime: string;
     tokenName: string;
     IS_TOKEN_LAUNCHED: boolean;
@@ -43,7 +44,8 @@ function generateRounds(): Round[] {
             BITCOIN_BLOCK_HASH: "",
             BITCOIN_BLOCK_NUMBER: "",
             BITCOIN_BLOCK_TIME: "",  // Пустое значение для времени блока
-            firstTicketsBuyTime: "",
+            GAME_ID: "",
+            GAME_TIME: "",
             lastTicketsBuyTime: "",
             tokenName: "",
             IS_TOKEN_LAUNCHED: false,

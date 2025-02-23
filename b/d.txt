@@ -1,0 +1,5 @@
+ts-node d14.ts 107     делает файл d2
+потом копируем d02
+ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id
+d08 делает рандом и аудит
+

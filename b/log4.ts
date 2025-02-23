@@ -32,7 +32,8 @@ function analyzeGameLogs(): Statistics {
     const gameMap = new Map<string, { 
         players: Set<string>, 
         startDate: string,
-        playerCounts: { [key: string]: number }
+        playerCounts: { [key: string]: number },
+        rewardOrDeployDate?: string // Добавляем поле для даты награды/деплоя
     }>();
     
     // Читаем все лог-файлы и собираем информацию
@@ -45,9 +46,10 @@ function analyzeGameLogs(): Statistics {
                 logData.transactions.forEach(transaction => {
                     if (Array.isArray(transaction.logMessages)) {
                         transaction.logMessages.forEach(message => {
-                            const match = message.match(/Player (\w+) bought ticket for game (\w+)/);
-                            if (match) {
-                                const [, playerId, gameId] = match;
+                            // Проверяем покупку билетов
+                            const ticketMatch = message.match(/Player (\w+) bought ticket for game (\w+)/);
+                            if (ticketMatch) {
+                                const [, playerId, gameId] = ticketMatch;
                                 
                                 if (!gameMap.has(gameId)) {
                                     gameMap.set(gameId, {
@@ -60,6 +62,29 @@ function analyzeGameLogs(): Statistics {
                                 const gameData = gameMap.get(gameId)!;
                                 gameData.players.add(playerId);
                                 gameData.playerCounts[playerId] = (gameData.playerCounts[playerId] || 0) + 1;
+                            }
+
+                            // Проверяем посты о наградах или деплое
+                            const rewardMatch = message.match(/Posted rewards for game (\w+)/);
+                            const deployMatch = message.match(/Deployed token for game (\w+)/);
+                            
+                            if (rewardMatch || deployMatch) {
+                                const gameId = (rewardMatch || deployMatch)![1];
+                                const postDate = transaction.blockTime;
+                                
+                                if (!gameMap.has(gameId)) {
+                                    gameMap.set(gameId, {
+                                        players: new Set(),
+                                        startDate: postDate,
+                                        playerCounts: {},
+                                        rewardOrDeployDate: postDate
+                                    });
+                                } else {
+                                    const gameData = gameMap.get(gameId)!;
+                                    if (!gameData.rewardOrDeployDate || new Date(postDate) < new Date(gameData.rewardOrDeployDate)) {
+                                        gameData.rewardOrDeployDate = postDate;
+                                    }
+                                }
                             }
                         });
                     }
@@ -85,7 +110,7 @@ function analyzeGameLogs(): Statistics {
             gameNumber: gameNumber++,
             gameId,
             players: Array.from(data.players),
-            startDate: data.startDate,
+            startDate: data.rewardOrDeployDate || data.startDate, // Используем дату награды/деплоя если есть
             playerCount: data.players.size,
             ...(Object.keys(duplicates).length > 0 ? { duplicates } : {})
         };
@@ -124,7 +149,7 @@ function analyzeGameLogs(): Statistics {
     };
     
     // Сохраняем результат в файл с комментарием
-    const outputPath = path.join(__dirname, 'game_statistics.json');
+    const outputPath = path.join(__dirname, 'agame_statistics.json');
     const fileContent = `/*\n${gamesOutput}\n\nИгры с дубликатами:\n${gamesWithDuplicates.join('\n')}\n*/\n\n${JSON.stringify(statistics, null, 2)}`;
     fs.writeFileSync(outputPath, fileContent);
     
