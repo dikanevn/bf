@@ -3,3 +3,6 @@ ts-node d14.ts 107     делает файл d2
 ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id
 d08 делает рандом и аудит
 
+counter=9; for i in $(seq 108 123); do if [ -d "rounds/$i" ]; then mv "rounds/$i" "rounds/$counter" && echo "Переименовано $i -> $counter"; counter=$((counter+1)); fi; done
+
+for i in {9..19}; do cp rounds/8/d02.json rounds/$i/ && echo "Скопирован d02.json в папку $i"; done

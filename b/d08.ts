@@ -193,23 +193,62 @@ function processRound(roundNumber: number) {
     );
 }
 
+function parseRoundNumbers(input: string): number[] {
+    // Разбиваем строку по запятой и обрабатываем диапазоны
+    return input.split(',').flatMap(part => {
+        const range = part.trim().split('-').map(num => parseInt(num.trim()));
+        if (range.length === 2 && !isNaN(range[0]) && !isNaN(range[1])) {
+            // Если это диапазон (например, "10-14")
+            const [start, end] = range;
+            return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+        } else if (range.length === 1 && !isNaN(range[0])) {
+            // Если это одиночное число
+            return [range[0]];
+        }
+        return [];
+    });
+}
+
 function main() {
     const args = process.argv.slice(2);
     if (args.length === 0) {
-        console.error('Укажите номера раундов через запятую');
-        console.error('Пример: ts-node d08.ts 1,2,3');
+        console.error('Укажите номера раундов');
+        console.error('Примеры:');
+        console.error('  ts-node d08.ts 1');
+        console.error('  ts-node d08.ts 1,2,3');
+        console.error('  ts-node d08.ts 10-14');
+        console.error('  ts-node d08.ts 1,2,5-8');
         process.exit(1);
     }
 
-    const roundNumbers = args[0].split(',').map(Number);
-    if (roundNumbers.some(isNaN)) {
+    const roundNumbers = parseRoundNumbers(args[0]);
+    if (roundNumbers.length === 0) {
         console.error('Некорректные номера раундов');
         process.exit(1);
     }
 
+    let successCount = 0;
+    let errorCount = 0;
+
     roundNumbers.forEach(roundNumber => {
-        processRound(roundNumber);
+        try {
+            processRound(roundNumber);
+            successCount++;
+        } catch (error) {
+            errorCount++;
+            console.error(`\nОшибка при обработке раунда ${roundNumber}:`);
+            if (error instanceof Error) {
+                console.error('Детали ошибки:', error.message);
+            }
+        }
     });
+
+    // Выводим итоговую статистику
+    console.log('\nИтоги обработки:');
+    console.log(`Успешно обработано: ${successCount}`);
+    if (errorCount > 0) {
+        console.log(`Ошибок: ${errorCount}`);
+    }
 }
 
 main(); 
