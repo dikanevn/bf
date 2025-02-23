@@ -1,0 +1,39 @@
+{
+  "blockHash": "00000000000000000001e07e0f880e4570ec3b8c6f413c689316b24816901368",
+  "threshold": "0x2ce9ab9f559b3d07c84b5dcc63f141205bc01a36e2eb1c432ca57a786c226809d4",
+  "thresholdPercent": "4491.2775%",
+  "totalPlayers": 4,
+  "coefficient": "179.6511",
+  "coefficientHex": "0x27E3FB93F021800",
+  "winnersCount": 4,
+  "randomNumbers": [
+    {
+      "number": 1,
+      "randomIndex": 1,
+      "player": "133jM9QQWpTJfLT6UFQAW9cVeQWJejNWsyfFDWAfqxb9",
+      "randomValue": "0xd9cd31cc1f846cbcd5a74ce67ed28f4b61f1232b88493beb58bef86481ea38b0",
+      "isWinner": true
+    },
+    {
+      "number": 2,
+      "randomIndex": 2,
+      "player": "13WWLjyZaLthJQxaEKhLGxhksvVESva4eMJg33ZcNeir",
+      "randomValue": "0xca19440a3e38fedde8e4a960b00b6b226d1fddc308af3ee694dbd1b58b88d88b",
+      "isWinner": true
+    },
+    {
+      "number": 3,
+      "randomIndex": 3,
+      "player": "13aH1S8Nt5A7fbCVXFPChqWmBTs8tBUv2KWkdaaY8rpq",
+      "randomValue": "0x784bfe8ed48d1f639a6527966ac1b10b2b03035a080c3df6f7fa3d4f652a43e9",
+      "isWinner": true
+    },
+    {
+      "number": 4,
+      "randomIndex": 0,
+      "player": "25wBugSdiiaiN5bVqGRVDvr7A28XhBFyopyrfumwGazk",
+      "randomValue": "0x495a0a5963069b40da10d3c2590bb22221bdf4ba14dfd1a019ca6b3537ac1822",
+      "isWinner": true
+    }
+  ]
+}

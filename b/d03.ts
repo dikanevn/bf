@@ -9,22 +9,10 @@ const SCALE_FACTOR = BigInt(10 ** 15); // Множитель для масшта
 
 const CONFIG = {
     BITCOIN_BLOCK_HASH: '',
-    TIME_CONFIG: {
-        startDate: '2025-01-17 17:14:51.000 UTC',
-        endDate: '2025-01-19 18:59:39.000 UTC'
-    }
+    ROUND: 1 // Номер раунда для обработки
 };
 
 // Интерфейсы
-interface DuneData {
-    result: {
-        rows: Array<{
-            raw_player: string;
-            blocktime: string;
-        }>;
-    };
-}
-
 interface Player {
     number: number;
     player: string;
@@ -40,9 +28,9 @@ interface AuditData {
     winnersCount: number;
     randomNumbers: Array<{
         number: number;
-        index: number;
+        randomIndex: number;
         player: string;
-        value: string;
+        randomValue: string;
         isWinner: boolean;
     }>;
 }
@@ -104,51 +92,17 @@ function generateRandomNumbers(seed: string, count: number): bigint[] {
     return numbers;
 }
 
-// Основные функции обработки
-function processPlayers(): Player[] {
+function loadPlayers(): Player[] {
     try {
-        const rawData = fs.readFileSync('d1.json', 'utf-8');
-        const data: DuneData = JSON.parse(rawData);
+        const d2Path = path.join('rounds', CONFIG.ROUND.toString(), 'd2.json');
+        const rawData = fs.readFileSync(d2Path, 'utf-8');
+        const players: Player[] = JSON.parse(rawData);
 
-        if (!data.result?.rows) {
-            throw new Error('Неверная структура данных в d1.json');
-        }
-
-        const startDate = new Date(CONFIG.TIME_CONFIG.startDate);
-        const endDate = new Date(CONFIG.TIME_CONFIG.endDate);
-
-        console.log('Временной диапазон:');
-        console.log(`Начало: ${startDate.toISOString()}`);
-        console.log(`Конец:  ${endDate.toISOString()}`);
-
-        const filteredPlayers = data.result.rows
-            .filter(row => {
-                const timestamp = new Date(row.blocktime);
-                const isInRange = timestamp >= startDate && timestamp <= endDate;
-                return isInRange;
-            })
-            .map(row => row.raw_player)
-            .filter((value, index, self) => self.indexOf(value) === index)
-            .sort();
-
-        const numberedPlayers = filteredPlayers.map((player, index) => ({
-            number: index + 1,
-            player: player
-        }));
-
-        fs.writeFileSync(
-            'd2.json',
-            JSON.stringify(numberedPlayers, null, 2),
-            'utf-8'
-        );
-
-        console.log(`Обработано ${numberedPlayers.length} уникальных игроков`);
-        console.log('Результаты сохранены в d2.json');
-
-        return numberedPlayers;
+        console.log(`Загружено ${players.length} игроков из ${d2Path}`);
+        return players;
 
     } catch (error) {
-        console.error('Ошибка при обработке данных:', error);
+        console.error('Ошибка при загрузке игроков:', error);
         if (error instanceof Error) {
             console.error('Детали ошибки:', error.message);
         }
@@ -226,7 +180,11 @@ function selectWinners(players: Player[], blockHash: string = CONFIG.BITCOIN_BLO
         ? `${coefficientIntegerPart}.${coefficientDecimalPart}`
         : coefficientIntegerPart;
 
-    // Сохраняем аудит с масштабированными значениями
+    // Сохраняем результаты в папку раунда
+    const roundDir = path.join('rounds', CONFIG.ROUND.toString());
+    fs.mkdirSync(roundDir, { recursive: true });
+
+    // Сохраняем аудит
     const auditData: AuditData = {
         blockHash,
         threshold: `0x${WIN_THRESHOLD.toString(16).padStart(64, '0')}`,
@@ -237,15 +195,18 @@ function selectWinners(players: Player[], blockHash: string = CONFIG.BITCOIN_BLO
         winnersCount: eligibleWinners.length,
         randomNumbers: randomNumbers.map((value, index) => ({
             number: shuffledPlayers[index].number,
-            index,
+            randomIndex: index,
             player: shuffledPlayers[index].player,
-            value: `0x${value.toString(16).padStart(64, '0')}`,
+            randomValue: `0x${value.toString(16).padStart(64, '0')}`,
             isWinner: winnerIndices.has(index)
         }))
         .sort((a, b) => a.number - b.number)
     };
     
-    fs.writeFileSync('d3_audit.json', JSON.stringify(auditData, null, 2));
+    fs.writeFileSync(
+        path.join(roundDir, 'd3_audit.json'),
+        JSON.stringify(auditData, null, 2)
+    );
 
     // Формируем и сохраняем результаты
     const results = eligibleWinners
@@ -256,12 +217,15 @@ function selectWinners(players: Player[], blockHash: string = CONFIG.BITCOIN_BLO
         }))
         .sort((a, b) => a.number - b.number);
 
-    fs.writeFileSync('d3.json', JSON.stringify(results, null, 2));
+    fs.writeFileSync(
+        path.join(roundDir, 'd3.json'),
+        JSON.stringify(results, null, 2)
+    );
 }
 
 // Основной процесс
 function main() {
-    const players = processPlayers();
+    const players = loadPlayers();
     selectWinners(players);
 }
 
