@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import axios, { AxiosError } from 'axios';
 
 interface GameStatistic {
   gameId: string;
@@ -14,8 +15,16 @@ interface D02Round {
   value: string;
   GAME_ID: string;
   TOTAL_TICKETS: string;
+  BITCOIN_BLOCK_HASH: string;
+  BITCOIN_BLOCK_NUMBER: string;
+  BITCOIN_BLOCK_TIME: string;
   RewardsOrDeploy?: string;
   // ... другие поля
+}
+
+interface BitcoinBlockInfo {
+  hash: string;
+  time: number;
 }
 
 interface LogTransaction {
@@ -32,17 +41,32 @@ function removeComments(jsonString: string): string {
   return jsonString.replace(/\/\*[\s\S]*?\*\/\s*/g, '');
 }
 
-function findRewardOrDeployTime(logs: LogData, gameId: string): string | null {
-  for (const transaction of logs.transactions) {
-    for (const message of transaction.logMessages) {
-      // Ищем сообщения о наградах или деплое
-      if (message.includes(`Posted rewards for game ${gameId}`) || 
-          message.includes(`Deployed token for game ${gameId}`)) {
-        return transaction.blockTime;
-      }
+async function getBitcoinBlockInfo(blockNumber: string): Promise<BitcoinBlockInfo | null> {
+  try {
+    // Используем Blockstream API для получения информации о блоке
+    const response = await axios.get(`https://blockstream.info/api/block-height/${blockNumber}`);
+    const blockHash = response.data;
+    
+    // Получаем детальную информацию о блоке
+    const blockInfo = await axios.get(`https://blockstream.info/api/block/${blockHash}`);
+    
+    return {
+      hash: blockHash,
+      time: blockInfo.data.timestamp
+    };
+  } catch (error: unknown) {
+    if (error instanceof AxiosError) {
+      console.error(`Ошибка при получении информации о блоке ${blockNumber}: ${error.message}`);
+    } else {
+      console.error(`Неизвестная ошибка при получении информации о блоке ${blockNumber}`);
     }
+    return null;
   }
-  return null;
+}
+
+function formatBlockTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
 }
 
 async function main() {
@@ -53,22 +77,16 @@ async function main() {
       throw new Error('Необходимо указать номер папки в качестве аргумента');
     }
 
-    // Читаем файл логов
-    const logsPath = path.join(__dirname, 'logs', 'logsProgram.json');
-    const logs: LogData = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
-
     // Читаем файл со статистикой игр
     const statisticsPath = path.join(__dirname, 'agame_statistics.json');
     const fileContent = fs.readFileSync(statisticsPath, 'utf8');
     const jsonContent = removeComments(fileContent);
     const statistics = JSON.parse(jsonContent);
     
-    // Создаем мапы для быстрого доступа к данным игры
+    // Создаем мапу для быстрого доступа к количеству игроков по gameId
     const gameMap = new Map<string, number>();
-    const dateMap = new Map<string, string>();
     statistics.games.forEach((game: GameStatistic) => {
       gameMap.set(game.gameId, game.playerCount);
-      dateMap.set(game.gameId, game.startDate);
     });
 
     // Формируем путь к конкретному файлу d02.json
@@ -87,33 +105,58 @@ async function main() {
 
     // Обновляем данные
     for (const round of d02Data) {
-      if (round.GAME_ID) {
-        // Обновляем TOTAL_TICKETS если пустое
-        if (!round.TOTAL_TICKETS && gameMap.has(round.GAME_ID)) {
-          const newValue = gameMap.get(round.GAME_ID)?.toString() || '';
-          round.TOTAL_TICKETS = newValue;
-          updated = true;
-          updatedFields.push({
-            round: round.round,
-            field: 'TOTAL_TICKETS',
-            oldValue: '',
-            newValue
-          });
+      // Обновляем TOTAL_TICKETS из статистики игр
+      if (round.GAME_ID && !round.TOTAL_TICKETS && gameMap.has(round.GAME_ID)) {
+        const newValue = gameMap.get(round.GAME_ID)?.toString() || '';
+        round.TOTAL_TICKETS = newValue;
+        updated = true;
+        updatedFields.push({
+          round: round.round,
+          field: 'TOTAL_TICKETS',
+          oldValue: '',
+          newValue
+        });
+      }
+
+      // Обновляем информацию о биткоин-блоках
+      if (round.BITCOIN_BLOCK_NUMBER && 
+         (!round.BITCOIN_BLOCK_HASH || round.BITCOIN_BLOCK_HASH === '' || 
+          !round.BITCOIN_BLOCK_TIME || round.BITCOIN_BLOCK_TIME === '')) {
+        
+        console.log(`Получение информации для блока ${round.BITCOIN_BLOCK_NUMBER}...`);
+        const blockInfo = await getBitcoinBlockInfo(round.BITCOIN_BLOCK_NUMBER);
+        
+        if (blockInfo) {
+          // Обновляем хэш блока
+          if (!round.BITCOIN_BLOCK_HASH || round.BITCOIN_BLOCK_HASH === '') {
+            const oldHash = round.BITCOIN_BLOCK_HASH || '';
+            round.BITCOIN_BLOCK_HASH = blockInfo.hash;
+            updated = true;
+            updatedFields.push({
+              round: round.round,
+              field: 'BITCOIN_BLOCK_HASH',
+              oldValue: oldHash,
+              newValue: blockInfo.hash
+            });
+          }
+
+          // Обновляем время блока
+          if (!round.BITCOIN_BLOCK_TIME || round.BITCOIN_BLOCK_TIME === '') {
+            const formattedTime = formatBlockTime(blockInfo.time);
+            const oldTime = round.BITCOIN_BLOCK_TIME || '';
+            round.BITCOIN_BLOCK_TIME = formattedTime;
+            updated = true;
+            updatedFields.push({
+              round: round.round,
+              field: 'BITCOIN_BLOCK_TIME',
+              oldValue: oldTime,
+              newValue: formattedTime
+            });
+          }
         }
 
-        // Проверяем и обновляем RewardsOrDeploy из логов
-        const logTime = findRewardOrDeployTime(logs, round.GAME_ID);
-        if (logTime && round.RewardsOrDeploy !== logTime) {
-          const oldValue = round.RewardsOrDeploy || '';
-          round.RewardsOrDeploy = logTime;
-          updated = true;
-          updatedFields.push({
-            round: round.round,
-            field: 'RewardsOrDeploy',
-            oldValue,
-            newValue: logTime
-          });
-        }
+        // Добавляем задержку между запросами к API
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
@@ -132,9 +175,19 @@ async function main() {
     }
 
     console.log('\nОбработка завершена');
-  } catch (error) {
-    console.error('Ошибка:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Ошибка:', error.message);
+    } else {
+      console.error('Неизвестная ошибка');
+    }
   }
 }
 
-main().catch(console.error); 
+main().catch((error: unknown) => {
+  if (error instanceof Error) {
+    console.error('Ошибка:', error.message);
+  } else {
+    console.error('Неизвестная ошибка');
+  }
+}); 
