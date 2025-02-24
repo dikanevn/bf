@@ -6,5 +6,8 @@
   },
   "devDependencies": {
     "gh-pages": "^6.1.1"
+  },
+  "dependencies": {
+    "pino-pretty": "^13.0.0"
   }
 }

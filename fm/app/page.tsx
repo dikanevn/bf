@@ -4,23 +4,36 @@ import dynamic from 'next/dynamic';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
+import type { D02Item } from '../types';
 
-// Import all d2.json and d3.json files from round folders
-const roundsData: { 
+// Определяем типы для данных раундов
+interface RoundDataItem {
+  player: string;
+}
+
+interface RoundFiles {
   [key: string]: {
-    d2: any[],
-    d3: any[]
+    d2: RoundDataItem[];
+    d3: RoundDataItem[];
   }
-} = {};
+}
 
-for (let i = 1; i <= 20; i++) {
-  try {
-    roundsData[i] = {
-      d2: require(`../../b/rounds/${i}/d2.json`),
-      d3: require(`../../b/rounds/${i}/d3.json`)
-    };
-  } catch (e) {
-    continue;
+// Импортируем данные как модули
+const roundsData: RoundFiles = {};
+
+// Динамический импорт данных
+if (typeof window !== 'undefined') {
+  for (let i = 1; i <= 20; i++) {
+    try {
+      const d2 = await import(`../../b/rounds/${i}/d2.json`);
+      const d3 = await import(`../../b/rounds/${i}/d3.json`);
+      roundsData[i] = {
+        d2: d2.default,
+        d3: d3.default
+      };
+    } catch {
+      continue;
+    }
   }
 }
 
@@ -49,16 +62,17 @@ function HomeContent() {
   const { publicKey } = useWallet();
   const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
 
-  const searchAddress = (searchAddr: string) => {
+  const searchAddress = async (searchAddr: string) => {
     if (!searchAddr) return;
 
     const results: SearchResult[] = [];
 
-    // Get dates from d02.json
+    // Загружаем даты из d02.json
     const roundDates: { [key: number]: string } = {};
     try {
-      const d02Data = require('../../b/rounds/19/d02.json');
-      d02Data.forEach((item: any) => {
+      const d02Module = await import('../../b/rounds/19/d02.json');
+      const d02Data = d02Module.default;
+      d02Data.forEach((item: D02Item) => {
         if (item.RewardsOrDeploy) {
           const date = new Date(item.RewardsOrDeploy);
           roundDates[item.round] = date.toLocaleDateString('en-US', {
@@ -67,11 +81,11 @@ function HomeContent() {
           });
         }
       });
-    } catch (e) {
-      console.error('Error loading d02.json:', e);
+    } catch (err) {
+      console.error('Error loading d02.json:', err);
     }
 
-    // Search through all rounds
+    // Поиск по всем раундам
     Object.entries(roundsData).forEach(([round, data]) => {
       const participated = data.d2.some(item => item.player === searchAddr);
       const winData = data.d3.find(item => item.player === searchAddr);
@@ -85,7 +99,7 @@ function HomeContent() {
       });
     });
 
-    // Sort results by round number
+    // Сортировка результатов по номеру раунда
     results.sort((a, b) => a.round - b.round);
     setSearchResults(results);
   };
@@ -93,25 +107,27 @@ function HomeContent() {
   useEffect(() => {
     if (publicKey) {
       setAddress(publicKey.toString());
-      searchAddress(publicKey.toString());
+      void searchAddress(publicKey.toString());
     }
   }, [publicKey]);
 
   useEffect(() => {
-    // Load data from d02.json
-    try {
-      const d02RawData = require('../../b/rounds/19/d02.json');
-      const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Data}, item: any) => {
-        acc[item.round] = item;
-        return acc;
-      }, {});
-      setD02Data(d02Processed);
-    } catch (e) {
-      console.error('Error loading d02.json:', e);
-    }
+    const loadD02Data = async () => {
+      try {
+        const d02Module = await import('../../b/rounds/19/d02.json');
+        const d02RawData = d02Module.default;
+        const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Item}, item: D02Item) => {
+          acc[item.round] = item;
+          return acc;
+        }, {});
+        setD02Data(d02Processed);
+      } catch (err) {
+        console.error('Error loading d02.json:', err);
+      }
+    };
+    void loadD02Data();
   }, []);
 
-  const totalParticipations = searchResults.filter(r => r.participated).length;
   const totalWins = searchResults.filter(r => r.won).length;
   const totalLosses = searchResults.filter(r => r.participated && !r.won).length;
   const totalNotParticipated = searchResults.filter(r => !r.participated).length;
@@ -128,7 +144,7 @@ function HomeContent() {
             className="bg-[#2b2c3b] text-white px-4 outline-none flex-1 border-2 border-[#8b8fb3] min-w-[100px]"
           />
           <button 
-            onClick={() => searchAddress(address)}
+            onClick={() => void searchAddress(address)}
             className="aspect-square h-[clamp(2rem,5vh,3rem)] p-0 flex items-center justify-center"
           >
             🔍
@@ -177,7 +193,7 @@ function HomeContent() {
                   {result.date} | Game {result.round}
                   {roundStats && (
                     <> | Players - {roundStats.TOTAL_TICKETS} | 
-                    pNFT - {parseFloat(roundStats.value).toFixed(3)} | 
+                    pNFT ~{parseFloat(roundStats.value).toFixed(3)} | 
                     Chance - {chance}%</>
                   )}
                 </div>

@@ -11,9 +11,14 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 import '../styles/walletAdapterOverrides.css';
 
 export function ClientWalletProvider({ children }: { children: React.ReactNode }) {
-  const network = WalletAdapterNetwork.Devnet;
+  const network = useMemo(() => WalletAdapterNetwork.Devnet, []);
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+
+  // Предотвращаем выполнение на сервере
+  if (typeof window === 'undefined') {
+    return <>{children}</>;
+  }
 
   return (
     <ConnectionProvider endpoint={endpoint}>
