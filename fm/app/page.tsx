@@ -5,7 +5,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 
-// Импортируем все файлы d2.json и d3.json из папок раундов
+// Import all d2.json and d3.json files from round folders
 const roundsData: { 
   [key: string]: {
     d2: any[],
@@ -36,34 +36,42 @@ interface SearchResult {
   date: string;
 }
 
+interface D02Data {
+  round: number;
+  value: string;
+  TOTAL_TICKETS: string;
+  coefficient: string;
+}
+
 function HomeContent() {
   const [address, setAddress] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const { publicKey } = useWallet();
+  const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
 
   const searchAddress = (searchAddr: string) => {
     if (!searchAddr) return;
 
     const results: SearchResult[] = [];
 
-    // Получаем даты из d02.json
+    // Get dates from d02.json
     const roundDates: { [key: number]: string } = {};
     try {
       const d02Data = require('../../b/rounds/19/d02.json');
       d02Data.forEach((item: any) => {
         if (item.RewardsOrDeploy) {
           const date = new Date(item.RewardsOrDeploy);
-          roundDates[item.round] = date.toLocaleDateString('ru-RU', {
+          roundDates[item.round] = date.toLocaleDateString('en-US', {
             day: 'numeric',
             month: 'long'
           });
         }
       });
     } catch (e) {
-      console.error('Ошибка при загрузке d02.json:', e);
+      console.error('Error loading d02.json:', e);
     }
 
-    // Поиск по всем раундам
+    // Search through all rounds
     Object.entries(roundsData).forEach(([round, data]) => {
       const participated = data.d2.some(item => item.player === searchAddr);
       const winData = data.d3.find(item => item.player === searchAddr);
@@ -73,11 +81,11 @@ function HomeContent() {
         round: roundNumber,
         participated,
         won: !!winData,
-        date: roundDates[roundNumber] || `Раунд ${roundNumber}`
+        date: roundDates[roundNumber] || `Round ${roundNumber}`
       });
     });
 
-    // Сортируем результаты по номеру раунда
+    // Sort results by round number
     results.sort((a, b) => a.round - b.round);
     setSearchResults(results);
   };
@@ -89,8 +97,24 @@ function HomeContent() {
     }
   }, [publicKey]);
 
+  useEffect(() => {
+    // Load data from d02.json
+    try {
+      const d02RawData = require('../../b/rounds/19/d02.json');
+      const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Data}, item: any) => {
+        acc[item.round] = item;
+        return acc;
+      }, {});
+      setD02Data(d02Processed);
+    } catch (e) {
+      console.error('Error loading d02.json:', e);
+    }
+  }, []);
+
   const totalParticipations = searchResults.filter(r => r.participated).length;
   const totalWins = searchResults.filter(r => r.won).length;
+  const totalLosses = searchResults.filter(r => r.participated && !r.won).length;
+  const totalNotParticipated = searchResults.filter(r => !r.participated).length;
 
   return (
     <div className="fixed top-[2vh] left-0 right-0 px-[2vw]">
@@ -100,7 +124,7 @@ function HomeContent() {
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Введите Yapster адрес"
+            placeholder="Enter Yapster address"
             className="bg-[#2b2c3b] text-white px-4 outline-none flex-1 border-2 border-[#8b8fb3] min-w-[100px]"
           />
           <button 
@@ -115,26 +139,51 @@ function HomeContent() {
 
       {searchResults.length > 0 && (
         <div className="mt-8 text-white">
+          {address && (
+            <div className="text-gray-400 mb-4 break-all">
+              Адрес: {address}
+            </div>
+          )}
           <div className="mb-4">
-            <div><h4 className="text-xl mb-4">Выиграл Аирдроп pNFTs: {totalWins}</h4> </div>
+            <div><h4 className="text-xl mb-4 font-bold text-blue-400">Won pNFTs Airdrop: {totalWins}</h4></div>
             <br />
-            <div>Всего игр: {totalParticipations}</div>
-            
+            <div className="mb-6 text-gray-400">
+              Total Games: 19 | Won: {totalWins} | Lost: {totalLosses} | Not Participated: {totalNotParticipated}
+            </div>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto">
-  {searchResults.map((result) => (
-    <div key={result.round} className="mb-2">
-            {result.participated 
-        ? result.won 
-          ? ' Повезло!' 
-          : ' Не повезло..' 
-        : ' Не участвовал'} | { }
-      {result.date} | Игра {result.round} 
-
-    </div>
-  ))}
-</div>
-
+          <div className="pb-[40vh]">
+            {searchResults.map((result) => {
+              const roundStats = d02Data[result.round];
+              const chance = roundStats 
+                ? ((parseFloat(roundStats.value) / parseInt(roundStats.TOTAL_TICKETS)) * 100).toFixed(1)
+                : '?';
+              
+              return (
+                <div 
+                  key={result.round} 
+                  className={`mb-2 ${
+                    result.won 
+                      ? 'text-green-400' 
+                      : result.participated 
+                        ? 'text-green-700' 
+                        : 'text-gray-500'
+                  }`}
+                >
+                  {result.participated 
+                    ? result.won 
+                      ? ' Won!' 
+                      : ' Lost..' 
+                    : ' Did not participate'} | { }
+                  {result.date} | Game {result.round}
+                  {roundStats && (
+                    <> | Players - {roundStats.TOTAL_TICKETS} | 
+                    pNFT - {parseFloat(roundStats.value).toFixed(3)} | 
+                    Chance - {chance}%</>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

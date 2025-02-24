@@ -72,7 +72,7 @@ function formatBlockTime(timestamp: number): string {
 async function main() {
   try {
     // Получаем номер папки из аргументов командной строки
-    const folderNumber = parseInt(process.argv[2]);
+    const folderNumber = process.argv[2];
     if (!folderNumber) {
       throw new Error('Необходимо указать номер папки в качестве аргумента');
     }
@@ -90,7 +90,7 @@ async function main() {
     });
 
     // Формируем путь к конкретному файлу d02.json
-    const d02Path = path.join(__dirname, 'rounds', folderNumber, 'd02.json');
+    const d02Path = path.join(__dirname, 'rounds', folderNumber.toString(), 'd02.json');
     
     if (!fs.existsSync(d02Path)) {
       throw new Error(`Файл ${d02Path} не найден`);
@@ -107,7 +107,7 @@ async function main() {
     const winnersCountMap = new Map<number, number>();
     
     // Проходим по всем папкам от 1 до указанного номера
-    for (let i = 1; i <= folderNumber; i++) {
+    for (let i = 1; i <= parseInt(folderNumber); i++) {
       const d3AuditPath = path.join(__dirname, 'rounds', i.toString(), 'd3_audit.json');
       if (fs.existsSync(d3AuditPath)) {
         try {
@@ -186,17 +186,17 @@ async function main() {
       // Обновляем winnersCount если есть данные в мапе
       const roundNumber = round.round;
       if (winnersCountMap.has(roundNumber)) {
-        const newValue = winnersCountMap.get(roundNumber);
+        const newWinnersCount = winnersCountMap.get(roundNumber);
         const oldValue = round.winnersCount;
         
-        if (round.winnersCount !== newValue) {
-          round.winnersCount = newValue;
+        if (newWinnersCount !== undefined && round.winnersCount !== newWinnersCount) {
+          round.winnersCount = newWinnersCount;
           updated = true;
           updatedFields.push({
             round: roundNumber,
             field: 'winnersCount',
             oldValue: oldValue.toString(),
-            newValue: newValue.toString()
+            newValue: newWinnersCount.toString()
           });
         }
       }
