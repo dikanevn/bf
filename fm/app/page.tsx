@@ -22,7 +22,7 @@ export default function Home() {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Введите адрес"
+                placeholder="Enter Yapster address"
                 className="bg-[#2b2c3b] text-white px-4 outline-none flex-1 border-2 border-[#8b8fb3] min-w-[100px]"
               />
               <button 
