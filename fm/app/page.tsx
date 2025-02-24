@@ -115,22 +115,26 @@ function HomeContent() {
 
       {searchResults.length > 0 && (
         <div className="mt-8 text-white">
-          <h2 className="text-xl mb-4">Результаты поиска:</h2>
           <div className="mb-4">
-            <div>Выиграл Аирдроп pNFTs: {totalWins}</div>
+            <div><h4 className="text-xl mb-4">Выиграл Аирдроп pNFTs: {totalWins}</h4> </div>
             <br />
             <div>Всего игр: {totalParticipations}</div>
             
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
-            {searchResults.map((result) => (
-              <div key={result.round} className="mb-2">
-                {result.date} | Игра {result.round}: 
-                {result.participated ? ' Участвовал' : ' Не участвовал'}
-                {result.won ? ' | Повезло!' : ' | Не повезло..'}
-              </div>
-            ))}
-          </div>
+  {searchResults.map((result) => (
+    <div key={result.round} className="mb-2">
+            {result.participated 
+        ? result.won 
+          ? ' Повезло!' 
+          : ' Не повезло..' 
+        : ' Не участвовал'} | { }
+      {result.date} | Игра {result.round} 
+
+    </div>
+  ))}
+</div>
+
         </div>
       )}
     </div>

@@ -72,7 +72,7 @@ function formatBlockTime(timestamp: number): string {
 async function main() {
   try {
     // Получаем номер папки из аргументов командной строки
-    const folderNumber = process.argv[2];
+    const folderNumber = parseInt(process.argv[2]);
     if (!folderNumber) {
       throw new Error('Необходимо указать номер папки в качестве аргумента');
     }
@@ -102,6 +102,24 @@ async function main() {
     const d02Data = JSON.parse(fs.readFileSync(d02Path, 'utf8'));
     let updated = false;
     let updatedFields: { round: number, field: string, oldValue: string, newValue: string }[] = [];
+
+    // Создаем мапу winnersCount из всех d3_audit.json файлов
+    const winnersCountMap = new Map<number, number>();
+    
+    // Проходим по всем папкам от 1 до указанного номера
+    for (let i = 1; i <= folderNumber; i++) {
+      const d3AuditPath = path.join(__dirname, 'rounds', i.toString(), 'd3_audit.json');
+      if (fs.existsSync(d3AuditPath)) {
+        try {
+          const d3AuditData = JSON.parse(fs.readFileSync(d3AuditPath, 'utf8'));
+          if (d3AuditData.winnersCount !== undefined) {
+            winnersCountMap.set(i, d3AuditData.winnersCount);
+          }
+        } catch (e) {
+          console.error(`Ошибка при чтении файла ${d3AuditPath}:`, e);
+        }
+      }
+    }
 
     // Обновляем данные
     for (const round of d02Data) {
@@ -157,6 +175,30 @@ async function main() {
 
         // Добавляем задержку между запросами к API
         await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Добавляем поле winnersCount, если его нет
+      if (!('winnersCount' in round)) {
+        round.winnersCount = '';
+        updated = true;
+      }
+
+      // Обновляем winnersCount если есть данные в мапе
+      const roundNumber = round.round;
+      if (winnersCountMap.has(roundNumber)) {
+        const newValue = winnersCountMap.get(roundNumber);
+        const oldValue = round.winnersCount;
+        
+        if (round.winnersCount !== newValue) {
+          round.winnersCount = newValue;
+          updated = true;
+          updatedFields.push({
+            round: roundNumber,
+            field: 'winnersCount',
+            oldValue: oldValue.toString(),
+            newValue: newValue.toString()
+          });
+        }
       }
     }
 
