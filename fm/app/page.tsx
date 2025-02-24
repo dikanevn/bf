@@ -54,11 +54,13 @@ interface D02Data {
   value: string;
   TOTAL_TICKETS: string;
   coefficient: string;
+  BITCOIN_BLOCK_NUMBER?: string;
 }
 
 function HomeContent() {
   const [address, setAddress] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
   const { publicKey } = useWallet();
   const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
 
@@ -99,8 +101,8 @@ function HomeContent() {
       });
     });
 
-    // Сортировка результатов по номеру раунда
-    results.sort((a, b) => a.round - b.round);
+    // Меняем сортировку на обратный порядок
+    results.sort((a, b) => b.round - a.round);
     setSearchResults(results);
   };
 
@@ -133,7 +135,7 @@ function HomeContent() {
   const totalNotParticipated = searchResults.filter(r => !r.participated).length;
 
   return (
-    <div className="fixed top-[2vh] left-0 right-0 px-[2vw]">
+    <div className="pt-[2vh] px-[2vw]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 w-[50%]">
           <input 
@@ -153,11 +155,15 @@ function HomeContent() {
         <WalletMultiButton />
       </div>
 
+      <h1 className="text-gray-400 mb-4 mt-6">
+        Yapster DAO pNFT airdrop checker
+      </h1>
+
       {searchResults.length > 0 && (
         <div className="mt-8 text-white">
           {address && (
             <div className="text-gray-400 mb-4 break-all">
-              Адрес: {address}
+              Address: {address}
             </div>
           )}
           <div className="mb-4">
@@ -167,7 +173,7 @@ function HomeContent() {
               Total Games: 19 | Won: {totalWins} | Lost: {totalLosses} | Not Participated: {totalNotParticipated}
             </div>
           </div>
-          <div className="pb-[40vh]">
+          <div>
             {searchResults.map((result) => {
               const roundStats = d02Data[result.round];
               const chance = roundStats 
@@ -192,9 +198,13 @@ function HomeContent() {
                     : ' Did not participate'} | { }
                   {result.date} | Game {result.round}
                   {roundStats && (
-                    <> | Players - {roundStats.TOTAL_TICKETS} | 
-                    pNFT ~{parseFloat(roundStats.value).toFixed(3)} | 
-                    Chance - {chance}%</>
+                    <> | Players {roundStats.TOTAL_TICKETS} | 
+                    pNFT(est.) {parseFloat(roundStats.value).toFixed(0)} | 
+                    
+                    Block #{roundStats.BITCOIN_BLOCK_NUMBER} |
+                    Chance - {chance}% |
+                    
+                    </>
                   )}
                 </div>
               );
@@ -202,13 +212,44 @@ function HomeContent() {
           </div>
         </div>
       )}
+
+      <div className="mt-8 mb-8">
+        <button 
+          onClick={() => setShowInfo(!showInfo)}
+          className="text-gray-400 hover:text-gray-300 transition-colors"
+        >
+          ℹ️ Details
+        </button>
+
+        {showInfo && (
+          <div className="mt-4 text-gray-400 space-y-4">
+
+            <p>
+              Total supply ~10,000
+            </p>
+            <p>
+              The distribution starts from the first game with 183 participants and 183 pNFTs. 
+              With each game, the number decreases by 1.83%. This ensures that the maximum 
+              supply remains ~10,000.
+            </p>
+            <p>
+              pNFTs in each round are distributed by a transparent random algorithm. 
+              The source of entropy is the Bitcoin block hash, taken at least 30 minutes 
+              after the game starts. The formula used:
+            </p>
+            <p className="font-mono">
+              SHA-256(SHA-256(BTC_HASH + Solana_pubkey[1:-4]))
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black overflow-auto">
       <ClientWalletProviderWithNoSSR>
         <HomeContent />
       </ClientWalletProviderWithNoSSR>
