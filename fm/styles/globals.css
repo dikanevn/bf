@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: black;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: black;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+button {
+  padding: 0.25rem 0.5rem;
+  font-size: 8px;
+  background-color: #767999 !important;
+  color: white !important;
+  border: 2px outset #8b8fb3 !important;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background-color: #8b8fb3 !important;
+  border: 2px outset #9ea3c7 !important;
+}
+
+button:disabled {
+  background-color: #5a5c73 !important;
+  cursor: not-allowed;
+  border: 2px inset #8b8fb3 !important;
+} 

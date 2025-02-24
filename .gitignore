@@ -39,4 +39,6 @@ next-env.d.ts
 .vercel
 
 # gh-pages
-.gh-pages-cache 
+.gh-pages-cache
+node_modules/.cache/gh-pages/
+

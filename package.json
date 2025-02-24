@@ -1,2 +1,10 @@
 {
+  "name": "bf",
+  "private": true,
+  "scripts": {
+    "deploy": "cd fm && npm run build && cd .. && gh-pages -d fm/out"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1"
+  }
 }
