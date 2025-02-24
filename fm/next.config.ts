@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   basePath: '/bf',
   trailingSlash: true,
   assetPrefix: '/bf/',
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.json$/,
+      type: 'json',
+    });
+    return config;
+  },
 };
 
 export default nextConfig;
