@@ -262,7 +262,7 @@ function HomeContent() {
             <br />
             <br />
             
-             If the generated number is lower than the chance in this game – you're lucky.
+             If the generated number is lower than the chance in this game – you are lucky.
             </p>
 
             <p>
@@ -285,7 +285,7 @@ function HomeContent() {
               Release date of pNFT: time is subjective.
             </p>
             <p>
-              I'd be happy to discuss ideas in the Yapster chat: <a href="https://t.me/yapsterissick" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://t.me/yapsterissick</a>. Just tag me @dikanevn
+              I&apos;d be happy to discuss ideas in the Yapster chat: <a href="https://t.me/yapsterissick" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://t.me/yapsterissick</a>. Just tag me @dikanevn
             </p>
             <p>
               My contacts: <a href="https://linktr.ee/dikanevn" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://linktr.ee/dikanevn</a>
