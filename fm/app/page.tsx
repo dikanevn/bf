@@ -49,6 +49,7 @@ function HomeContent() {
   const [showInfo, setShowInfo] = useState(false);
   const { publicKey } = useWallet();
   const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
+  const [totalGames, setTotalGames] = useState(0);
 
   const searchAddress = async (searchAddr: string) => {
     if (!searchAddr) return;
@@ -101,6 +102,7 @@ function HomeContent() {
 
   useEffect(() => {
     const loadRoundsData = async () => {
+      let maxRound = 0;
       for (let i = 1; i <= 20; i++) {
         try {
           const d2 = await import(`../../b/rounds/${i}/d2.json`);
@@ -109,10 +111,12 @@ function HomeContent() {
             d2: d2.default,
             d3: d3.default
           };
+          maxRound = i;
         } catch {
           continue;
         }
       }
+      setTotalGames(maxRound);
     };
     void loadRoundsData();
   }, []);
@@ -174,7 +178,7 @@ function HomeContent() {
             <div><h4 className="text-xl mb-4 font-bold text-blue-400">Won pNFTs Airdrop: {totalWins}</h4></div>
             <br />
             <div className="mb-6 text-gray-400">
-              Total Games: 19 | Won: {totalWins} | Lost: {totalLosses} | Not Participated: {totalNotParticipated}
+              Total Games: {totalGames} | Won: {totalWins} | Lost: {totalLosses} | Not Participated: {totalNotParticipated}
             </div>
           </div>
           <div>
