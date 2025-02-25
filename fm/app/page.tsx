@@ -5,6 +5,13 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import type { D02Item } from '../types';
+import Image from 'next/image';
+
+// Динамический импорт WalletProvider с отключенным SSR
+const ClientWalletProvider = dynamic(
+  () => import('../components/WalletProvider').then(mod => mod.ClientWalletProvider),
+  { ssr: false }
+);
 
 // Определяем типы для данных раундов
 interface RoundDataItem {
@@ -17,30 +24,6 @@ interface RoundFiles {
     d3: RoundDataItem[];
   }
 }
-
-// Импортируем данные как модули
-const roundsData: RoundFiles = {};
-
-// Динамический импорт данных
-if (typeof window !== 'undefined') {
-  for (let i = 1; i <= 20; i++) {
-    try {
-      const d2 = await import(`../../b/rounds/${i}/d2.json`);
-      const d3 = await import(`../../b/rounds/${i}/d3.json`);
-      roundsData[i] = {
-        d2: d2.default,
-        d3: d3.default
-      };
-    } catch {
-      continue;
-    }
-  }
-}
-
-const ClientWalletProviderWithNoSSR = dynamic(
-  () => import('../components/WalletProvider').then(mod => mod.ClientWalletProvider),
-  { ssr: false }
-);
 
 interface SearchResult {
   round: number;
@@ -55,7 +38,11 @@ interface D02Data {
   TOTAL_TICKETS: string;
   coefficient: string;
   BITCOIN_BLOCK_NUMBER?: string;
+  RewardsOrDeploy?: string;
 }
+
+// Заменим топ-уровневый await на загрузку в useEffect
+const roundsData: RoundFiles = {};
 
 function HomeContent() {
   const [address, setAddress] = useState('');
@@ -112,6 +99,24 @@ function HomeContent() {
       void searchAddress(publicKey.toString());
     }
   }, [publicKey]);
+
+  useEffect(() => {
+    const loadRoundsData = async () => {
+      for (let i = 1; i <= 20; i++) {
+        try {
+          const d2 = await import(`../../b/rounds/${i}/d2.json`);
+          const d3 = await import(`../../b/rounds/${i}/d3.json`);
+          roundsData[i] = {
+            d2: d2.default,
+            d3: d3.default
+          };
+        } catch {
+          continue;
+        }
+      }
+    };
+    void loadRoundsData();
+  }, []);
 
   useEffect(() => {
     const loadD02Data = async () => {
@@ -223,8 +228,6 @@ function HomeContent() {
 
         {showInfo && (
           <div className="mt-4 text-gray-400 space-y-4">
-            
-
             <p>
               Hi, my name is Nik. This is my vision for the $YAPSTER DAO NFT concept.
             </p>
@@ -242,7 +245,7 @@ function HomeContent() {
             </p>
 
             <p>
-              Each round's pNFTs are distributed using a provably fair random algorithm. The source of entropy is the Bitcoin block hash, captured no sooner than 30 minutes after the game begins. The formula used:
+              Each round&apos;s pNFTs are distributed using a provably fair random algorithm. The source of entropy is the Bitcoin block hash, captured no sooner than 30 minutes after the game begins. The formula used:
             </p>
 
             <p className="font-mono">
@@ -279,13 +282,10 @@ function HomeContent() {
             </p>
 
             <p>
-              Algorithms are the new oil.
-            </p>
-            <p>
               Release date of pNFT: time is subjective.
             </p>
             <p>
-              I'd be happy to discuss ideas in the Yapster chat: <a href="https://t.me/yapsterissick" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://t.me/yapsterissick</a>. Just tag me @dikanevn.
+              I'd be happy to discuss ideas in the Yapster chat: <a href="https://t.me/yapsterissick" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://t.me/yapsterissick</a>. Just tag me @dikanevn
             </p>
             <p>
               My contacts: <a href="https://linktr.ee/dikanevn" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://linktr.ee/dikanevn</a>
@@ -303,9 +303,9 @@ function HomeContent() {
 export default function Home() {
   return (
     <div className="min-h-screen bg-black overflow-auto">
-      <ClientWalletProviderWithNoSSR>
+      <ClientWalletProvider>
         <HomeContent />
-      </ClientWalletProviderWithNoSSR>
+      </ClientWalletProvider>
     </div>
   );
 } 
