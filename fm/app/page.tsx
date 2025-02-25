@@ -5,7 +5,6 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import type { D02Item } from '../types';
-import Image from 'next/image';
 
 // Динамический импорт WalletProvider с отключенным SSR
 const ClientWalletProvider = dynamic(
