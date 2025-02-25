@@ -1,4 +1,10 @@
+ts-node log2.ts обновить лог файл
+ts-node log5.ts дополнить лог файл
+ts-node log4.ts собрать agame_statistics.json
+
+
 ts-node d14.ts 107     делает файл d2
+переименовываем папку
 потом копируем d02
 ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id и бтс по номеру блока. и тотал игроки делает
 ts-node d08.ts 95-99 делает рандом и аудит

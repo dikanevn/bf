@@ -5,6 +5,9 @@ import * as path from 'path';
 
 dotenv.config();
 
+// Добавляем константу с ID программы в начало файла после импортов
+const DEFAULT_PROGRAM_ID = 'HjDkVP7sYuse7UyirbngnjMJD5PgVkPSfcX6dLWbfE4a';
+
 // Функция для паузы между запросами
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -51,7 +54,7 @@ async function getProgramLogs(programId: string) {
             console.log(`Получено ${allSignatures.length} транзакций...`);
             
             // Ограничим количество транзакций
-            if (allSignatures.length >= 15000) break; // Уменьшили до 100
+            if (allSignatures.length >= 1000) break; // Уменьшили до 100
             
             await sleep(50); // Пауза 200мс между запросами подписей
         }
@@ -79,7 +82,7 @@ async function getProgramLogs(programId: string) {
             }));
             
             console.log(`Обработано ${transactions.length} из ${allSignatures.length} транзакций`);
-            await sleep(250); // Пауза между группами
+            await sleep(1000); // Пауза между группами
         }
 
         const result = {
@@ -104,16 +107,6 @@ async function getProgramLogs(programId: string) {
         console.log(`Всего транзакций: ${result.totalTransactions}`);
         console.log(`Логи сохранены в: ${fileName}`);
 
-        console.log('\nТранзакции:');
-        result.transactions.forEach((tx, index) => {
-            console.log(`\n${index + 1}. Транзакция:`);
-            console.log(`   Время: ${tx.blockTime}`);
-            console.log(`   Статус: ${tx.status}`);
-            console.log(`   Сигнатура: ${tx.signature}`);
-            console.log('   Логи:');
-            tx.logMessages.forEach((log: string) => console.log(`     ${log}`));
-        });
-
     } catch (error) {
         console.error('Ошибка при получении логов:', error);
         if (error instanceof Error) {
@@ -125,13 +118,8 @@ async function getProgramLogs(programId: string) {
 
 async function main() {
     const args = process.argv.slice(2);
-    if (args.length < 1) {
-        console.error('Укажите ID программы');
-        console.error('Пример: ts-node log2.ts <program_id>');
-        process.exit(1);
-    }
-
-    const programId = args[0];
+    // Используем ID программы из параметров или значение по умолчанию
+    const programId = args[0] || DEFAULT_PROGRAM_ID;
     await getProgramLogs(programId);
 }
 
