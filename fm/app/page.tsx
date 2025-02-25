@@ -223,22 +223,75 @@ function HomeContent() {
 
         {showInfo && (
           <div className="mt-4 text-gray-400 space-y-4">
+            
 
             <p>
-              Total supply ~10,000
+              Hi, my name is Nik. This is my vision for the $YAPSTER DAO NFT concept.
             </p>
+
             <p>
-              The distribution starts from the first game with 183 participants and 183 pNFTs. 
-              With each game, the number decreases by 1.83%. This ensures that the maximum 
-              supply remains ~10,000.
+              The total supply is approximately 10,000, assuming full minting, though the actual number will likely be lower.
             </p>
+
             <p>
-              pNFTs in each round are distributed by a transparent random algorithm. 
-              The source of entropy is the Bitcoin block hash, taken at least 30 minutes 
-              after the game starts. The formula used:
+              5% of trading fees will be used to burn the Yapster token.
             </p>
+
+            <p>
+              Distribution begins with the first game, featuring 183 participants and 183 pNFTs. With each game, the number of pNFTs decreases by 1.83%, ensuring that the maximum supply remains around 10,000.
+            </p>
+
+            <p>
+              Each round's pNFTs are distributed using a provably fair random algorithm. The source of entropy is the Bitcoin block hash, captured no sooner than 30 minutes after the game begins. The formula used:
+            </p>
+
             <p className="font-mono">
               SHA-256(SHA-256(BTC_HASH + Solana_pubkey[1:-4]))
+            </p>
+
+            <p>
+            You can check any game by inserting the Bitcoin block hash and your address into this code:
+            <br />
+            <br />
+              <a href="https://chatgpt.com/canvas/shared/67ba8b1051cc81918fafada7dcd8d842" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">
+              https://chatgpt.com/canvas/shared/67ba8b1051cc81918fafada7dcd8d842
+              </a>
+            <br />
+            <br />
+            
+             If the generated number is lower than the chance in this game – you're lucky.
+            </p>
+
+            <p>
+              It makes me really sad to see meme coins dying, the limitless potential of NFTs reduced to just art, and everyone forgetting about metaverses and GameFi.
+            </p>
+
+            <p>
+              Yapster DAO will bring it all together and build something new.
+            </p>
+
+            <p>
+              The general concept is described here:
+              <br />
+              <a href="https://x.com/dikanevn/status/1888421145369571811" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">
+                https://x.com/dikanevn/status/1888421145369571811
+              </a>
+            </p>
+
+            <p>
+              Algorithms are the new oil.
+            </p>
+            <p>
+              Release date of pNFT: time is subjective.
+            </p>
+            <p>
+              I'd be happy to discuss ideas in the Yapster chat: <a href="https://t.me/yapsterissick" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://t.me/yapsterissick</a>. Just tag me @dikanevn.
+            </p>
+            <p>
+              My contacts: <a href="https://linktr.ee/dikanevn" className="text-blue-400 hover:text-blue-300" target="_blank" rel="noopener noreferrer">https://linktr.ee/dikanevn</a>
+            </p>
+            <p>
+              Yapster.
             </p>
           </div>
         )}
