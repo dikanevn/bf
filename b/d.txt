@@ -6,8 +6,13 @@ ts-node log4.ts собрать agame_statistics.json
 ts-node d14.ts 107     делает файл d2
 переименовываем папку
 потом копируем d02
-ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id и бтс по номеру блока. и тотал игроки делает
+ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id . и тотал игроки делает
+добавлям блок
+ts-node d19.ts 8 бтс по номеру блока. и тотал игроки делает
 ts-node d08.ts 95-99 делает рандом и аудит
+cd ~\u1\bf
+git add . && git commit -m "a" && git push
+
 
 counter=9; for i in $(seq 108 123); do if [ -d "rounds/$i" ]; then mv "rounds/$i" "rounds/$counter" && echo "Переименовано $i -> $counter"; counter=$((counter+1)); fi; done
 

@@ -83,10 +83,13 @@ async function main() {
     const jsonContent = removeComments(fileContent);
     const statistics = JSON.parse(jsonContent);
     
-    // Создаем мапу для быстрого доступа к количеству игроков по gameId
-    const gameMap = new Map<string, number>();
+    // Создаем мапу для быстрого доступа к данным игр по gameId
+    const gameMap = new Map<string, { playerCount: number, startDate: string }>();
     statistics.games.forEach((game: GameStatistic) => {
-      gameMap.set(game.gameId, game.playerCount);
+      gameMap.set(game.gameId, {
+        playerCount: game.playerCount,
+        startDate: game.startDate
+      });
     });
 
     // Формируем путь к конкретному файлу d02.json
@@ -123,17 +126,35 @@ async function main() {
 
     // Обновляем данные
     for (const round of d02Data) {
-      // Обновляем TOTAL_TICKETS из статистики игр
-      if (round.GAME_ID && !round.TOTAL_TICKETS && gameMap.has(round.GAME_ID)) {
-        const newValue = gameMap.get(round.GAME_ID)?.toString() || '';
-        round.TOTAL_TICKETS = newValue;
-        updated = true;
-        updatedFields.push({
-          round: round.round,
-          field: 'TOTAL_TICKETS',
-          oldValue: '',
-          newValue
-        });
+      // Обновляем TOTAL_TICKETS и RewardsOrDeploy из статистики игр
+      if (round.GAME_ID && gameMap.has(round.GAME_ID)) {
+        const gameData = gameMap.get(round.GAME_ID);
+        
+        // Обновляем TOTAL_TICKETS если оно пустое
+        if (!round.TOTAL_TICKETS && gameData) {
+          const newValue = gameData.playerCount.toString();
+          round.TOTAL_TICKETS = newValue;
+          updated = true;
+          updatedFields.push({
+            round: round.round,
+            field: 'TOTAL_TICKETS',
+            oldValue: '',
+            newValue
+          });
+        }
+
+        // Обновляем RewardsOrDeploy если оно пустое
+        if (!round.RewardsOrDeploy && gameData) {
+          const newValue = gameData.startDate;
+          round.RewardsOrDeploy = newValue;
+          updated = true;
+          updatedFields.push({
+            round: round.round,
+            field: 'RewardsOrDeploy',
+            oldValue: '',
+            newValue
+          });
+        }
       }
 
       // Обновляем информацию о биткоин-блоках
