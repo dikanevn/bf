@@ -1,11 +1,13 @@
+log2.ts - исправить 1000 (строка 57) если надо 
 ts-node log2.ts обновить лог файл
 ts-node log5.ts дополнить лог файл
 ts-node log4.ts собрать agame_statistics.json
 
-
+открыть agame_statistics.json
 ts-node d14.ts 107     делает файл d2
 переименовываем папку
 потом копируем d02
+вставляем game id
 ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id . и тотал игроки делает
 добавлям блок
 ts-node d19.ts 8 бтс по номеру блока. и тотал игроки делает
