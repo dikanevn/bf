@@ -6,10 +6,27 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-const PROGRAM_ID = new PublicKey("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
+const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
+
+interface SearchResult {
+  round: number;
+  participated: boolean;
+  won: boolean;
+  date: string;
+}
+
+interface D02Data {
+  round: number;
+  value: string;
+  TOTAL_TICKETS: string;
+  coefficient: string;
+  BITCOIN_BLOCK_NUMBER?: string;
+  RewardsOrDeploy?: string;
+  winnersCount?: number;
+}
 
 const WalletMultiButtonDynamic = dynamic(
   () => import('@solana/wallet-adapter-react-ui').then(mod => mod.WalletMultiButton),
@@ -30,6 +47,10 @@ function DevContent() {
   const [metadataAddress, setMetadataAddress] = useState<PublicKey | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [ataAddress, setAtaAddress] = useState<PublicKey | null>(null);
+  const [winningRounds, setWinningRounds] = useState<SearchResult[]>([]);
+  const [totalGames, setTotalGames] = useState(0);
+  const [totalWins, setTotalWins] = useState(0);
+  const [totalLosses, setTotalLosses] = useState(0);
 
   const onCreateMetadata = async () => {
     if (!publicKey || !signTransaction || !mintKeypair) {
@@ -250,6 +271,70 @@ function DevContent() {
     }
   };
 
+  const loadWinningRounds = async (address: string) => {
+    try {
+      const results: SearchResult[] = [];
+      
+      // Находим последний раунд
+      let currentRound = 1;
+      let lastFoundRound = 0;
+      
+      while (true) {
+        try {
+          await import(`../../../b/rounds/${currentRound}/d2.json`);
+          lastFoundRound = currentRound;
+          currentRound++;
+        } catch {
+          break;
+        }
+      }
+
+      setTotalGames(lastFoundRound);
+
+      // Загружаем данные для каждого раунда
+      for (let i = 1; i <= lastFoundRound; i++) {
+        try {
+          const d2 = await import(`../../../b/rounds/${i}/d2.json`);
+          const d3 = await import(`../../../b/rounds/${i}/d3.json`);
+          const d02 = await import(`../../../b/rounds/${i}/d02.json`);
+
+          const participated = d2.default.some((item: { player: string }) => item.player === address);
+          const won = d3.default.some((item: { player: string }) => item.player === address);
+          
+          if (participated || won) {
+            const date = d02.default.find((item: D02Data) => item.round === i)?.RewardsOrDeploy;
+            results.push({
+              round: i,
+              participated,
+              won,
+              date: date ? new Date(date).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long'
+              }) : `Round ${i}`
+            });
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      const wins = results.filter(r => r.won).length;
+      const losses = results.filter(r => r.participated && !r.won).length;
+      
+      setTotalWins(wins);
+      setTotalLosses(losses);
+      setWinningRounds(results.filter(r => r.won).sort((a, b) => b.round - a.round));
+    } catch (error) {
+      console.error("Ошибка при загрузке выигрышных раундов:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (publicKey) {
+      void loadWinningRounds(publicKey.toString());
+    }
+  }, [publicKey]);
+
   return (
     <div className="min-h-screen bg-black overflow-auto">
       <div className="pt-[2vh] px-[2vw] text-gray-400">
@@ -266,6 +351,23 @@ function DevContent() {
             {mintKeypair && <div className="mt-2">Mint Address: {mintKeypair.publicKey.toString()}</div>}
             {ataAddress && <div className="mt-2">Associated Token Account: {ataAddress.toString()}</div>}
             {metadataAddress && <div className="mt-2">Metadata Address: {metadataAddress.toString()}</div>}
+            
+            <div className="mt-4 text-gray-400">
+              <div>Всего игр: {totalGames}</div>
+              <div>Выиграно: {totalWins}</div>
+              <div>Проиграно: {totalLosses}</div>
+            </div>
+
+            {winningRounds.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-gray-400 mb-2">Выигрышные раунды:</h3>
+                {winningRounds.map((result) => (
+                  <div key={result.round} className="text-green-400">
+                    Раунд {result.round} | {result.date} | Выигрыш подтвержден! ✅
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -274,7 +376,7 @@ function DevContent() {
             <button 
               onClick={onCreateMetadata} 
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="mt-5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {loading ? 'Processing...' : '1. Создать метадату'}
             </button>
@@ -282,7 +384,7 @@ function DevContent() {
             <button 
               onClick={onSetProgramAsAuthority} 
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="mt-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {loading ? 'Processing...' : '2. Установить программу как mint authority'}
             </button>
@@ -290,7 +392,7 @@ function DevContent() {
             <button 
               onClick={onCreateProgramMint}
               disabled={!publicKey || isLoading}
-              className="mt-5 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="mt-5 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {isLoading ? 'Processing...' : '3. Создать минт от имени программы'}
             </button>
@@ -298,7 +400,7 @@ function DevContent() {
             <button 
               onClick={onCreateProgramATA}
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {loading ? 'Processing...' : '4. Создать ассоциированный токен аккаунт'}
             </button>
@@ -306,7 +408,7 @@ function DevContent() {
             <button 
               onClick={onMintToken}
               disabled={loading || !mintKeypair || !ataAddress}
-              className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {loading ? 'Processing...' : '5. Минтить токен'}
             </button>
