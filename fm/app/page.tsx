@@ -50,16 +50,54 @@ function HomeContent() {
   const { publicKey } = useWallet();
   const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
   const [totalGames, setTotalGames] = useState(0);
+  const [totalMinted, setTotalMinted] = useState(0);
+  const [lastGameStats, setLastGameStats] = useState<{
+    date: string;
+    players: number;
+    estimatedWinners: number;
+    actualWinners: number;
+  } | null>(null);
+
+  const findLastRound = async () => {
+    let currentRound = 1; // Начинаем с 1 и идем вверх
+    let lastFoundRound = 0;
+    
+    // Ищем последнюю существующую папку
+    while (true) {
+      try {
+        // Проверяем существование папки через наличие d2.json
+        await import(`../../b/rounds/${currentRound}/d2.json`);
+        lastFoundRound = currentRound;
+        currentRound++;
+      } catch {
+        break; // Если папка не найдена, значит дошли до конца
+      }
+    }
+
+    if (lastFoundRound === 0) {
+      throw new Error('No rounds found');
+    }
+
+    // Проверяем наличие d02.json в последней найденной папке
+    try {
+      await import(`../../b/rounds/${lastFoundRound}/d02.json`);
+      return lastFoundRound;
+    } catch {
+      throw new Error(`Found folder ${lastFoundRound} but no d02.json in it`);
+    }
+  };
 
   const searchAddress = async (searchAddr: string) => {
     if (!searchAddr) return;
 
     const results: SearchResult[] = [];
 
-    // Загружаем даты из d02.json
+    const lastRound = await findLastRound();
+
+    // Загружаем даты из d02.json последнего раунда
     const roundDates: { [key: number]: string } = {};
     try {
-      const d02Module = await import('../../b/rounds/19/d02.json');
+      const d02Module = await import(`../../b/rounds/${lastRound}/d02.json`);
       const d02Data = d02Module.default;
       d02Data.forEach((item: D02Item) => {
         if (item.RewardsOrDeploy) {
@@ -102,8 +140,8 @@ function HomeContent() {
 
   useEffect(() => {
     const loadRoundsData = async () => {
-      let maxRound = 0;
-      for (let i = 1; i <= 20; i++) {
+      const maxRound = await findLastRound();
+      for (let i = 1; i <= maxRound; i++) {
         try {
           const d2 = await import(`../../b/rounds/${i}/d2.json`);
           const d3 = await import(`../../b/rounds/${i}/d3.json`);
@@ -111,7 +149,6 @@ function HomeContent() {
             d2: d2.default,
             d3: d3.default
           };
-          maxRound = i;
         } catch {
           continue;
         }
@@ -124,13 +161,49 @@ function HomeContent() {
   useEffect(() => {
     const loadD02Data = async () => {
       try {
-        const d02Module = await import('../../b/rounds/19/d02.json');
+        const lastRound = await findLastRound();
+        console.log('Last round found:', lastRound);
+
+        // Загружаем данные последнего раунда
+        const d02Module = await import(`../../b/rounds/${lastRound}/d02.json`);
         const d02RawData = d02Module.default;
+        console.log('Last round data:', d02RawData);
+        
         const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Item}, item: D02Item) => {
           acc[item.round] = item;
           return acc;
         }, {});
         setD02Data(d02Processed);
+        
+        // Подсчитываем общее количество намайненных pNFT
+        const totalMintedCount = d02RawData.reduce((sum: number, item: D02Item) => {
+          return sum + (item.winnersCount || 0);
+        }, 0);
+        setTotalMinted(totalMintedCount);
+
+        // Получаем данные последней игры
+        const lastGame = d02RawData.find((item: D02Item) => item.round === lastRound);
+        console.log('Last game data:', lastGame);
+        
+        if (lastGame && lastGame.RewardsOrDeploy) {
+          try {
+            const d3LastGame = await import(`../../b/rounds/${lastRound}/d3.json`);
+            const actualWinners = d3LastGame.default.length;
+            console.log('Last game winners:', actualWinners);
+            
+            setLastGameStats({
+              date: new Date(lastGame.RewardsOrDeploy).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long'
+              }),
+              players: parseInt(lastGame.TOTAL_TICKETS),
+              estimatedWinners: parseFloat(lastGame.value),
+              actualWinners: actualWinners
+            });
+          } catch (err) {
+            console.error('Error loading last game data:', err);
+          }
+        }
       } catch (err) {
         console.error('Error loading d02.json:', err);
       }
@@ -220,6 +293,23 @@ function HomeContent() {
           </div>
         </div>
       )}
+
+      <div className="text-gray-400 mt-8 mb-8">
+        <div className="text-xl font-bold">Global Statistics:</div>
+        <div>Total pNFT: ~10000</div>
+        <div>Minted pNFT: {totalMinted}</div>
+        <div>Minted percentage: {((totalMinted / 10000) * 100).toFixed(1)}%</div>
+        
+        {lastGameStats && (
+          <>
+            <div className="text-xl font-bold mt-4">Latest Game:</div>
+            <div>Date: {lastGameStats.date}</div>
+            <div>Players: {lastGameStats.players}</div>
+            <div>Expected winners: ~{lastGameStats.estimatedWinners.toFixed(3)}</div>
+            <div>Actual winners: {lastGameStats.actualWinners}</div>
+          </>
+        )}
+      </div>
 
       <div className="mt-8 mb-8">
         <button 

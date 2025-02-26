@@ -25,4 +25,5 @@ export interface D02Item {
   TOTAL_TICKETS: string;
   coefficient: string;
   RewardsOrDeploy: string;
+  winnersCount?: number;
 }
