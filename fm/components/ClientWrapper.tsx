@@ -8,6 +8,24 @@ const ClientWalletProvider = dynamic(
   { ssr: false }
 );
 
+interface ClientWrapperProps {
+  children?: React.ReactNode;
+}
+
+export default function ClientWrapper({ children }: ClientWrapperProps) {
+  return (
+    <Suspense fallback={
+      <div className="text-gray-400 text-center mt-8">
+        Loading application...
+      </div>
+    }>
+      <ClientWalletProvider>
+        {children || <HomeContent />}
+      </ClientWalletProvider>
+    </Suspense>
+  );
+}
+
 const HomeContent = dynamic(
   () => import('./HomeContent'),
   { 
@@ -18,18 +36,4 @@ const HomeContent = dynamic(
       </div>
     )
   }
-);
-
-export default function ClientWrapper() {
-  return (
-    <Suspense fallback={
-      <div className="text-gray-400 text-center mt-8">
-        Loading application...
-      </div>
-    }>
-      <ClientWalletProvider>
-        <HomeContent />
-      </ClientWalletProvider>
-    </Suspense>
-  );
-} 
+); 

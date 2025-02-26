@@ -4,6 +4,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import type { D02Item } from '../types';
+import Link from 'next/link';
 
 // Определяем типы для данных раундов
 interface RoundDataItem {
@@ -300,12 +301,20 @@ export default function HomeContent() {
           </div>
 
           <div className="mt-8 mb-8">
-            <button 
-              onClick={() => setShowInfo(!showInfo)}
-              className="text-gray-400 hover:text-gray-300 transition-colors"
-            >
-              ℹ️ Details
-            </button>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowInfo(!showInfo)}
+                className="text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                ℹ️ Details
+              </button>
+              <Link 
+                href="/docs"
+                className="text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                📚 Ultra-white paper
+              </Link>
+            </div>
 
             {showInfo && (
               <div className="mt-4 text-gray-400 space-y-4">
