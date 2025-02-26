@@ -3,6 +3,7 @@ use solana_program::{
     entrypoint,
     entrypoint::ProgramResult,
     program::invoke,
+    program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     msg,
@@ -19,6 +20,7 @@ use mpl_token_metadata::{
     instructions,
     types::DataV2,
 };
+use spl_associated_token_account::instruction;
 
 // Объявляем точку входа для программы
 entrypoint!(process_instruction);
@@ -34,162 +36,16 @@ pub fn process_instruction(
             msg!("Program is initialized!");
             Ok(())
         }
-        Some(1) => create_mint(program_id, accounts),
-        Some(2) => create_token_account(program_id, accounts),
-        Some(3) => mint_token(program_id, accounts),
         Some(4) => create_metadata(program_id, accounts),
         Some(5) => set_mint_authority(program_id, accounts),
+        Some(6) => create_program_mint(program_id, accounts),
+        Some(7) => create_associated_token_account(program_id, accounts),
+        Some(8) => mint_token_by_program(program_id, accounts),
         _ => {
             msg!("Invalid instruction");
             Err(ProgramError::InvalidInstructionData)
         }
     }
-}
-
-fn create_mint(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем необходимые аккаунты
-    let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-
-    // Создаем минт с 0 decimals
-    let init_mint_ix = token_instruction::initialize_mint(
-        &spl_token::id(),
-        &mint_account.key,
-        &mint_authority.key,
-        None,
-        0, 
-    )?;
-
-    // Создаем минт аккаунт
-    let rent = Rent::get()?;
-    let mint_len = Mint::LEN;
-    let lamports = rent.minimum_balance(mint_len);
-
-    invoke(
-        &system_instruction::create_account(
-            &payer.key,
-            &mint_account.key,
-            lamports,
-            mint_len as u64,
-            &spl_token::id(),
-        ),
-        &[
-            payer.clone(),
-            mint_account.clone(),
-            system_program.clone(),
-        ],
-    )?;
-
-    // Инициализируем минт
-    invoke(
-        &init_mint_ix,
-        &[
-            mint_account.clone(),
-            rent_sysvar.clone(),
-            token_program.clone(),
-        ],
-    )?;
-
-    msg!("Mint account created successfully!");
-    Ok(())
-}
-
-fn create_token_account(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем необходимые аккаунты
-    let token_account = next_account_info(account_info_iter)?;
-    let mint_account = next_account_info(account_info_iter)?;
-    let owner = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-
-    // Создаем токен аккаунт
-    let token_account_len = Account::LEN;
-    let token_account_lamports = Rent::get()?.minimum_balance(token_account_len);
-
-    invoke(
-        &system_instruction::create_account(
-            &payer.key,
-            &token_account.key,
-            token_account_lamports,
-            token_account_len as u64,
-            &spl_token::id(),
-        ),
-        &[
-            payer.clone(),
-            token_account.clone(),
-            system_program.clone(),
-        ],
-    )?;
-
-    // Инициализируем токен аккаунт
-    invoke(
-        &token_instruction::initialize_account(
-            &spl_token::id(),
-            &token_account.key,
-            &mint_account.key,
-            &owner.key,
-        )?,
-        &[
-            token_account.clone(),
-            mint_account.clone(),
-            owner.clone(),
-            rent_sysvar.clone(),
-            token_program.clone(),
-        ],
-    )?;
-
-    msg!("Token account created successfully!");
-    Ok(())
-}
-
-fn mint_token(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем необходимые аккаунты
-    let mint_account = next_account_info(account_info_iter)?;
-    let token_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-
-    // Минтим токен
-    invoke(
-        &token_instruction::mint_to(
-            &spl_token::id(),
-            &mint_account.key,
-            &token_account.key,
-            &mint_authority.key,
-            &[],
-            1,
-        )?,
-        &[
-            mint_account.clone(),
-            token_account.clone(),
-            mint_authority.clone(),
-            token_program.clone(),
-        ],
-    )?;
-
-    msg!("Token minted successfully!");
-    Ok(())
 }
 
 fn create_metadata(
@@ -293,6 +149,163 @@ fn set_mint_authority(
     )?;
 
     msg!("Mint authority successfully transferred to program");
+    Ok(())
+}
+
+// Добавляем новую функцию
+fn create_program_mint(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    
+    let mint_account = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
+
+    // Получаем PDA программы, который будет mint authority
+    let (program_authority, _bump) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+
+    // Создаем минт с 0 decimals
+    let init_mint_ix = token_instruction::initialize_mint(
+        &spl_token::id(),
+        &mint_account.key,
+        &program_authority,
+        None,
+        0, 
+    )?;
+
+    // Создаем минт аккаунт
+    let rent = Rent::get()?;
+    let mint_len = Mint::LEN;
+    let lamports = rent.minimum_balance(mint_len);
+
+    invoke(
+        &system_instruction::create_account(
+            &payer.key,
+            &mint_account.key,
+            lamports,
+            mint_len as u64,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+
+    // Инициализируем минт
+    invoke(
+        &init_mint_ix,
+        &[
+            mint_account.clone(),
+            rent_sysvar.clone(),
+            token_program.clone(),
+        ],
+    )?;
+
+    msg!("Program mint account created successfully!");
+    Ok(())
+}
+
+fn create_associated_token_account(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    
+    let payer = next_account_info(account_info_iter)?;
+    let associated_token_account = next_account_info(account_info_iter)?;
+    let owner = next_account_info(account_info_iter)?;
+    let mint = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+    let associated_token_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
+
+    // Создаем инструкцию для создания ассоциированного токен аккаунта
+    let create_ata_ix = instruction::create_associated_token_account(
+        payer.key,
+        owner.key,
+        mint.key,
+        &spl_token::id(),
+    );
+
+    // Выполняем инструкцию
+    invoke(
+        &create_ata_ix,
+        &[
+            payer.clone(),
+            associated_token_account.clone(),
+            owner.clone(),
+            mint.clone(),
+            system_program.clone(),
+            token_program.clone(),
+            associated_token_program.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    msg!("Associated token account created successfully!");
+    Ok(())
+}
+
+fn mint_token_by_program(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    
+    let mint_account = next_account_info(account_info_iter)?;
+    let token_account = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if program_authority.key != &expected_authority {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Создаем инструкцию для минтинга токена
+    let mint_to_ix = spl_token::instruction::mint_to(
+        &spl_token::id(),
+        mint_account.key,
+        token_account.key,
+        &expected_authority,
+        &[],
+        1, // минтим 1 токен
+    )?;
+
+    // Создаем signer seeds для PDA
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    // Выполняем инструкцию с подписью от PDA
+    invoke_signed(
+        &mint_to_ix,
+        &[
+            mint_account.clone(),
+            token_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        signers,
+    )?;
+
+    msg!("Token minted successfully to {}", token_account.key);
     Ok(())
 }
 

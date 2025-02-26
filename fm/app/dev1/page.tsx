@@ -1,146 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState } from 'react';
-import DevnetWalletProvider from '../../components/DevnetWalletProvider';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("DZwg4GQrbhX6HjM1LkCePZC3TeoeCtqyWxtpwgQpBtxj");
 
+const WalletMultiButtonDynamic = dynamic(
+  () => import('@solana/wallet-adapter-react-ui').then(mod => mod.WalletMultiButton),
+  { ssr: false }
+);
+
+const DevnetWalletProviderDynamic = dynamic(
+  () => import('../../components/DevnetWalletProvider'),
+  { ssr: false }
+);
+
 function DevContent() {
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, signTransaction, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
   const [mintKeypair, setMintKeypair] = useState<Keypair | null>(null);
   const [tokenAccountKeypair, setTokenAccountKeypair] = useState<Keypair | null>(null);
   const [metadataAddress, setMetadataAddress] = useState<PublicKey | null>(null);
-
-  const onCreateMint = async () => {
-    if (!publicKey || !signTransaction) {
-        alert("Пожалуйста, подключите кошелек!");
-        return;
-    }
-
-    try {
-        setLoading(true);
-        const newMintKeypair = Keypair.generate();
-        setMintKeypair(newMintKeypair);
-
-        const transaction = new Transaction();
-        transaction.add(new TransactionInstruction({
-            programId: PROGRAM_ID,
-            keys: [
-                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
-                { pubkey: publicKey, isSigner: true, isWritable: false },
-                { pubkey: publicKey, isSigner: true, isWritable: true },
-                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-            ],
-            data: Buffer.from([1])
-        }));
-        
-        transaction.feePayer = publicKey;
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        transaction.partialSign(newMintKeypair);
-        
-        const signedTx = await signTransaction(transaction);
-        const txid = await connection.sendRawTransaction(signedTx.serialize());
-        await connection.confirmTransaction(txid);
-        
-        alert(`Mint аккаунт создан!\nMint: ${newMintKeypair.publicKey.toString()}`);
-    } catch (error) {
-        console.error("Ошибка при создании mint аккаунта:", error);
-        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const onCreateTokenAccount = async () => {
-    if (!publicKey || !signTransaction || !mintKeypair) {
-        alert("Пожалуйста, подключите кошелек и создайте mint сначала!");
-        return;
-    }
-
-    try {
-        setLoading(true);
-        const newTokenAccountKeypair = Keypair.generate();
-        setTokenAccountKeypair(newTokenAccountKeypair);
-
-        const transaction = new Transaction();
-        transaction.add(new TransactionInstruction({
-            programId: PROGRAM_ID,
-            keys: [
-                { pubkey: newTokenAccountKeypair.publicKey, isSigner: true, isWritable: true },
-                { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
-                { pubkey: publicKey, isSigner: true, isWritable: false },
-                { pubkey: publicKey, isSigner: true, isWritable: true },
-                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-            ],
-            data: Buffer.from([2])
-        }));
-        
-        transaction.feePayer = publicKey;
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        transaction.partialSign(newTokenAccountKeypair);
-        
-        const signedTx = await signTransaction(transaction);
-        const txid = await connection.sendRawTransaction(signedTx.serialize());
-        await connection.confirmTransaction(txid);
-        
-        alert(`Токен аккаунт создан!\nToken Account: ${newTokenAccountKeypair.publicKey.toString()}`);
-    } catch (error) {
-        console.error("Ошибка при создании токен аккаунта:", error);
-        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const onMintToken = async () => {
-    if (!publicKey || !signTransaction || !mintKeypair || !tokenAccountKeypair) {
-        alert("Пожалуйста, создайте mint и токен аккаунт сначала!");
-        return;
-    }
-
-    try {
-        setLoading(true);
-
-        const transaction = new Transaction();
-        transaction.add(new TransactionInstruction({
-            programId: PROGRAM_ID,
-            keys: [
-                { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: true },
-                { pubkey: tokenAccountKeypair.publicKey, isSigner: false, isWritable: true },
-                { pubkey: publicKey, isSigner: true, isWritable: false },
-                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-            ],
-            data: Buffer.from([3])
-        }));
-        
-        transaction.feePayer = publicKey;
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        
-        const signedTx = await signTransaction(transaction);
-        const txid = await connection.sendRawTransaction(signedTx.serialize());
-        await connection.confirmTransaction(txid);
-        
-        alert(`Токен успешно отминчен!`);
-    } catch (error) {
-        console.error("Ошибка при минте токена:", error);
-        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-        setLoading(false);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const [ataAddress, setAtaAddress] = useState<PublicKey | null>(null);
 
   const onCreateMetadata = async () => {
     if (!publicKey || !signTransaction || !mintKeypair) {
@@ -234,6 +123,133 @@ function DevContent() {
     }
   };
 
+  const onCreateProgramMint = async () => {
+    try {
+        if (!publicKey || !sendTransaction) return;
+        
+        setIsLoading(true);
+        const mintKeypair = Keypair.generate();
+        
+        const createMintIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+            ],
+            data: Buffer.from([6])
+        });
+
+        const transaction = new Transaction().add(createMintIx);
+        
+        const signature = await sendTransaction(transaction, connection, {
+            signers: [mintKeypair]
+        });
+        
+        await connection.confirmTransaction(signature);
+        setMintKeypair(mintKeypair);
+        alert('Минт аккаунт успешно создан от имени программы!');
+    } catch (error) {
+        console.error(error);
+        alert('Ошибка при создании минт аккаунта от программы');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const onCreateProgramATA = async () => {
+    if (!publicKey || !signTransaction || !mintKeypair) {
+        alert("Пожалуйста, подключите кошелек и создайте минт сначала!");
+        return;
+    }
+
+    try {
+        setLoading(true);
+
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            mintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        const transaction = new Transaction();
+        transaction.add(new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: false, isWritable: false },
+                { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+            ],
+            data: Buffer.from([7])
+        }));
+        
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        
+        const signedTx = await signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(txid);
+        
+        setTokenAccountKeypair(null); // Сбрасываем старый токен аккаунт
+        setAtaAddress(associatedTokenAccount); // Сохраняем адрес АТА
+        alert(`Ассоциированный токен аккаунт создан!\nATA: ${associatedTokenAccount.toString()}`);
+    } catch (error) {
+        console.error("Ошибка при создании ассоциированного токен аккаунта:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const onMintToken = async () => {
+    if (!publicKey || !signTransaction || !mintKeypair || !ataAddress) {
+        alert("Пожалуйста, подключите кошелек, создайте минт и АТА сначала!");
+        return;
+    }
+
+    try {
+        setLoading(true);
+
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        const transaction = new Transaction();
+        transaction.add(new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: true },
+                { pubkey: ataAddress, isSigner: false, isWritable: true },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+            ],
+            data: Buffer.from([8])
+        }));
+        
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        
+        const signedTx = await signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(signedTx.serialize());
+        await connection.confirmTransaction(txid);
+        
+        alert('Токен успешно заминчен!');
+    } catch (error) {
+        console.error("Ошибка при минтинге токена:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black overflow-auto">
       <div className="pt-[2vh] px-[2vw] text-gray-400">
@@ -241,14 +257,14 @@ function DevContent() {
           <Link href="/" className="text-blue-400 hover:text-blue-300">
             ← Главная
           </Link>
-          <WalletMultiButton />
+          <WalletMultiButtonDynamic />
         </div>
 
         {publicKey && (
           <div className="mt-8 break-all">
             <div>Подключенный адрес: {publicKey.toString()}</div>
             {mintKeypair && <div className="mt-2">Mint Address: {mintKeypair.publicKey.toString()}</div>}
-            {tokenAccountKeypair && <div className="mt-2">Token Account: {tokenAccountKeypair.publicKey.toString()}</div>}
+            {ataAddress && <div className="mt-2">Associated Token Account: {ataAddress.toString()}</div>}
             {metadataAddress && <div className="mt-2">Metadata Address: {metadataAddress.toString()}</div>}
           </div>
         )}
@@ -256,35 +272,11 @@ function DevContent() {
         {publicKey && (
           <div className="flex flex-col gap-4 mt-8">
             <button 
-              onClick={onCreateMint} 
-              disabled={loading}
-              className="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '1. Создать mint аккаунт'}
-            </button>
-            
-            <button 
-              onClick={onCreateTokenAccount} 
-              disabled={loading || !mintKeypair}
-              className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '2. Создать токен аккаунт'}
-            </button>
-
-            <button 
-              onClick={onMintToken} 
-              disabled={loading || !mintKeypair || !tokenAccountKeypair}
-              className="mt-5 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '3. Минтить токен'}
-            </button>
-
-            <button 
               onClick={onCreateMetadata} 
               disabled={loading || !mintKeypair}
               className="mt-5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              {loading ? 'Processing...' : '4. Создать метадату'}
+              {loading ? 'Processing...' : '1. Создать метадату'}
             </button>
 
             <button 
@@ -292,7 +284,31 @@ function DevContent() {
               disabled={loading || !mintKeypair}
               className="mt-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
-              {loading ? 'Processing...' : '5. Установить программу как mint authority'}
+              {loading ? 'Processing...' : '2. Установить программу как mint authority'}
+            </button>
+
+            <button 
+              onClick={onCreateProgramMint}
+              disabled={!publicKey || isLoading}
+              className="mt-5 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '3. Создать минт от имени программы'}
+            </button>
+
+            <button 
+              onClick={onCreateProgramATA}
+              disabled={loading || !mintKeypair}
+              className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '4. Создать ассоциированный токен аккаунт'}
+            </button>
+
+            <button 
+              onClick={onMintToken}
+              disabled={loading || !mintKeypair || !ataAddress}
+              className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '5. Минтить токен'}
             </button>
           </div>
         )}
@@ -303,8 +319,8 @@ function DevContent() {
 
 export default function DevPage() {
   return (
-    <DevnetWalletProvider>
+    <DevnetWalletProviderDynamic>
       <DevContent />
-    </DevnetWalletProvider>
+    </DevnetWalletProviderDynamic>
   );
 } 
