@@ -271,6 +271,75 @@ function DevContent() {
     }
   };
 
+  const onCreateMintAndToken = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        const newMintKeypair = Keypair.generate();
+        
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        const createAllIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: Buffer.from([9])
+        });
+
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createAllIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight
+            });
+
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert('Минт создан, ATA создан и токен заминчен успешно!');
+        } catch (sendError) {
+            console.error("Ошибка при отправке транзакции:", sendError);
+            alert(`Ошибка при отправке транзакции: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+        }
+    } catch (error) {
+        console.error("Общая ошибка:", error);
+        alert(`Общая ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   const loadWinningRounds = async (address: string) => {
     try {
       const results: SearchResult[] = [];
@@ -411,6 +480,14 @@ function DevContent() {
               className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 disabled:opacity-50"
             >
               {loading ? 'Processing...' : '5. Минтить токен'}
+            </button>
+
+            <button 
+              onClick={onCreateMintAndToken}
+              disabled={!publicKey || isLoading}
+              className="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '3-5. Создать минт, ATA и минтить токен (Всё сразу)'}
             </button>
           </div>
         )}
