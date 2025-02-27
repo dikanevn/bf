@@ -3,15 +3,12 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL, clusterApiUrl } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
 import { MerkleTree } from 'merkletreejs';
-import { Connection } from '@solana/web3.js';
-import { createUmi, publicKey } from '@metaplex-foundation/umi-bundle-defaults';
-import { findMetadataPda, findMasterEditionPda, fetchDigitalAsset, findTokenRecordPda } from '@metaplex-foundation/mpl-token-metadata';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -92,8 +89,6 @@ function DevContent() {
   const [totalWins, setTotalWins] = useState(0);
   const [totalLosses, setTotalLosses] = useState(0);
   const [manualRoundNumber, setManualRoundNumber] = useState<string>("1");
-  const [mintInfoData, setMintInfoData] = useState<string | null>(null);
-  const [mintInfoAddress, setMintInfoAddress] = useState<string>("");
 
   const onDeleteMintRecordForRound = async () => {
     if (!publicKey || !sendTransaction) {
@@ -620,157 +615,6 @@ function DevContent() {
     }
   };
 
-  const onGetMintInfo = async () => {
-    if (!mintInfoAddress) {
-      alert("Пожалуйста, введите адрес минта");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Проверяем, что адрес валидный
-      const mintPk = new PublicKey(mintInfoAddress);
-      
-      // Получаем соединение
-      const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-      
-      // Создаем UMI instance для вычислений, связанных с Metaplex
-      const umi = createUmi(clusterApiUrl("devnet"));
-      
-      // Получаем информацию о минт-аккаунте
-      const mintAccountInfo = await connection.getParsedAccountInfo(mintPk);
-      
-      // Преобразуем адрес минта для использования с UMI
-      const mintPkForMetadata = publicKey(mintInfoAddress);
-      
-      // Вычисляем PDA для метаданных и master edition
-      const metadataPda = findMetadataPda(umi, { mint: mintPkForMetadata });
-      let masterEditionPda;
-      try {
-        masterEditionPda = findMasterEditionPda(umi, { mint: mintPkForMetadata });
-      } catch (error) {
-        masterEditionPda = null;
-      }
-      
-      // Пытаемся получить данные цифрового актива
-      let asset;
-      try {
-        asset = await fetchDigitalAsset(umi, mintPkForMetadata);
-      } catch (error) {
-        asset = null;
-      }
-      
-      // Если у нас есть публичный ключ кошелька, получаем ATA и информацию о токен-аккаунте
-      let ataInfo = null;
-      if (publicKey) {
-        try {
-          // Вычисляем Associated Token Address (ATA)
-          const ata = await getAssociatedTokenAddress(mintPk, publicKey);
-          
-          // Получаем информацию о токен-аккаунте
-          const tokenAccountInfo = await connection.getParsedAccountInfo(ata);
-          
-          if (tokenAccountInfo.value) {
-            const parsedTokenData = (tokenAccountInfo.value.data as any).parsed;
-            if (parsedTokenData && parsedTokenData.info) {
-              ataInfo = {
-                address: ata.toString(),
-                mint: parsedTokenData.info.mint,
-                owner: parsedTokenData.info.owner,
-                amount: parsedTokenData.info.tokenAmount.amount,
-                delegate: parsedTokenData.info.delegate || "нет",
-                state: parsedTokenData.info.state,
-                isNative: parsedTokenData.info.isNative !== null ? parsedTokenData.info.isNative : "нет",
-                delegatedAmount: parsedTokenData.info.delegatedAmount ? parsedTokenData.info.delegatedAmount.amount : "0",
-                closeAuthority: parsedTokenData.info.closeAuthority || "нет"
-              };
-            }
-          }
-        } catch (error) {
-          console.error("Ошибка при получении информации о токен-аккаунте:", error);
-        }
-      }
-      
-      // Формируем результат
-      let result = "=== Информация о минт-токене ===\n";
-      result += `Адрес минта: ${mintInfoAddress}\n\n`;
-      
-      result += "=== Информация об аккаунте mint ===\n";
-      if (mintAccountInfo.value) {
-        result += `Mint Account Data: ${JSON.stringify(mintAccountInfo.value.data, null, 2)}\n\n`;
-      } else {
-        result += "Информация о mint аккаунте не найдена.\n\n";
-      }
-      
-      if (ataInfo) {
-        result += "=== Информация о токен-аккаунте (ATA) ===\n";
-        result += `ATA: ${ataInfo.address}\n`;
-        result += `Mint: ${ataInfo.mint}\n`;
-        result += `Owner: ${ataInfo.owner}\n`;
-        result += `Amount: ${ataInfo.amount}\n`;
-        result += `Delegate: ${ataInfo.delegate}\n`;
-        result += `State: ${ataInfo.state}\n`;
-        result += `Is Native: ${ataInfo.isNative}\n`;
-        result += `Delegated Amount: ${ataInfo.delegatedAmount}\n`;
-        result += `Close Authority: ${ataInfo.closeAuthority}\n\n`;
-      }
-      
-      result += "=== Метаданные цифрового актива ===\n";
-      result += `Metadata PDA: ${metadataPda.toString()}\n`;
-      if (masterEditionPda) {
-        result += `Master Edition PDA: ${masterEditionPda.toString()}\n\n`;
-      } else {
-        result += "Master Edition PDA: не найден\n\n";
-      }
-      
-      result += "=== Детали цифрового актива ===\n";
-      if (asset) {
-        result += JSON.stringify(asset, null, 2);
-      } else {
-        result += "Данные цифрового актива не получены.";
-      }
-      
-      // Проверяем, является ли токен программируемым NFT
-      if (asset && asset.metadata.tokenStandard === 4) { // 4 = ProgrammableNonFungible
-        // Находим токен-рекорд PDA
-        if (ataInfo) {
-          try {
-            const tokenRecordPda = findTokenRecordPda(umi, {
-              mint: mintPkForMetadata,
-              token: publicKey(ataInfo.address)
-            });
-            
-            result += "\n\n=== Информация о токен-рекорде (для pNFT) ===\n";
-            result += `Token Record PDA: ${tokenRecordPda.toString()}\n`;
-            
-            // Пытаемся получить данные токен-рекорда
-            try {
-              const tokenRecordAccount = await connection.getAccountInfo(new PublicKey(tokenRecordPda.toString()));
-              if (tokenRecordAccount) {
-                result += "Токен-рекорд существует\n";
-                result += `Размер данных: ${tokenRecordAccount.data.length} байт\n`;
-                // Здесь можно добавить декодирование данных токен-рекорда, если необходимо
-              } else {
-                result += "Токен-рекорд не найден\n";
-              }
-            } catch (error) {
-              result += `Ошибка при получении токен-рекорда: ${error}\n`;
-            }
-          } catch (error) {
-            result += `\n\nОшибка при вычислении токен-рекорда: ${error}\n`;
-          }
-        }
-      }
-      
-      setMintInfoData(result);
-    } catch (error) {
-      console.error("Ошибка при получении информации о минте:", error);
-      setMintInfoData(`Ошибка: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const loadWinningRounds = async (address: string) => {
     try {
       const results: SearchResult[] = [];
@@ -1175,31 +1019,6 @@ function DevContent() {
             </button>
           </div>
         )}
-
-        <div className="mb-4 p-4 border rounded">
-          <h2 className="text-xl font-bold mb-2">19. Получить информацию о минт-токене</h2>
-          <div className="flex items-center mb-2">
-            <input
-              type="text"
-              placeholder="Адрес минта"
-              className="border p-2 mr-2 flex-grow"
-              value={mintInfoAddress}
-              onChange={(e) => setMintInfoAddress(e.target.value)}
-            />
-            <button
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-              onClick={onGetMintInfo}
-              disabled={isLoading}
-            >
-              {isLoading ? "Загрузка..." : "Получить информацию"}
-            </button>
-          </div>
-          {mintInfoData && (
-            <div className="mt-4 p-4 bg-gray-100 rounded overflow-auto max-h-96">
-              <pre className="whitespace-pre-wrap">{mintInfoData}</pre>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
