@@ -6,7 +6,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
 import { MerkleTree } from 'merkletreejs';
 
@@ -615,7 +615,49 @@ function DevContent() {
     }
   };
 
-  const loadWinningRounds = async (address: string) => {
+  const checkIfMintedInRoundExtended = useCallback(async (roundNumber: number): Promise<string | null> => {
+    if (!publicKey) return null;
+    
+    try {
+      // Получаем адрес PDA для расширенного отслеживания минтинга
+      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("is_minted_ext"),
+          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          publicKey.toBuffer(),
+        ],
+        PROGRAM_ID
+      );
+      
+      // Проверяем существование аккаунта
+      const accountInfo = await connection.getAccountInfo(mintRecordPDA);
+      
+      // Если аккаунт существует и принадлежит программе
+      if (accountInfo !== null && accountInfo.owner.equals(PROGRAM_ID)) {
+        // Проверяем размер данных
+        if (accountInfo.data.length < 32) {
+          console.error(`Недостаточный размер данных: ${accountInfo.data.length} байт`);
+          return "Ошибка: недостаточный размер данных";
+        }
+        
+        // Извлекаем адрес минта из данных аккаунта
+        try {
+          const mintAddress = new PublicKey(accountInfo.data.slice(0, 32));
+          return mintAddress.toString();
+        } catch (err) {
+          console.error("Ошибка при чтении адреса минта:", err);
+          return "Ошибка чтения адреса";
+        }
+      }
+      
+      return null;
+    } catch (err) {
+      console.error(`Ошибка при проверке расширенного минтинга для раунда ${roundNumber}:`, err);
+      return null;
+    }
+  }, [publicKey]);
+
+  const loadWinningRounds = useCallback(async (address: string) => {
     try {
       const results: SearchResult[] = [];
       
@@ -638,12 +680,12 @@ function DevContent() {
       // Загружаем данные для каждого раунда
       for (let i = 1; i <= lastFoundRound; i++) {
         try {
-          const d2 = await import(`../../../b/rounds/${i}/d2.json`);
-          const d3 = await import(`../../../b/rounds/${i}/d3.json`);
+          const d2Data = await import(`../../../b/rounds/${i}/d2.json`);
+          const d3Data = await import(`../../../b/rounds/${i}/d3.json`);
           const d02 = await import(`../../../b/rounds/${i}/d02.json`);
 
-          const participated = d2.default.some((item: { player: string }) => item.player === address);
-          const won = d3.default.some((item: { player: string }) => item.player === address);
+          const participated = d2Data.default.some((item: { player: string }) => item.player === address);
+          const won = d3Data.default.some((item: { player: string }) => item.player === address);
           
           if (participated || won) {
             const date = d02.default.find((item: D02Data) => item.round === i)?.RewardsOrDeploy;
@@ -657,7 +699,8 @@ function DevContent() {
               }) : `Round ${i}`
             });
           }
-        } catch {
+        } catch (err) {
+          console.error(`Ошибка при загрузке данных для раунда ${i}:`, err);
           continue;
         }
       }
@@ -690,10 +733,10 @@ function DevContent() {
       setTotalWins(wins);
       setTotalLosses(losses);
       setWinningRounds(results.filter(r => r.won).sort((a, b) => b.round - a.round));
-    } catch (error) {
-      console.error("Ошибка при загрузке выигрышных раундов:", error);
+    } catch (err) {
+      console.error("Ошибка при загрузке выигрышных раундов:", err);
     }
-  };
+  }, [publicKey, checkIfMintedInRoundExtended]);
 
   const calculateLastRoundMerkleRoot = async () => {
     try {
@@ -825,62 +868,11 @@ function DevContent() {
     }
   };
 
-  // Функция для проверки расширенного отслеживания минтинга и получения адреса минта
-  const checkIfMintedInRoundExtended = async (roundNumber: number): Promise<string | null> => {
-    if (!publicKey) return null;
-    
-    try {
-      // Получаем адрес PDA для расширенного отслеживания минтинга
-      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
-          publicKey.toBuffer(),
-        ],
-        PROGRAM_ID
-      );
-      
-      // Проверяем существование аккаунта
-      const accountInfo = await connection.getAccountInfo(mintRecordPDA);
-      
-      // Если аккаунт существует и принадлежит программе
-      if (accountInfo !== null && accountInfo.owner.equals(PROGRAM_ID)) {
-        console.log(`Найден аккаунт расширенного отслеживания для раунда ${roundNumber}:`, mintRecordPDA.toString());
-        console.log(`Размер данных аккаунта: ${accountInfo.data.length} байт`);
-        
-        // Проверяем размер данных
-        if (accountInfo.data.length < 32) {
-          console.error(`Недостаточный размер данных: ${accountInfo.data.length} байт`);
-          return "Ошибка: недостаточный размер данных";
-        }
-        
-        // Выводим сырые данные для отладки
-        const rawData = Buffer.from(accountInfo.data).toString('hex');
-        console.log(`Сырые данные аккаунта: ${rawData}`);
-        
-        // Извлекаем адрес минта из данных аккаунта
-        try {
-          const mintAddress = new PublicKey(accountInfo.data.slice(0, 32));
-          console.log(`Успешно прочитан адрес минта: ${mintAddress.toString()}`);
-          return mintAddress.toString();
-        } catch (error) {
-          console.error("Ошибка при чтении адреса минта:", error);
-          return "Ошибка чтения адреса";
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error(`Ошибка при проверке расширенного минтинга для раунда ${roundNumber}:`, error);
-      return null;
-    }
-  };
-
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
     }
-  }, [publicKey]);
+  }, [publicKey, loadWinningRounds]);
 
   return (
     <div className="min-h-screen bg-black">
