@@ -448,13 +448,445 @@ function DevContent() {
       // Получаем корень в виде байтов
       const root = tree.getRoot();
       
-      alert(`Merkle Root последнего раунда (${lastFoundRound}):\n${root.toString('hex')}`);
-      console.log("Merkle Root в байтах:", Array.from(root));
+      // Преобразуем байты в hex строку с форматом 0xXX
+      const rootHexBytes = Array.from(root).map(b => `0x${b.toString(16).padStart(2, '0')}`);
+      const formattedRoot = `[\n    ${rootHexBytes.join(', ')}\n]`;
+      
+      console.log("Merkle Root в байтах:", formattedRoot);
+      alert(`Merkle Root последнего раунда (${lastFoundRound}):\n${formattedRoot}`);
     } catch (error) {
       console.error("Ошибка при вычислении Merkle Root:", error);
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateAllRoundsMerkleRoots = async () => {
+    try {
+      setLoading(true);
+      
+      // Находим последний раунд
+      let currentRound = 1;
+      let lastFoundRound = 0;
+      
+      while (true) {
+        try {
+          await import(`../../../b/rounds/${currentRound}/d3.json`);
+          lastFoundRound = currentRound;
+          currentRound++;
+        } catch {
+          break;
+        }
+      }
+
+      if (lastFoundRound === 0) {
+        alert('Раунды не найдены');
+        return;
+      }
+
+      let allRootsInfo = [];
+
+      // Обрабатываем каждый раунд
+      for (let round = 1; round <= lastFoundRound; round++) {
+        try {
+          // Загружаем d3.json текущего раунда
+          const d3 = await import(`../../../b/rounds/${round}/d3.json`);
+          
+          // Получаем все адреса из d3
+          const addresses = d3.default.map((item: { player: string }) => item.player);
+          
+          // Создаем листья для меркл-дерева
+          const leaves = addresses.map((addr: string) => {
+            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+            return sha256(pkBytes);
+          });
+          
+          // Сортируем листья для консистентности
+          const sortedLeaves = leaves.slice().sort(Buffer.compare);
+          
+          // Создаем меркл-дерево
+          const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+          
+          // Получаем корень в виде байтов
+          const root = tree.getRoot();
+          
+          // Преобразуем байты в hex строку с форматом 0xXX
+          const rootHexBytes = Array.from(root).map(b => `0x${b.toString(16).padStart(2, '0')}`);
+          const formattedRoot = `[\n    ${rootHexBytes.join(', ')}\n]`;
+          
+          allRootsInfo.push(`Раунд ${round}:\n${formattedRoot}`);
+        } catch (error) {
+          console.error(`Ошибка при обработке раунда ${round}:`, error);
+          allRootsInfo.push(`Раунд ${round}: Ошибка обработки`);
+        }
+      }
+
+      // Выводим все корни
+      const fullMessage = `Merkle Roots для всех раундов:\n\n${allRootsInfo.join('\n\n')}`;
+      console.log(fullMessage);
+      alert(fullMessage);
+    } catch (error) {
+      console.error("Ошибка при вычислении Merkle Roots:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onCreateMintAndTokenWithMerkle = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        const newMintKeypair = Keypair.generate();
+        
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Создаем листья для меркл-дерева из адресов последнего раунда
+        let currentRound = 1;
+        let lastFoundRound = 0;
+        
+        while (true) {
+            try {
+                await import(`../../../b/rounds/${currentRound}/d3.json`);
+                lastFoundRound = currentRound;
+                currentRound++;
+            } catch {
+                break;
+            }
+        }
+
+        if (lastFoundRound === 0) {
+            alert('Раунды не найдены');
+            return;
+        }
+
+        // Загружаем d3.json последнего раунда
+        const d3 = await import(`../../../b/rounds/${lastFoundRound}/d3.json`);
+        
+        // Получаем все адреса из d3
+        const addresses = d3.default.map((item: { player: string }) => item.player);
+        
+        // Создаем листья для меркл-дерева
+        const leaves = addresses.map((addr: string) => {
+            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+            return sha256(pkBytes);
+        });
+        
+        // Сортируем листья для консистентности
+        const sortedLeaves = leaves.slice().sort(Buffer.compare);
+        
+        // Создаем меркл-дерево
+        const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+        
+        // Получаем доказательство для текущего адреса
+        const currentLeaf = sha256(Buffer.from(publicKey.toBytes()));
+        const proof = tree.getProof(currentLeaf);
+
+        if (!proof || proof.length === 0) {
+            alert("Ваш адрес не найден в белом списке!");
+            return;
+        }
+
+        // Преобразуем доказательство в массив байтов
+        const proofBuffers = proof.map(p => p.data);
+
+        // Формируем данные инструкции: [1 байт - номер инструкции][1 байт - длина proof][N * 32 байт - элементы proof]
+        const dataLength = 2 + (proofBuffers.length * 32);
+        const instructionData = Buffer.alloc(dataLength);
+        
+        instructionData[0] = 10; // Номер инструкции
+        instructionData[1] = proofBuffers.length; // Длина proof
+        
+        // Записываем элементы proof
+        for (let i = 0; i < proofBuffers.length; i++) {
+            proofBuffers[i].copy(instructionData, 2 + (i * 32));
+        }
+
+        const createAllIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: instructionData
+        });
+
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createAllIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight
+            });
+
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert('Минт создан, ATA создан и токен заминчен успешно с проверкой меркл-дерева!');
+        } catch (sendError) {
+            console.error("Ошибка при отправке транзакции:", sendError);
+            alert(`Ошибка при отправке транзакции: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+        }
+    } catch (error) {
+        console.error("Общая ошибка:", error);
+        alert(`Общая ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const onCreateMintAndTokenWithMerkleHack = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        const newMintKeypair = Keypair.generate();
+        
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Создаем фейковое меркл-дерево только с нашим адресом
+        const pkBytes = Buffer.from(publicKey.toBytes());
+        const leaf = sha256(pkBytes);
+        const tree = new MerkleTree([leaf], sha256, { sortPairs: true });
+        const proof = tree.getProof(leaf);
+        
+        console.log("Хакерское меркл-дерево создано");
+        console.log("Root:", tree.getRoot().toString('hex'));
+        console.log("Leaf (наш адрес):", leaf.toString('hex'));
+        console.log("Доказательство:", proof);
+
+        // Преобразуем доказательство в массив байтов
+        const proofBuffers = proof.map(p => p.data);
+
+        // Формируем данные инструкции: [1 байт - номер инструкции][1 байт - длина proof][N * 32 байт - элементы proof]
+        const dataLength = 2 + (proofBuffers.length * 32);
+        const instructionData = Buffer.alloc(dataLength);
+        
+        instructionData[0] = 11; // Номер инструкции для хака
+        instructionData[1] = proofBuffers.length; // Длина proof
+        
+        // Записываем элементы proof
+        for (let i = 0; i < proofBuffers.length; i++) {
+            proofBuffers[i].copy(instructionData, 2 + (i * 32));
+        }
+
+        const createAllIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: instructionData
+        });
+
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createAllIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            console.log("Отправка хакерской транзакции...");
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight
+            });
+
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert('Хак успешен! Минт создан без проверки белого списка!');
+        } catch (sendError) {
+            console.error("Ошибка при отправке транзакции:", sendError);
+            alert(`Ошибка при отправке транзакции: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+        }
+    } catch (error) {
+        console.error("Общая ошибка:", error);
+        alert(`Общая ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const onCreateMintAndTokenWithMerkleByRound = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        const newMintKeypair = Keypair.generate();
+        
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Запрашиваем номер раунда у пользователя
+        const roundStr = prompt("Введите номер раунда (1-21):");
+        if (!roundStr) return;
+        
+        const round = parseInt(roundStr);
+        if (isNaN(round) || round < 1 || round > 21) {
+            alert("Неверный номер раунда. Пожалуйста, введите число от 1 до 21.");
+            return;
+        }
+
+        // Создаем листья для меркл-дерева из адресов выбранного раунда
+        const d3 = await import(`../../../b/rounds/${round}/d3.json`);
+        
+        // Получаем все адреса из d3
+        const addresses = d3.default.map((item: { player: string }) => item.player);
+        
+        // Создаем листья для меркл-дерева
+        const leaves = addresses.map((addr: string) => {
+            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+            return sha256(pkBytes);
+        });
+        
+        // Сортируем листья для консистентности
+        const sortedLeaves = leaves.slice().sort(Buffer.compare);
+        
+        // Создаем меркл-дерево
+        const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+        
+        // Получаем доказательство для текущего адреса
+        const currentLeaf = sha256(Buffer.from(publicKey.toBytes()));
+        const proof = tree.getProof(currentLeaf);
+
+        if (!proof || proof.length === 0) {
+            alert("Ваш адрес не найден в белом списке раунда " + round + "!");
+            return;
+        }
+
+        // Преобразуем доказательство в массив байтов
+        const proofBuffers = proof.map(p => p.data);
+
+        // Формируем данные инструкции: [1 байт - номер инструкции][1 байт - номер раунда][1 байт - длина proof][N * 32 байт - элементы proof]
+        const dataLength = 3 + (proofBuffers.length * 32);
+        const instructionData = Buffer.alloc(dataLength);
+        
+        instructionData[0] = 12; // Номер инструкции
+        instructionData[1] = round; // Номер раунда
+        instructionData[2] = proofBuffers.length; // Длина proof
+        
+        // Записываем элементы proof
+        for (let i = 0; i < proofBuffers.length; i++) {
+            proofBuffers[i].copy(instructionData, 3 + (i * 32));
+        }
+
+        console.log("Данные инструкции:", {
+            instructionNumber: instructionData[0],
+            round: instructionData[1],
+            proofLength: instructionData[2],
+            proofData: proofBuffers.map(b => b.toString('hex'))
+        });
+
+        const createAllIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: instructionData
+        });
+
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createAllIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            console.log("Отправка транзакции для раунда " + round + "...");
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight
+            });
+
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert('Минт создан, ATA создан и токен заминчен успешно с проверкой меркл-дерева для раунда ' + round + '!');
+        } catch (sendError) {
+            console.error("Ошибка при отправке транзакции:", sendError);
+            alert(`Ошибка при отправке транзакции: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+        }
+    } catch (error) {
+        console.error("Общая ошибка:", error);
+        alert(`Общая ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -556,6 +988,38 @@ function DevContent() {
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
+            </button>
+
+            <button 
+              onClick={calculateAllRoundsMerkleRoots}
+              disabled={loading}
+              className="bg-yellow-800 hover:bg-yellow-900 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Вычисление...' : '8. Посчитать Merkle Root всех раундов'}
+            </button>
+
+            <button 
+              onClick={onCreateMintAndTokenWithMerkle}
+              disabled={!publicKey || isLoading}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '10. Создать минт, ATA и минтить токен с проверкой меркл-дерева'}
+            </button>
+
+            <button 
+              onClick={onCreateMintAndTokenWithMerkleHack}
+              disabled={!publicKey || isLoading}
+              className="bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '11. ХАКЕРСКАЯ АТАКА - Создать минт без проверки белого списка'}
+            </button>
+
+            <button 
+              onClick={onCreateMintAndTokenWithMerkleByRound}
+              disabled={!publicKey || isLoading}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '12. Создать минт с проверкой меркл-дерева для выбранного раунда'}
             </button>
           </div>
         )}

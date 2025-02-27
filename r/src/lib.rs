@@ -10,6 +10,7 @@ use solana_program::{
     system_instruction,
     sysvar::rent::Rent,
     sysvar::Sysvar,
+    hash::hash,
 };
 use spl_token::{
     instruction as token_instruction,
@@ -21,6 +22,104 @@ use mpl_token_metadata::{
     types::DataV2,
 };
 use spl_associated_token_account::instruction;
+
+// Массив всех корней Merkle дерева для каждого раунда
+pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
+    [
+        0x15, 0xb2, 0x60, 0x5f, 0xe2, 0x55, 0x80, 0x20, 0xe1, 0x6d, 0xe9, 0x8d, 0x1d, 0xd4, 0x4b, 0xcd,
+        0x0e, 0x09, 0xa2, 0xc4, 0xa0, 0xc5, 0xc3, 0xb4, 0x3c, 0x7b, 0xc8, 0x82, 0x6f, 0xe1, 0xde, 0x5c
+    ],
+    [
+        0xfb, 0xdd, 0x5b, 0x58, 0x7f, 0x8d, 0x4d, 0xdd, 0x5e, 0xe8, 0x13, 0x05, 0xfa, 0x86, 0xc5, 0xdf,
+        0xfc, 0x6e, 0xf5, 0xdd, 0xd1, 0xf8, 0x84, 0xaa, 0xe9, 0xc4, 0x7a, 0xa2, 0x3c, 0x26, 0x4a, 0xd0
+    ],
+    [
+        0x10, 0xfd, 0xc3, 0xd5, 0x9f, 0x28, 0xd4, 0x13, 0x4c, 0x5e, 0x00, 0x57, 0x54, 0x10, 0x88, 0x18,
+        0x99, 0x2e, 0x87, 0xba, 0x7c, 0x75, 0x42, 0x4f, 0xf1, 0x41, 0x62, 0xd8, 0x6f, 0x1f, 0x8f, 0xc6
+    ],
+    [
+        0xc4, 0x93, 0x52, 0x95, 0x10, 0x49, 0x6f, 0x91, 0x3a, 0x28, 0x6b, 0x23, 0xff, 0xfb, 0xda, 0x49,
+        0xe7, 0xce, 0x25, 0x20, 0x92, 0x40, 0xaa, 0x2e, 0x88, 0x5e, 0x6b, 0xd6, 0x5a, 0xfc, 0xe2, 0xd1
+    ],
+    [
+        0xaf, 0xa6, 0xbe, 0x4f, 0xce, 0x83, 0xc1, 0xd4, 0xb2, 0x10, 0x68, 0x2d, 0x0b, 0x42, 0x9c, 0xa7,
+        0xaf, 0xfb, 0x12, 0xba, 0x2b, 0xe4, 0x32, 0xe8, 0x9e, 0xbd, 0xaf, 0x60, 0x53, 0x36, 0x86, 0x51
+    ],
+    [
+        0x47, 0x28, 0xec, 0xdf, 0xac, 0x15, 0xef, 0xdd, 0xb6, 0xa7, 0x3e, 0x8b, 0xf4, 0xf9, 0x2e, 0x3b,
+        0x4a, 0x63, 0xf9, 0x69, 0x14, 0x9a, 0xd7, 0x0b, 0x1b, 0xee, 0xba, 0x37, 0x4f, 0xd9, 0xa6, 0x1d
+    ],
+    [
+        0xd4, 0xe3, 0x2d, 0x4c, 0x04, 0x60, 0x41, 0x3e, 0x95, 0x3d, 0xb0, 0x68, 0x5f, 0xef, 0xba, 0xb9,
+        0xdf, 0xe6, 0x28, 0xc4, 0x32, 0x26, 0x6a, 0x72, 0x19, 0xb1, 0x74, 0x6c, 0x34, 0xf4, 0x06, 0xc1
+    ],
+    [
+        0xdd, 0x1f, 0x72, 0x4e, 0xfa, 0x38, 0x06, 0x15, 0x96, 0xcc, 0x6c, 0x48, 0xd7, 0x77, 0xb5, 0x33,
+        0x3a, 0x56, 0xea, 0x54, 0xe5, 0x88, 0xcf, 0xd2, 0x93, 0x0e, 0x5c, 0x50, 0xd3, 0xc1, 0x7d, 0xc0
+    ],
+    [
+        0x1a, 0x80, 0xe5, 0x0c, 0xbe, 0xa5, 0x5b, 0xa8, 0x40, 0x43, 0xa6, 0xef, 0x37, 0x27, 0x37, 0x2f,
+        0xc0, 0x5a, 0x04, 0x52, 0xb5, 0x55, 0x38, 0x72, 0x31, 0x82, 0x7b, 0x2d, 0xc8, 0xcf, 0xf0, 0x67
+    ],
+    [
+        0x78, 0x95, 0x8e, 0x48, 0x93, 0x76, 0x5b, 0x52, 0xf9, 0x05, 0x14, 0x48, 0xa3, 0x31, 0x76, 0x7a,
+        0xcb, 0xee, 0x8e, 0x2f, 0x53, 0x7e, 0x3e, 0x38, 0xe1, 0x76, 0xdb, 0x61, 0xf4, 0xda, 0xde, 0xbf
+    ],
+    [
+        0x53, 0x8a, 0x69, 0x26, 0x2f, 0x7b, 0x4d, 0x95, 0x0c, 0xbb, 0x72, 0x9d, 0xab, 0xc1, 0xbb, 0x91,
+        0x92, 0xaf, 0x57, 0x7e, 0x72, 0x1b, 0xb3, 0x6f, 0xb6, 0x29, 0x67, 0x8c, 0xf9, 0x87, 0xd6, 0xe8
+    ],
+    [
+        0xa1, 0x54, 0xed, 0x05, 0xae, 0x22, 0x3e, 0xe0, 0xe5, 0x50, 0xb7, 0x52, 0xc3, 0x72, 0x19, 0x62,
+        0xea, 0x62, 0x7e, 0xd4, 0x6c, 0x29, 0xaa, 0x4f, 0xf6, 0x9b, 0x5c, 0xce, 0xfa, 0xc8, 0xb5, 0xb0
+    ],
+    [
+        0x4c, 0x69, 0xb4, 0x11, 0x32, 0xb7, 0x0c, 0x2d, 0xe8, 0xea, 0x67, 0xad, 0xbc, 0xdb, 0x7e, 0x56,
+        0x5a, 0x09, 0xc6, 0xca, 0x8f, 0x34, 0x00, 0x3e, 0x7b, 0xd5, 0x03, 0xe1, 0xf9, 0x91, 0x63, 0x3b
+    ],
+    [
+        0xb2, 0x28, 0x41, 0xb3, 0xf5, 0x1d, 0x8b, 0x7e, 0x0d, 0x8f, 0xfe, 0x9e, 0xbc, 0xf0, 0x97, 0x6d,
+        0x83, 0x4e, 0x2f, 0xfa, 0x7f, 0x2d, 0xa1, 0xcb, 0xdf, 0xb7, 0x60, 0x87, 0xe3, 0x3b, 0x04, 0x68
+    ],
+    [
+        0x13, 0x60, 0x35, 0x6e, 0x87, 0x9a, 0x57, 0x03, 0x31, 0x38, 0xbc, 0x0f, 0x6f, 0xfe, 0xa2, 0x54,
+        0x6f, 0xc7, 0xf0, 0xe3, 0x0f, 0x19, 0x08, 0x4c, 0x0d, 0x15, 0x8d, 0xdf, 0xdb, 0x62, 0xda, 0x4d
+    ],
+    [
+        0x3a, 0x11, 0xb7, 0x82, 0x04, 0x38, 0xc4, 0xf4, 0x11, 0x2d, 0xc9, 0x96, 0x15, 0x59, 0x76, 0xc6,
+        0x85, 0x14, 0xac, 0xb8, 0xcc, 0xad, 0xd2, 0xa4, 0xcf, 0xa6, 0xc1, 0x51, 0x59, 0x79, 0x5e, 0xbd
+    ],
+    [
+        0x71, 0xaf, 0xbf, 0x02, 0xa6, 0xc8, 0x77, 0xb5, 0x30, 0xdc, 0x4e, 0x0c, 0xa7, 0xb6, 0xfe, 0x03,
+        0x82, 0xd9, 0x89, 0x88, 0x2c, 0xbb, 0xcb, 0x67, 0x7c, 0x02, 0x7e, 0x3a, 0xfd, 0xb0, 0x14, 0x87
+    ],
+    [
+        0xb4, 0x6c, 0xb0, 0xb2, 0xf7, 0x26, 0xe8, 0xd3, 0xf0, 0xcd, 0x58, 0xa5, 0xa2, 0x0f, 0x26, 0xab,
+        0xbc, 0x26, 0x91, 0xef, 0x4c, 0xf2, 0x97, 0x6c, 0x58, 0x8b, 0x74, 0x22, 0xff, 0xf4, 0x10, 0x5f
+    ],
+    [
+        0x19, 0xb6, 0x13, 0x55, 0x25, 0x37, 0xbb, 0x05, 0x9f, 0xc4, 0x97, 0x51, 0x08, 0xa5, 0x17, 0xd8,
+        0x8c, 0x78, 0x62, 0xba, 0xf7, 0xc7, 0x5c, 0x5b, 0xbf, 0x62, 0x58, 0x17, 0x71, 0xdc, 0xca, 0x38
+    ],
+    [
+        0x1b, 0x49, 0x26, 0x63, 0xb7, 0x96, 0x44, 0xd8, 0xd5, 0x6e, 0x7f, 0x79, 0x3c, 0x3b, 0xfb, 0xd0,
+        0xd7, 0xcc, 0xe6, 0xd7, 0x06, 0xc8, 0xbc, 0x12, 0x2a, 0xf9, 0x69, 0x40, 0x5e, 0x5f, 0xc6, 0xee
+    ],
+    [
+        0x90, 0x60, 0xf8, 0xcb, 0xf8, 0xce, 0xa8, 0xa4,
+        0x8c, 0xb4, 0x69, 0x7c, 0x62, 0xe8, 0xaa, 0x4f,
+        0x10, 0x4c, 0x9a, 0x22, 0x69, 0xb4, 0x6f, 0xc6,
+        0x9b, 0x49, 0x74, 0x92, 0x3c, 0xff, 0x1b, 0x13
+    ]
+];
+
+// Корневой хеш меркл-дерева (полученный офф-чейн)
+pub const MERKLE_ROOT: [u8; 32] = [
+    0x90, 0x60, 0xf8, 0xcb, 0xf8, 0xce, 0xa8, 0xa4,
+    0x8c, 0xb4, 0x69, 0x7c, 0x62, 0xe8, 0xaa, 0x4f,
+    0x10, 0x4c, 0x9a, 0x22, 0x69, 0xb4, 0x6f, 0xc6,
+    0x9b, 0x49, 0x74, 0x92, 0x3c, 0xff, 0x1b, 0x13
+];
 
 // Объявляем точку входа для программы
 entrypoint!(process_instruction);
@@ -34,28 +133,306 @@ pub fn process_instruction(
     msg!("Processing instruction: {:?}", instruction_data);
     msg!("Number of accounts: {}", accounts.len());
     
-    match instruction_data.get(0) {
-        Some(0) => {
+    if instruction_data.is_empty() {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let instruction = instruction_data[0];
+    match instruction {
+        0 => {
             msg!("Program is initialized!");
             Ok(())
         }
-        Some(4) => create_metadata(program_id, accounts),
-        Some(5) => set_mint_authority(program_id, accounts),
-        Some(6) => {
+        4 => create_metadata(program_id, accounts),
+        5 => set_mint_authority(program_id, accounts),
+        6 => {
             msg!("Creating program mint...");
             create_program_mint(program_id, accounts)
         },
-        Some(7) => {
+        7 => {
             msg!("Creating associated token account...");
             create_associated_token_account(program_id, accounts)
         },
-        Some(8) => {
+        8 => {
             msg!("Minting token by program...");
             mint_token_by_program(program_id, accounts)
         },
-        Some(9) => {
+        9 => {
             msg!("Creating mint and token (all in one)...");
             create_mint_and_token(program_id, accounts)
+        },
+        10 => {
+            msg!("Инструкция: create_mint_and_token_with_merkle");
+            let accounts_iter = &mut accounts.iter();
+            
+            let mint_account = next_account_info(accounts_iter)?;
+            let token_account = next_account_info(accounts_iter)?;
+            let payer = next_account_info(accounts_iter)?;
+            let system_program = next_account_info(accounts_iter)?;
+            let token_program = next_account_info(accounts_iter)?;
+            let associated_token_program = next_account_info(accounts_iter)?;
+            let rent_info = next_account_info(accounts_iter)?;
+            let program_authority = next_account_info(accounts_iter)?;
+
+            msg!("Аккаунты получены:");
+            msg!("Mint: {}", mint_account.key);
+            msg!("Token: {}", token_account.key);
+            msg!("Payer: {}", payer.key);
+            msg!("Program Authority: {}", program_authority.key);
+
+            // Проверяем, что mint_account и payer подписали транзакцию
+            if !mint_account.is_signer || !payer.is_signer {
+                msg!("Ошибка: Отсутствуют необходимые подписи");
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            // Получаем меркл-доказательство из инструкции
+            let proof_len = instruction_data[1] as usize;
+            msg!("Длина доказательства: {}", proof_len);
+            
+            let mut proof = Vec::with_capacity(proof_len);
+            let mut offset = 2;
+            
+            for i in 0..proof_len {
+                let mut proof_element = [0u8; 32];
+                proof_element.copy_from_slice(&instruction_data[offset..offset + 32]);
+                msg!("Элемент доказательства {}: {:?}", i, proof_element);
+                proof.push(proof_element);
+                offset += 32;
+            }
+
+            // Вычисляем хеш для адреса payer
+            let leaf = hash(payer.key.as_ref()).to_bytes();
+            msg!("Хеш адреса payer: {:?}", leaf);
+            msg!("Корень меркл-дерева: {:?}", MERKLE_ROOT);
+
+            // Проверяем меркл-доказательство
+            if !verify_merkle_proof(leaf, &proof, MERKLE_ROOT) {
+                msg!("Ошибка: Неверное меркл-доказательство");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            msg!("Меркл-доказательство проверено успешно");
+
+            // Создаем mint аккаунт
+            let rent = Rent::from_account_info(rent_info)?;
+            let mint_rent = rent.minimum_balance(Mint::LEN);
+
+            invoke(
+                &system_instruction::create_account(
+                    payer.key,
+                    mint_account.key,
+                    mint_rent,
+                    Mint::LEN as u64,
+                    token_program.key,
+                ),
+                &[payer.clone(), mint_account.clone()],
+            )?;
+
+            // Инициализируем mint
+            invoke(
+                &token_instruction::initialize_mint(
+                    token_program.key,
+                    mint_account.key,
+                    program_authority.key,
+                    Some(program_authority.key),
+                    0,
+                )?,
+                &[mint_account.clone(), rent_info.clone()],
+            )?;
+
+            // Создаем ассоциированный токен-аккаунт
+            invoke(
+                &instruction::create_associated_token_account(
+                    payer.key,
+                    payer.key,
+                    mint_account.key,
+                    token_program.key,
+                ),
+                &[
+                    payer.clone(),
+                    token_account.clone(),
+                    payer.clone(),
+                    mint_account.clone(),
+                    system_program.clone(),
+                    token_program.clone(),
+                    associated_token_program.clone(),
+                    rent_info.clone(),
+                ],
+            )?;
+
+            // Минтим токен
+            let (program_authority_key, bump_seed) = Pubkey::find_program_address(
+                &[b"mint_authority"],
+                program_id,
+            );
+            if program_authority_key != *program_authority.key {
+                return Err(ProgramError::InvalidSeeds);
+            }
+
+            invoke_signed(
+                &token_instruction::mint_to(
+                    token_program.key,
+                    mint_account.key,
+                    token_account.key,
+                    program_authority.key,
+                    &[],
+                    1,
+                )?,
+                &[
+                    mint_account.clone(),
+                    token_account.clone(),
+                    program_authority.clone(),
+                ],
+                &[&[b"mint_authority", &[bump_seed]]],
+            )?;
+
+            msg!("Токен успешно создан и заминчен с проверкой меркл-дерева");
+            Ok(())
+        },
+        12 => {
+            msg!("Инструкция: create_mint_and_token_with_merkle_by_round");
+            let accounts_iter = &mut accounts.iter();
+            
+            let mint_account = next_account_info(accounts_iter)?;
+            let token_account = next_account_info(accounts_iter)?;
+            let payer = next_account_info(accounts_iter)?;
+            let system_program = next_account_info(accounts_iter)?;
+            let token_program = next_account_info(accounts_iter)?;
+            let associated_token_program = next_account_info(accounts_iter)?;
+            let rent_info = next_account_info(accounts_iter)?;
+            let program_authority = next_account_info(accounts_iter)?;
+
+            msg!("Аккаунты получены:");
+            msg!("Mint: {}", mint_account.key);
+            msg!("Token: {}", token_account.key);
+            msg!("Payer: {}", payer.key);
+            msg!("Program Authority: {}", program_authority.key);
+
+            // Проверяем, что mint_account и payer подписали транзакцию
+            if !mint_account.is_signer || !payer.is_signer {
+                msg!("Ошибка: Отсутствуют необходимые подписи");
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            // Получаем номер раунда и меркл-доказательство из инструкции
+            let round = instruction_data[1] as usize;
+            if round == 0 || round > ALL_MERKLE_ROOTS.len() {
+                msg!("Ошибка: Неверный номер раунда {} (должен быть от 1 до {})", round, ALL_MERKLE_ROOTS.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            msg!("Используется раунд: {}", round);
+
+            let proof_len = instruction_data[2] as usize;
+            msg!("Длина доказательства: {}", proof_len);
+            msg!("Размер данных инструкции: {}", instruction_data.len());
+            
+            let mut proof = Vec::with_capacity(proof_len);
+            let mut offset = 3;
+            
+            for i in 0..proof_len {
+                if offset + 32 > instruction_data.len() {
+                    msg!("Ошибка: Выход за границы данных инструкции. offset={}, i={}, proof_len={}", offset, i, proof_len);
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                let mut proof_element = [0u8; 32];
+                proof_element.copy_from_slice(&instruction_data[offset..offset + 32]);
+                msg!("Элемент доказательства {}: {:?}", i, proof_element);
+                proof.push(proof_element);
+                offset += 32;
+            }
+
+            // Вычисляем хеш для адреса payer
+            let leaf = hash(payer.key.as_ref()).to_bytes();
+            msg!("Хеш адреса payer: {:?}", leaf);
+            
+            // Получаем корень для выбранного раунда (индекс на 1 меньше номера раунда)
+            let merkle_root = ALL_MERKLE_ROOTS[round - 1];
+            msg!("Корень меркл-дерева для раунда {}: {:?}", round, merkle_root);
+
+            // Проверяем меркл-доказательство
+            if !verify_merkle_proof(leaf, &proof, merkle_root) {
+                msg!("Ошибка: Неверное меркл-доказательство");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            msg!("Меркл-доказательство проверено успешно");
+
+            // Создаем mint аккаунт
+            let rent = Rent::from_account_info(rent_info)?;
+            let mint_rent = rent.minimum_balance(Mint::LEN);
+
+            invoke(
+                &system_instruction::create_account(
+                    payer.key,
+                    mint_account.key,
+                    mint_rent,
+                    Mint::LEN as u64,
+                    token_program.key,
+                ),
+                &[payer.clone(), mint_account.clone()],
+            )?;
+
+            // Инициализируем mint
+            invoke(
+                &token_instruction::initialize_mint(
+                    token_program.key,
+                    mint_account.key,
+                    program_authority.key,
+                    Some(program_authority.key),
+                    0,
+                )?,
+                &[mint_account.clone(), rent_info.clone()],
+            )?;
+
+            // Создаем ассоциированный токен-аккаунт
+            invoke(
+                &instruction::create_associated_token_account(
+                    payer.key,
+                    payer.key,
+                    mint_account.key,
+                    token_program.key,
+                ),
+                &[
+                    payer.clone(),
+                    token_account.clone(),
+                    payer.clone(),
+                    mint_account.clone(),
+                    system_program.clone(),
+                    token_program.clone(),
+                    associated_token_program.clone(),
+                    rent_info.clone(),
+                ],
+            )?;
+
+            // Минтим токен
+            let (program_authority_key, bump_seed) = Pubkey::find_program_address(
+                &[b"mint_authority"],
+                program_id,
+            );
+            if program_authority_key != *program_authority.key {
+                return Err(ProgramError::InvalidSeeds);
+            }
+
+            invoke_signed(
+                &token_instruction::mint_to(
+                    token_program.key,
+                    mint_account.key,
+                    token_account.key,
+                    program_authority.key,
+                    &[],
+                    1,
+                )?,
+                &[
+                    mint_account.clone(),
+                    token_account.clone(),
+                    program_authority.clone(),
+                ],
+                &[&[b"mint_authority", &[bump_seed]]],
+            )?;
+
+            msg!("Токен успешно создан и заминчен с проверкой меркл-дерева для раунда {}", round);
+            Ok(())
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -456,6 +833,20 @@ fn next_account_info<'a, 'b>(
     iter: &mut std::slice::Iter<'a, AccountInfo<'b>>,
 ) -> Result<&'a AccountInfo<'b>, ProgramError> {
     iter.next().ok_or(ProgramError::NotEnoughAccountKeys)
+}
+
+// Вспомогательная функция для проверки меркл доказательства
+fn verify_merkle_proof(leaf: [u8;32], proof: &Vec<[u8;32]>, root: [u8;32]) -> bool {
+    let mut computed = leaf;
+    for node in proof.iter() {
+        // Для консистентности сортируем пару хешей перед объединением
+        let (min, max) = if computed <= *node { (computed, *node) } else { (*node, computed) };
+        let mut bytes = [0u8;64];
+        bytes[..32].copy_from_slice(&min);
+        bytes[32..].copy_from_slice(&max);
+        computed = hash(&bytes).to_bytes();
+    }
+    computed == root
 }
 
 #[cfg(test)]
