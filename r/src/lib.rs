@@ -157,6 +157,10 @@ pub fn process_instruction(
             msg!("Creating mint and token with Merkle proof verification for specific round...");
             create_mint_and_token_with_round_merkle_proof(program_id, accounts, &instruction_data[1..])
         },
+        14 => {
+            msg!("Creating mint and token with Merkle proof verification and tracking for specific round...");
+            create_mint_and_token_with_round_merkle_proof_tracked(program_id, accounts, &instruction_data[1..])
+        },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
             Err(ProgramError::InvalidInstructionData)
@@ -724,6 +728,241 @@ fn create_mint_and_token_with_round_merkle_proof(
     )?;
 
     msg!("All operations with round-specific Merkle proof verification completed successfully!");
+    Ok(())
+}
+
+// Добавляем новую функцию для создания минта и токена с проверкой Merkle proof и отслеживанием минтинга
+fn create_mint_and_token_with_round_merkle_proof_tracked(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    proof_data: &[u8],
+) -> ProgramResult {
+    msg!("Starting create_mint_and_token_with_round_merkle_proof_tracked...");
+    let account_info_iter = &mut accounts.iter();
+    
+    // Получаем все необходимые аккаунты
+    let mint_account = next_account_info(account_info_iter)?;
+    let associated_token_account = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+    let associated_token_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
+    let mint_record_account = next_account_info(account_info_iter)?;
+
+    msg!("Checking signatures...");
+    // Проверяем подписи
+    if !mint_account.is_signer {
+        msg!("Mint account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if program_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Проверяем, что данные имеют правильный формат
+    // Первый байт - номер раунда, остальные - данные доказательства
+    if proof_data.len() < 1 {
+        msg!("Invalid proof data: missing round number");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    
+    // Получаем номер раунда из первого байта
+    let round_number = proof_data[0] as usize;
+    msg!("Using round number: {}", round_number);
+    
+    // Проверяем, что номер раунда валидный
+    if round_number >= ALL_MERKLE_ROOTS.len() {
+        msg!("Invalid round number: {}, max is {}", round_number, ALL_MERKLE_ROOTS.len() - 1);
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Получаем корень Merkle для указанного раунда
+    let merkle_root = ALL_MERKLE_ROOTS[round_number];
+    msg!("Using Merkle root for round {}", round_number);
+    
+    // Проверяем Merkle proof
+    msg!("Verifying Merkle proof...");
+    
+    // Проверяем, что данные доказательства имеют правильный формат
+    if (proof_data.len() - 1) % 32 != 0 {
+        msg!("Invalid proof data length");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    
+    // Преобразуем данные доказательства в вектор 32-байтных массивов
+    let mut proof = Vec::new();
+    for i in 0..((proof_data.len() - 1) / 32) {
+        let mut node = [0u8; 32];
+        node.copy_from_slice(&proof_data[1 + i * 32..1 + (i + 1) * 32]);
+        proof.push(node);
+    }
+    
+    // Вычисляем хеш (лист) для адреса плательщика
+    let leaf = hash(payer.key.as_ref()).to_bytes();
+    
+    // Проверяем доказательство
+    if !verify_merkle_proof(leaf, &proof, merkle_root) {
+        msg!("Invalid Merkle proof for address: {} in round {}", payer.key, round_number);
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    msg!("Merkle proof verified successfully for round {}!", round_number);
+
+    // Проверяем, что пользователь ещё не минтил в этом раунде
+    // Генерируем адрес PDA для отслеживания минтинга
+    let (expected_mint_record_address, mint_record_bump) = Pubkey::find_program_address(
+        &[
+            b"is_minted",
+            &[round_number as u8],
+            payer.key.as_ref(),
+        ],
+        program_id
+    );
+    
+    // Проверяем, что переданный mint_record_account соответствует ожидаемому адресу
+    if mint_record_account.key != &expected_mint_record_address {
+        msg!("Invalid mint record account address");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Проверяем, существует ли уже аккаунт для отслеживания минтинга
+    if !mint_record_account.data_is_empty() && mint_record_account.owner == program_id {
+        msg!("User has already minted in round {}", round_number);
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    msg!("Creating mint account...");
+    // 1. Создаем минт аккаунт
+    let rent = Rent::get()?;
+    let mint_len = Mint::LEN;
+    let lamports = rent.minimum_balance(mint_len);
+
+    invoke(
+        &system_instruction::create_account(
+            &payer.key,
+            &mint_account.key,
+            lamports,
+            mint_len as u64,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+
+    msg!("Initializing mint...");
+    // 2. Инициализируем минт
+    invoke(
+        &spl_token::instruction::initialize_mint(
+            &spl_token::id(),
+            &mint_account.key,
+            &program_authority.key,
+            None,
+            0,
+        )?,
+        &[
+            mint_account.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    msg!("Creating associated token account...");
+    // 3. Создаем ассоциированный токен аккаунт
+    invoke(
+        &spl_associated_token_account::instruction::create_associated_token_account(
+            payer.key,
+            payer.key,
+            mint_account.key,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            associated_token_account.clone(),
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+            token_program.clone(),
+            associated_token_program.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    msg!("Minting token...");
+    // 4. Минтим токен
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            &spl_token::id(),
+            mint_account.key,
+            associated_token_account.key,
+            &program_authority.key,
+            &[],
+            1,
+        )?,
+        &[
+            mint_account.clone(),
+            associated_token_account.clone(),
+            program_authority.clone(),
+        ],
+        signers,
+    )?;
+
+    msg!("Creating mint record PDA...");
+    // 5. Создаем PDA для отслеживания минтинга
+    // Размер данных - 1 байт для хранения bool значения
+    let mint_record_size = 1;
+    let mint_record_lamports = rent.minimum_balance(mint_record_size);
+    
+    // Создаем seeds для PDA
+    let mint_record_signature_seeds = &[
+        b"is_minted".as_ref(),
+        &[round_number as u8],
+        payer.key.as_ref(),
+        &[mint_record_bump],
+    ];
+    let mint_record_signers = &[&mint_record_signature_seeds[..]];
+    
+    // Создаем аккаунт для отслеживания минтинга
+    invoke_signed(
+        &system_instruction::create_account(
+            &payer.key,
+            &expected_mint_record_address,
+            mint_record_lamports,
+            mint_record_size as u64,
+            program_id,
+        ),
+        &[
+            payer.clone(),
+            mint_record_account.clone(),
+            system_program.clone(),
+        ],
+        mint_record_signers,
+    )?;
+    
+    // Устанавливаем значение в аккаунте (1 - минтил)
+    mint_record_account.try_borrow_mut_data()?[0] = 1;
+
+    msg!("All operations with round-specific Merkle proof verification and tracking completed successfully!");
     Ok(())
 }
 

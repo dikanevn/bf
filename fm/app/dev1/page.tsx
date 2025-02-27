@@ -816,6 +816,163 @@ function DevContent() {
     }
   };
 
+  const onCreateMintAndTokenWithRoundSpecificMerkleProofTracked = async () => {
+    if (!publicKey || !sendTransaction) {
+      alert("Пожалуйста, подключите кошелек");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Проверяем, что номер раунда валидный
+      const roundNumber = parseInt(manualRoundNumber);
+      if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 21) {
+        alert("Пожалуйста, введите корректный номер раунда (1-21)");
+        return;
+      }
+
+      // Проверяем существование раунда и загружаем данные
+      let d3Data;
+      try {
+        d3Data = await import(`../../../b/rounds/${roundNumber}/d3.json`);
+      } catch {
+        alert(`Раунд ${roundNumber} не найден!`);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Получаем все адреса из d3
+      const addresses = d3Data.default.map((item: { player: string }) => item.player);
+      
+      // Создаем листья для меркл-дерева
+      const leaves = addresses.map((addr: string) => {
+        const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+        return sha256(pkBytes);
+      });
+      
+      // Сортируем листья для консистентности
+      const sortedLeaves = leaves.slice().sort(Buffer.compare);
+      
+      // Создаем меркл-дерево
+      const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+      
+      // Вычисляем хеш (лист) для текущего адреса
+      const leaf = sha256(Buffer.from(publicKey.toBytes()));
+      
+      // Получаем доказательство для текущего адреса
+      const proof = tree.getProof(leaf);
+      
+      if (!proof || proof.length === 0) {
+        alert(`Ваш адрес не найден в списке участников раунда ${roundNumber}!`);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Преобразуем доказательство в массив байтов
+      const proofBuffers = proof.map(p => p.data);
+      
+      // Проверяем доказательство вручную
+      if (!verifyMerkleProof(proofBuffers, leaf, tree.getRoot())) {
+        alert('Ошибка: Merkle proof не прошел локальную проверку!');
+        setIsLoading(false);
+        return;
+      }
+
+      // Создаем новый keypair для mint аккаунта
+      const newMintKeypair = Keypair.generate();
+      
+      // Получаем адрес ассоциированного токен аккаунта
+      const associatedTokenAccount = await getAssociatedTokenAddress(
+        newMintKeypair.publicKey,
+        publicKey,
+        false
+      );
+
+      // Получаем адрес PDA для отслеживания минтинга
+      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("is_minted"),
+          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          publicKey.toBuffer(),
+        ],
+        PROGRAM_ID
+      );
+      console.log("Mint record PDA:", mintRecordPDA.toBase58());
+
+      // Получаем PDA для mint authority
+      const [programAuthority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority")],
+        PROGRAM_ID
+      );
+
+      // Создаем буфер данных для инструкции
+      // [0] - номер инструкции (14)
+      // [1] - номер раунда (0-20)
+      // [2..] - данные доказательства (каждый узел - 32 байта)
+      const dataLength = 2 + (proofBuffers.length * 32);
+      const dataBuffer = Buffer.alloc(dataLength);
+      dataBuffer[0] = 14; // Инструкция 14
+      dataBuffer[1] = roundNumber - 1; // Номер раунда (0-based в контракте)
+      
+      // Записываем каждый узел доказательства в буфер
+      for (let i = 0; i < proofBuffers.length; i++) {
+        proofBuffers[i].copy(dataBuffer, 2 + (i * 32));
+      }
+
+      // Создаем инструкцию
+      const createWithMerkleTrackedIx = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+          { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
+        ],
+        data: dataBuffer
+      });
+
+      // Создаем транзакцию
+      const transaction = new Transaction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      
+      transaction.add(createWithMerkleTrackedIx);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+
+      try {
+        const signature = await sendTransaction(transaction, connection, {
+          signers: [newMintKeypair]
+        });
+        
+        console.log("Transaction sent:", signature);
+        await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature
+        });
+        
+        console.log("Transaction confirmed");
+        setMintKeypair(newMintKeypair);
+        setAtaAddress(associatedTokenAccount);
+        alert(`Минт и токен успешно созданы с отслеживанием для раунда ${roundNumber}!`);
+      } catch (error) {
+        console.error("Error sending transaction:", error);
+        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loadWinningRounds = async (address: string) => {
     try {
       const results: SearchResult[] = [];
@@ -1048,82 +1205,11 @@ function DevContent() {
 
         {publicKey && (
           <div className="flex flex-col gap-2 mt-8">
-            <button 
-              onClick={onCreateMetadata} 
-              disabled={loading || !mintKeypair}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '1. Создать метадату'}
-            </button>
-
-            <button 
-              onClick={onSetProgramAsAuthority} 
-              disabled={loading || !mintKeypair}
-              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '2. Установить программу как mint authority'}
-            </button>
-
-            <button 
-              onClick={onCreateProgramMint}
-              disabled={!publicKey || isLoading}
-              className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {isLoading ? 'Processing...' : '3. Создать минт от имени программы'}
-            </button>
-
-            <button 
-              onClick={onCreateProgramATA}
-              disabled={loading || !mintKeypair}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '4. Создать ассоциированный токен аккаунт'}
-            </button>
-
-            <button 
-              onClick={onMintToken}
-              disabled={loading || !mintKeypair || !ataAddress}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : '5. Минтить токен'}
-            </button>
-
-            <button 
-              onClick={onCreateMintAndToken}
-              disabled={!publicKey || isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {isLoading ? 'Processing...' : '6. Создать минт, ATA и минтить токен (Всё сразу)'}
-            </button>
-
-            <button 
-              onClick={calculateLastRoundMerkleRoot}
-              disabled={loading}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
-            </button>
-
-            <button 
-              onClick={calculateAllRoundsMerkleRoots}
-              disabled={loading}
-              className="bg-yellow-800 hover:bg-yellow-900 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {loading ? 'Вычисление...' : '8. Посчитать Merkle Root всех раундов'}
-            </button>
-
-            <button 
-              onClick={onCreateMintAndTokenWithCalculatedMerkleProof}
-              disabled={!publicKey || isLoading}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              {isLoading ? 'Processing...' : '11. Создать минт и токен с вычисленным Merkle proof'}
-            </button>
-
             <div className="flex items-center gap-2 mt-2">
               <input
                 type="number"
                 min="1"
+                max="21"
                 value={manualRoundNumber}
                 onChange={(e) => setManualRoundNumber(e.target.value)}
                 className="bg-gray-800 text-white px-3 py-1.5 text-sm border border-gray-700 rounded w-20"
@@ -1131,12 +1217,12 @@ function DevContent() {
                 disabled={isLoading}
               />
               <button 
-                onClick={onCreateMintAndTokenWithManualRoundMerkleProof}
+                onClick={onCreateMintAndTokenWithRoundSpecificMerkleProofTracked}
                 disabled={!publicKey || isLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
               >
-                {isLoading ? 'Processing...' : '12. Создать минт и токен с Merkle proof для выбранного раунда'}
-            </button>
+                {isLoading ? 'Processing...' : '14. Создать минт и токен с отслеживанием минтинга'}
+              </button>
             </div>
 
             <div className="flex items-center gap-2 mt-2">
@@ -1158,9 +1244,97 @@ function DevContent() {
                 {isLoading ? 'Processing...' : '13. Создать минт и токен с Merkle root из контракта'}
               </button>
             </div>
-            <div className="text-xs text-gray-500 mt-1 ml-1">
-              Кнопка 13 использует предустановленные в контракте Merkle roots (раунды 1-21)
+
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="number"
+                min="1"
+                value={manualRoundNumber}
+                onChange={(e) => setManualRoundNumber(e.target.value)}
+                className="bg-gray-800 text-white px-3 py-1.5 text-sm border border-gray-700 rounded w-20"
+                placeholder="Раунд"
+                disabled={isLoading}
+              />
+              <button 
+                onClick={onCreateMintAndTokenWithManualRoundMerkleProof}
+                disabled={!publicKey || isLoading}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
+              >
+                {isLoading ? 'Processing...' : '12. Создать минт и токен с Merkle proof для выбранного раунда'}
+              </button>
             </div>
+
+            <button 
+              onClick={onCreateMintAndTokenWithCalculatedMerkleProof}
+              disabled={!publicKey || isLoading}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '11. Создать минт и токен с вычисленным Merkle proof'}
+            </button>
+
+            <button 
+              onClick={calculateAllRoundsMerkleRoots}
+              disabled={loading}
+              className="bg-yellow-800 hover:bg-yellow-900 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Вычисление...' : '8. Посчитать Merkle Root всех раундов'}
+            </button>
+
+            <button 
+              onClick={calculateLastRoundMerkleRoot}
+              disabled={loading}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
+            </button>
+
+            <button 
+              onClick={onCreateMintAndToken}
+              disabled={!publicKey || isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '6. Создать минт, ATA и минтить токен (Всё сразу)'}
+            </button>
+
+            <button 
+              onClick={onMintToken}
+              disabled={loading || !mintKeypair || !ataAddress}
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '5. Минтить токен'}
+            </button>
+
+            <button 
+              onClick={onCreateProgramATA}
+              disabled={loading || !mintKeypair}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '4. Создать ассоциированный токен аккаунт'}
+            </button>
+
+            <button 
+              onClick={onCreateProgramMint}
+              disabled={!publicKey || isLoading}
+              className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '3. Создать минт от имени программы'}
+            </button>
+
+            <button 
+              onClick={onSetProgramAsAuthority} 
+              disabled={loading || !mintKeypair}
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '2. Установить программу как mint authority'}
+            </button>
+
+            <button 
+              onClick={onCreateMetadata} 
+              disabled={loading || !mintKeypair}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : '1. Создать метадату'}
+            </button>
           </div>
         )}
       </div>
