@@ -1,20 +1,20 @@
 Параметры запуска:
-  Адрес владельца: E9kCZevh9Y5piLjkzYuFdMBcr7XU1zdHRdYMnvHFhveH
-  Mint-адрес токена: DemQafnzJ8XoCGcL5Ay3uXXX54i4DV4w2CrSEV929Qez
-(node:2910985) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+  Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
+  Mint-адрес токена: FxqZWCuH9kaqRWVgyjEzUFNs8V9Xjqs9zTxkGKVMVxno
+(node:3446443) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: EmWnrv7pteoZCeHx8aAizV8v6fpfpsMtiVeg5UYSDjDf
+ATA: 8f79bJ27eBjMjrtoa6KNXjumkHeJG9GC87MgnAwD6dmc
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "2PLKoc23a7ut4jn8diqnXzYuLYYg3DxMsrRfwUuVRr7n",
+      "freezeAuthority": "4H3j6Lq7HEQaNVN61vMQSAsNqhAhJLA4W6Uf2gWkYWip",
       "isInitialized": true,
-      "mintAuthority": "2PLKoc23a7ut4jn8diqnXzYuLYYg3DxMsrRfwUuVRr7n",
+      "mintAuthority": "4H3j6Lq7HEQaNVN61vMQSAsNqhAhJLA4W6Uf2gWkYWip",
       "supply": "1"
     },
     "type": "mint"
@@ -27,8 +27,8 @@ Mint Account Data: {
 Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: 8v1woCkob6meZ1TTHhmS5dK5pwH2vsW65S4PGFxCPvNc,255
-Master Edition PDA: 2PLKoc23a7ut4jn8diqnXzYuLYYg3DxMsrRfwUuVRr7n,255
+Metadata PDA: 3MGVHr8BoUUJdtAvxt8PfxCL3mNb43ZS6uu4t9pSgQmu,255
+Master Edition PDA: 4H3j6Lq7HEQaNVN61vMQSAsNqhAhJLA4W6Uf2gWkYWip,255
 
 === Детали цифрового актива ===
 

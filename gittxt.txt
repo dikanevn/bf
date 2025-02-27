@@ -1,4 +1,6 @@
 1
+
+
 git add .
 git commit -m "q"
 git push -u origin main
@@ -15,3 +17,7 @@ git checkout -b clean_version
 git checkout main
 git reset --hard clean_version
 git clean -fd 
+
+
+cargo build-sbf
+solana program deploy --program-id YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP target/deploy/r.so 
