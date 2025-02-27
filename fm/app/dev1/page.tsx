@@ -547,7 +547,7 @@ function DevContent() {
               disabled={!publicKey || isLoading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
-              {isLoading ? 'Processing...' : '3-5. Создать минт, ATA и минтить токен (Всё сразу)'}
+              {isLoading ? 'Processing...' : '6. Создать минт, ATA и минтить токен (Всё сразу)'}
             </button>
 
             <button 
