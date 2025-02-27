@@ -9,6 +9,8 @@ import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
 import { MerkleTree } from 'merkletreejs';
+import { clusterApiUrl } from '@solana/web3.js';
+import { MetadataProgram } from '@metaplex-foundation/mpl-token-metadata';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -76,6 +78,8 @@ function DevContent() {
   const [totalWins, setTotalWins] = useState(0);
   const [totalLosses, setTotalLosses] = useState(0);
   const [manualRoundNumber, setManualRoundNumber] = useState<string>("1");
+  const [nftInfo, setNftInfo] = useState<any>(null);
+  const [isLoadingNftInfo, setIsLoadingNftInfo] = useState(false);
 
   const onDeleteMintRecordForRound = async () => {
     if (!publicKey || !sendTransaction) {
@@ -875,6 +879,70 @@ function DevContent() {
     }
   };
 
+  const getNftInfo = async (mintAddress: string) => {
+    setIsLoadingNftInfo(true);
+    try {
+      // Преобразуем адрес в PublicKey
+      const mintPk = new PublicKey(mintAddress);
+      
+      // Получаем ATA для владельца и токена
+      if (publicKey) {
+        const ata = await getAssociatedTokenAddress(mintPk, publicKey);
+        
+        // Получаем информацию о mint аккаунте
+        const mintAccountInfo = await connection.getParsedAccountInfo(mintPk);
+        
+        // Получаем информацию о токен-аккаунте (ATA)
+        const tokenAccountInfo = await connection.getParsedAccountInfo(ata);
+        
+        // Получаем PDA для метаданных
+        const [metadataPda] = PublicKey.findProgramAddressSync(
+          [
+            Buffer.from('metadata'),
+            TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+            mintPk.toBuffer(),
+          ],
+          TOKEN_METADATA_PROGRAM_ID
+        );
+        
+        // Получаем PDA для master edition
+        const [masterEditionPda] = PublicKey.findProgramAddressSync(
+          [
+            Buffer.from('metadata'),
+            TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+            mintPk.toBuffer(),
+            Buffer.from('edition'),
+          ],
+          TOKEN_METADATA_PROGRAM_ID
+        );
+        
+        // Получаем данные метаданных
+        let metadata = null;
+        try {
+          const metadataAccount = await connection.getAccountInfo(metadataPda);
+          if (metadataAccount) {
+            metadata = metadataAccount.data;
+          }
+        } catch (error) {
+          console.error("Ошибка при получении метаданных:", error);
+        }
+        
+        setNftInfo({
+          mintAccount: mintAccountInfo.value,
+          tokenAccount: tokenAccountInfo.value,
+          metadata: metadataPda.toString(),
+          masterEdition: masterEditionPda.toString(),
+          metadataData: metadata ? Buffer.from(metadata).toString('base64') : null
+        });
+      }
+    } catch (error) {
+      console.error("Ошибка при получении информации об NFT:", error);
+      alert(`Ошибка при получении информации об NFT: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoadingNftInfo(false);
+    }
+  };
+
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -918,104 +986,164 @@ function DevContent() {
                     {result.mintAddress && (
                       <div className="text-xs text-gray-400 ml-4 mt-1">
                         Минт: {result.mintAddress}
+                        <button
+                          onClick={() => getNftInfo(result.mintAddress!)}
+                          className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 text-xs"
+                          disabled={isLoadingNftInfo}
+                        >
+                          {isLoadingNftInfo ? 'Загрузка...' : 'Инфо'}
+                        </button>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
 
-        {publicKey && (
-          <div className="flex flex-col gap-2 mt-8">
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="number"
-                min="1"
-                max="21"
-                value={manualRoundNumber}
-                onChange={(e) => setManualRoundNumber(e.target.value)}
-                className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 rounded w-16"
-                placeholder="Раунд"
-                disabled={isLoading}
-              />
-            <button 
-                onClick={onDeleteMintRecordForRound}
-                disabled={!publicKey || isLoading}
-                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
-              >
-                {isLoading ? 'Processing...' : '15. Удалить аккаунт отслеживания минтинга'}
-            </button>
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="number"
-                min="1"
-                max="21"
-                value={manualRoundNumber}
-                onChange={(e) => setManualRoundNumber(e.target.value)}
-                className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 rounded w-16"
-                placeholder="Раунд"
-                disabled={isLoading}
-              />
-            <button 
-                onClick={onCreateMintAndTokenWithRoundSpecificMerkleProofTrackedExtended}
-                disabled={!publicKey || isLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
-              >
-                {isLoading ? 'Processing...' : '16. Создать минт и токен с расширенным отслеживанием'}
-            </button>
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="number"
-                min="1"
-                max="21"
-                value={manualRoundNumber}
-                onChange={(e) => setManualRoundNumber(e.target.value)}
-                className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 rounded w-16"
-                placeholder="Раунд"
-                disabled={isLoading}
-              />
-            <button 
-                onClick={onCreateMintTokenWithMerkleProofTrackedExtendedAndMetadata}
-                disabled={!publicKey || isLoading}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
-              >
-                {isLoading ? 'Processing...' : '17. Создать минт, токен и метаданные с расширенным отслеживанием'}
-            </button>
-            </div>
-
-            <div className="flex flex-col space-y-2 mt-4">
-              <div>
-                <button
+            <div className="flex flex-col gap-2 mt-8">
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="21"
+                  value={manualRoundNumber}
+                  onChange={(e) => setManualRoundNumber(e.target.value)}
+                  className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
+                  placeholder="Раунд"
+                  disabled={isLoading}
+                />
+                <button 
+                  onClick={onDeleteMintRecordForRound}
                   disabled={!publicKey || isLoading}
-                  onClick={onCreateMetadataForExistingMint}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
                 >
-                  {isLoading ? "Обработка..." : "18. Создать метаданные для существующего минта"}
+                  {isLoading ? 'Processing...' : '15. Удалить аккаунт отслеживания минтинга'}
                 </button>
               </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="21"
+                  value={manualRoundNumber}
+                  onChange={(e) => setManualRoundNumber(e.target.value)}
+                  className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
+                  placeholder="Раунд"
+                  disabled={isLoading}
+                />
+                <button 
+                  onClick={onCreateMintAndTokenWithRoundSpecificMerkleProofTrackedExtended}
+                  disabled={!publicKey || isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
+                >
+                  {isLoading ? 'Processing...' : '16. Создать минт и токен с расширенным отслеживанием'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="21"
+                  value={manualRoundNumber}
+                  onChange={(e) => setManualRoundNumber(e.target.value)}
+                  className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
+                  placeholder="Раунд"
+                  disabled={isLoading}
+                />
+                <button 
+                  onClick={onCreateMintTokenWithMerkleProofTrackedExtendedAndMetadata}
+                  disabled={!publicKey || isLoading}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
+                >
+                  {isLoading ? 'Processing...' : '17. Создать минт, токен и метаданные с расширенным отслеживанием'}
+                </button>
+              </div>
+
+              <div className="flex flex-col space-y-2 mt-4">
+                <div>
+                  <button
+                    disabled={!publicKey || isLoading}
+                    onClick={onCreateMetadataForExistingMint}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full"
+                  >
+                    {isLoading ? "Обработка..." : "18. Создать метаданные для существующего минта"}
+                  </button>
+                </div>
+
+                <div>
+                  <button
+                    disabled={!publicKey || isLoading}
+                    onClick={() => {
+                      const mintAddressInput = prompt("Введите адрес минта:");
+                      if (mintAddressInput) {
+                        getNftInfo(mintAddressInput);
+                      }
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full"
+                  >
+                    {isLoading ? "Загрузка..." : "19. Получить информацию о минте"}
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={calculateAllRoundsMerkleRoots}
+                disabled={loading}
+                className="bg-yellow-800 hover:bg-yellow-900 text-white px-3 py-1.5 text-xs disabled:opacity-50"
+              >
+                {loading ? 'Вычисление...' : '8. Посчитать Merkle Root всех раундов'}
+              </button>
+
+              <button 
+                onClick={calculateLastRoundMerkleRoot}
+                disabled={loading}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
+              >
+                {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
+              </button>
             </div>
 
-            <button 
-              onClick={calculateAllRoundsMerkleRoots}
-              disabled={loading}
-              className="bg-yellow-800 hover:bg-yellow-900 text-white px-3 py-1.5 text-xs disabled:opacity-50"
-            >
-              {loading ? 'Вычисление...' : '8. Посчитать Merkle Root всех раундов'}
-            </button>
+            {nftInfo && (
+              <div className="mt-8 text-gray-400">
+                <h3 className="text-xl font-bold mb-4">Информация об NFT:</h3>
+                <div className="space-y-4">
+                  <div>
+                    <span className="font-semibold">Mint аккаунт:</span>
+                    <pre className="text-xs mt-1 bg-gray-900 p-2 rounded overflow-x-auto">
+                      {JSON.stringify(nftInfo.mintAccount, null, 2)}
+                    </pre>
+                  </div>
 
-            <button 
-              onClick={calculateLastRoundMerkleRoot}
-              disabled={loading}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
-            >
-              {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
-            </button>
+                  <div>
+                    <span className="font-semibold">Токен аккаунт:</span>
+                    <pre className="text-xs mt-1 bg-gray-900 p-2 rounded overflow-x-auto">
+                      {JSON.stringify(nftInfo.tokenAccount, null, 2)}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <span className="font-semibold">Адрес метаданных:</span>
+                    <div className="text-xs mt-1 break-all">{nftInfo.metadata}</div>
+                  </div>
+
+                  <div>
+                    <span className="font-semibold">Master Edition:</span>
+                    <div className="text-xs mt-1 break-all">{nftInfo.masterEdition}</div>
+                  </div>
+
+                  {nftInfo.metadataData && (
+                    <div>
+                      <span className="font-semibold">Данные метаданных (base64):</span>
+                      <div className="text-xs mt-1 break-all bg-gray-900 p-2 rounded">
+                        {nftInfo.metadataData}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
