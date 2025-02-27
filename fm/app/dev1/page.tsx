@@ -7,6 +7,8 @@ import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair,
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect } from 'react';
+import { sha256 as jsSha256 } from 'js-sha256';
+import { MerkleTree } from 'merkletreejs';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -37,6 +39,12 @@ const DevnetWalletProviderDynamic = dynamic(
   () => import('../../components/DevnetWalletProvider'),
   { ssr: false }
 );
+
+// Вспомогательная функция для хеширования
+function sha256(data: Buffer): Buffer {
+  const hashHex = jsSha256(data);
+  return Buffer.from(hashHex, 'hex');
+}
 
 function DevContent() {
   const { publicKey, signTransaction, sendTransaction } = useWallet();
@@ -398,6 +406,60 @@ function DevContent() {
     }
   };
 
+  const calculateLastRoundMerkleRoot = async () => {
+    try {
+      setLoading(true);
+      
+      // Находим последний раунд
+      let currentRound = 1;
+      let lastFoundRound = 0;
+      
+      while (true) {
+        try {
+          await import(`../../../b/rounds/${currentRound}/d3.json`);
+          lastFoundRound = currentRound;
+          currentRound++;
+        } catch {
+          break;
+        }
+      }
+
+      if (lastFoundRound === 0) {
+        alert('Раунды не найдены');
+        return;
+      }
+
+      // Загружаем d3.json последнего раунда
+      const d3 = await import(`../../../b/rounds/${lastFoundRound}/d3.json`);
+      
+      // Получаем все адреса из d3
+      const addresses = d3.default.map((item: { player: string }) => item.player);
+      
+      // Создаем листья для меркл-дерева
+      const leaves = addresses.map((addr: string) => {
+        const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+        return sha256(pkBytes);
+      });
+      
+      // Сортируем листья для консистентности
+      const sortedLeaves = leaves.slice().sort(Buffer.compare);
+      
+      // Создаем меркл-дерево
+      const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+      
+      // Получаем корень в виде байтов
+      const root = tree.getRoot();
+      
+      alert(`Merkle Root последнего раунда (${lastFoundRound}):\n${root.toString('hex')}`);
+      console.log("Merkle Root в байтах:", Array.from(root));
+    } catch (error) {
+      console.error("Ошибка при вычислении Merkle Root:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -441,11 +503,11 @@ function DevContent() {
         )}
 
         {publicKey && (
-          <div className="flex flex-col gap-4 mt-8">
+          <div className="flex flex-col gap-2 mt-8">
             <button 
               onClick={onCreateMetadata} 
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {loading ? 'Processing...' : '1. Создать метадату'}
             </button>
@@ -453,7 +515,7 @@ function DevContent() {
             <button 
               onClick={onSetProgramAsAuthority} 
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {loading ? 'Processing...' : '2. Установить программу как mint authority'}
             </button>
@@ -461,7 +523,7 @@ function DevContent() {
             <button 
               onClick={onCreateProgramMint}
               disabled={!publicKey || isLoading}
-              className="mt-5 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {isLoading ? 'Processing...' : '3. Создать минт от имени программы'}
             </button>
@@ -469,7 +531,7 @@ function DevContent() {
             <button 
               onClick={onCreateProgramATA}
               disabled={loading || !mintKeypair}
-              className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {loading ? 'Processing...' : '4. Создать ассоциированный токен аккаунт'}
             </button>
@@ -477,7 +539,7 @@ function DevContent() {
             <button 
               onClick={onMintToken}
               disabled={loading || !mintKeypair || !ataAddress}
-              className="mt-5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {loading ? 'Processing...' : '5. Минтить токен'}
             </button>
@@ -485,9 +547,17 @@ function DevContent() {
             <button 
               onClick={onCreateMintAndToken}
               disabled={!publicKey || isLoading}
-              className="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {isLoading ? 'Processing...' : '3-5. Создать минт, ATA и минтить токен (Всё сразу)'}
+            </button>
+
+            <button 
+              onClick={calculateLastRoundMerkleRoot}
+              disabled={loading}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
             </button>
           </div>
         )}
