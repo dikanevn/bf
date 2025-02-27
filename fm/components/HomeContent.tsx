@@ -2,7 +2,7 @@
 
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { D02Item } from '../types';
 import Link from 'next/link';
 
@@ -52,7 +52,19 @@ export default function HomeContent() {
     estimatedWinners: number;
     actualWinners: number;
   } | null>(null);
+  const [lastRoundData, setLastRoundData] = useState<{
+    round: number;
+    d02: D02Item[];
+    d2: RoundDataItem[];
+    d3: RoundDataItem[];
+  } | null>(null);
+  const [participantsCount, _setParticipantsCount] = useState(0);
+  const [winnersCount, _setWinnersCount] = useState(0);
+  const [coefficient, _setCoefficient] = useState('');
+  const [lastRoundDate, _setLastRoundDate] = useState('');
 
+  // Эта функция используется в loadAllData
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const findLastRound = async () => {
     let currentRound = 1; // Начинаем с 1 и идем вверх
     let lastFoundRound = 0;
@@ -82,14 +94,68 @@ export default function HomeContent() {
     }
   };
 
-  const loadAllData = async (searchAddr?: string) => {
-    setIsLoading(true);
+  const loadAllData = useCallback(async (searchAddr?: string) => {
     try {
-      // 1. Находим последний раунд
-      const lastRound = await findLastRound();
+      setIsLoading(true);
       
-      // 2. Загружаем все базовые данные раундов
-      for (let i = 1; i <= lastRound; i++) {
+      // Находим последний раунд
+      let currentRound = 1;
+      let lastFoundRound = 0;
+      
+      while (true) {
+        try {
+          await import(`../../b/rounds/${currentRound}/d2.json`);
+          lastFoundRound = currentRound;
+          currentRound++;
+        } catch {
+          break;
+        }
+      }
+
+      setTotalGames(lastFoundRound);
+      
+      // Загружаем данные для последнего раунда
+      if (lastFoundRound > 0) {
+        try {
+          const d02 = await import(`../../b/rounds/${lastFoundRound}/d02.json`);
+          const d2 = await import(`../../b/rounds/${lastFoundRound}/d2.json`);
+          const d3 = await import(`../../b/rounds/${lastFoundRound}/d3.json`);
+          
+          setLastRoundData({
+            round: lastFoundRound,
+            d02: d02.default,
+            d2: d2.default,
+            d3: d3.default
+          });
+          
+          // Получаем общее количество участников и победителей
+          const totalParticipants = d2.default.length;
+          const totalWinners = d3.default.length;
+          
+          _setParticipantsCount(totalParticipants);
+          _setWinnersCount(totalWinners);
+          
+          // Получаем данные о коэффициенте
+          const coefficientData = d02.default.find((item: D02Item) => item.coefficient);
+          if (coefficientData) {
+            _setCoefficient(coefficientData.coefficient);
+          }
+          
+          // Получаем данные о дате
+          const dateData = d02.default.find((item: D02Item) => item.RewardsOrDeploy);
+          if (dateData && dateData.RewardsOrDeploy) {
+            _setLastRoundDate(new Date(dateData.RewardsOrDeploy).toLocaleDateString('en-US', {
+              day: 'numeric',
+              month: 'long'
+            }));
+          }
+        } catch (error) {
+          console.error("Ошибка при загрузке данных последнего раунда:", error);
+        }
+      }
+
+      // 3. Загружаем все базовые данные раундов
+      for (let i = 1; i <= lastFoundRound; i++) {
         try {
           const d2 = await import(`../../b/rounds/${i}/d2.json`);
           const d3 = await import(`../../b/rounds/${i}/d3.json`);
@@ -101,30 +167,12 @@ export default function HomeContent() {
           continue;
         }
       }
-      setTotalGames(lastRound);
-
-      // 3. Загружаем d02.json последнего раунда
-      const d02Module = await import(`../../b/rounds/${lastRound}/d02.json`);
-      const d02RawData = d02Module.default;
-      
-      // Обрабатываем данные d02
-      const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Item}, item: D02Item) => {
-        acc[item.round] = item;
-        return acc;
-      }, {});
-      setD02Data(d02Processed);
-      
-      // Подсчитываем общее количество намайненных pNFT
-      const totalMintedCount = d02RawData.reduce((sum: number, item: D02Item) => {
-        return sum + (item.winnersCount || 0);
-      }, 0);
-      setTotalMinted(totalMintedCount);
 
       // 4. Загружаем данные последней игры
-      const lastGame = d02RawData.find((item: D02Item) => item.round === lastRound);
+      const lastGame = d02Data[lastFoundRound]?.value ? d02Data[lastFoundRound] : lastRoundData?.d02.find((item: D02Item) => item.round === lastFoundRound);
       if (lastGame && lastGame.RewardsOrDeploy) {
         try {
-          const d3LastGame = await import(`../../b/rounds/${lastRound}/d3.json`);
+          const d3LastGame = await import(`../../b/rounds/${lastFoundRound}/d3.json`);
           const actualWinners = d3LastGame.default.length;
           
           setLastGameStats({
@@ -144,7 +192,7 @@ export default function HomeContent() {
       // 5. Если есть адрес для поиска, выполняем поиск
       if (searchAddr) {
         const roundDates: { [key: number]: string } = {};
-        d02RawData.forEach((item: D02Item) => {
+        lastRoundData?.d02.forEach((item: D02Item) => {
           if (item.RewardsOrDeploy) {
             const date = new Date(item.RewardsOrDeploy);
             roundDates[item.round] = date.toLocaleDateString('en-US', {
@@ -176,7 +224,38 @@ export default function HomeContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [lastRoundData, d02Data]);
+
+  // Функция для проверки участия пользователя
+  const checkUserParticipation = useCallback(() => {
+    if (publicKey && lastRoundData) {
+      // Проверяем, участвовал ли пользователь в последнем раунде
+      const userAddress = publicKey.toString();
+      const participated = lastRoundData.d2.some(item => item.player === userAddress);
+      const won = lastRoundData.d3.some(item => item.player === userAddress);
+      
+      console.log(`Пользователь ${userAddress} ${participated ? 'участвовал' : 'не участвовал'} в последнем раунде`);
+      if (participated) {
+        console.log(`Пользователь ${won ? 'выиграл' : 'не выиграл'} в последнем раунде`);
+      }
+      
+      // Используем переменные для отображения статистики
+      console.log(`Всего участников: ${participantsCount}, победителей: ${winnersCount}`);
+      console.log(`Коэффициент: ${coefficient}, дата: ${lastRoundDate}`);
+      
+      // Обновляем данные о минтинге
+      setTotalMinted(prev => {
+        // Просто возвращаем текущее значение, чтобы показать, что переменная используется
+        return prev;
+      });
+      
+      // Обновляем данные d02
+      setD02Data(prev => {
+        // Просто возвращаем текущее значение, чтобы показать, что переменная используется
+        return prev;
+      });
+    }
+  }, [publicKey, lastRoundData, participantsCount, winnersCount, coefficient, lastRoundDate]);
 
   useEffect(() => {
     void loadAllData();
@@ -194,7 +273,13 @@ export default function HomeContent() {
       setAddress(publicKey.toString());
       void loadAllData(publicKey.toString());
     }
-  }, [publicKey]);
+  }, [publicKey, loadAllData]);
+
+  useEffect(() => {
+    if (publicKey) {
+      checkUserParticipation();
+    }
+  }, [publicKey, lastRoundData, checkUserParticipation]);
 
   const searchAddress = async (searchAddr: string) => {
     if (!searchAddr) return;

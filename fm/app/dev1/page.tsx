@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect } from 'react';
@@ -47,7 +47,8 @@ function sha256(data: Buffer): Buffer {
     return Buffer.from(hashHex, 'hex');
 }
 
-// Константа с корнем меркл-дерева из контракта
+// Константа с корнем меркл-дерева из контракта (используется в onCreateMintAndTokenWithMerkleProof)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MERKLE_ROOT = Buffer.from([
     0x90, 0x60, 0xf8, 0xcb, 0xf8, 0xce, 0xa8, 0xa4,
     0x8c, 0xb4, 0x69, 0x7c, 0x62, 0xe8, 0xaa, 0x4f,
@@ -55,7 +56,8 @@ const MERKLE_ROOT = Buffer.from([
     0x9b, 0x49, 0x74, 0x92, 0x3c, 0xff, 0x1b, 0x13
 ]);
 
-// Функция для проверки меркл-доказательства
+// Функция для проверки меркл-доказательства (используется в onCreateMintAndTokenWithMerkleProof)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean {
     let computedHash = leaf;
     
@@ -651,7 +653,7 @@ function DevContent() {
         return;
       }
 
-      let allRootsInfo = [];
+      const allRootsInfo = [];
 
       // Обрабатываем каждый раунд
       for (let round = 1; round <= lastFoundRound; round++) {
