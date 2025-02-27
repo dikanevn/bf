@@ -677,26 +677,36 @@ function DevContent() {
 
       setTotalGames(lastFoundRound);
 
+      // Загружаем d02.json только последнего раунда для получения актуальных дат
+      let lastRoundDate: string | undefined;
+      try {
+        const d02 = await import(`../../../b/rounds/${lastFoundRound}/d02.json`);
+        lastRoundDate = d02.default.find((item: D02Data) => item.RewardsOrDeploy)?.RewardsOrDeploy;
+      } catch (err) {
+        console.error(`Ошибка при загрузке d02.json для последнего раунда:`, err);
+      }
+
       // Загружаем данные для каждого раунда
       for (let i = 1; i <= lastFoundRound; i++) {
         try {
           const d2Data = await import(`../../../b/rounds/${i}/d2.json`);
           const d3Data = await import(`../../../b/rounds/${i}/d3.json`);
-          const d02 = await import(`../../../b/rounds/${i}/d02.json`);
 
           const participated = d2Data.default.some((item: { player: string }) => item.player === address);
           const won = d3Data.default.some((item: { player: string }) => item.player === address);
           
           if (participated || won) {
-            const date = d02.default.find((item: D02Data) => item.round === i)?.RewardsOrDeploy;
+            const date = i === lastFoundRound && lastRoundDate ? 
+              new Date(lastRoundDate).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long'
+              }) : `Round ${i}`;
+
             results.push({
               round: i,
               participated,
               won,
-              date: date ? new Date(date).toLocaleDateString('en-US', {
-                day: 'numeric',
-                month: 'long'
-              }) : `Round ${i}`
+              date
             });
           }
         } catch (err) {

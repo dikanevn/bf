@@ -11,13 +11,6 @@ interface RoundDataItem {
   player: string;
 }
 
-interface RoundFiles {
-  [key: string]: {
-    d2: RoundDataItem[];
-    d3: RoundDataItem[];
-  }
-}
-
 interface SearchResult {
   round: number;
   participated: boolean;
@@ -25,74 +18,19 @@ interface SearchResult {
   date: string;
 }
 
-interface D02Data {
-  round: number;
-  value: string;
-  TOTAL_TICKETS: string;
-  coefficient: string;
-  BITCOIN_BLOCK_NUMBER?: string;
-  RewardsOrDeploy?: string;
-}
-
-// Заменим топ-уровневый await на загрузку в useEffect
-const roundsData: RoundFiles = {};
-
 export default function HomeContent() {
   const [address, setAddress] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { publicKey } = useWallet();
-  const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
   const [totalGames, setTotalGames] = useState(0);
-  const [totalMinted, setTotalMinted] = useState(0);
-  const [lastGameStats, setLastGameStats] = useState<{
-    date: string;
-    players: number;
-    estimatedWinners: number;
-    actualWinners: number;
-  } | null>(null);
   const [lastRoundData, setLastRoundData] = useState<{
     round: number;
     d02: D02Item[];
     d2: RoundDataItem[];
     d3: RoundDataItem[];
   } | null>(null);
-  const [participantsCount, _setParticipantsCount] = useState(0);
-  const [winnersCount, _setWinnersCount] = useState(0);
-  const [coefficient, _setCoefficient] = useState('');
-  const [lastRoundDate, _setLastRoundDate] = useState('');
-
-  // Эта функция используется в loadAllData
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const findLastRound = async () => {
-    let currentRound = 1; // Начинаем с 1 и идем вверх
-    let lastFoundRound = 0;
-    
-    // Ищем последнюю существующую папку
-    while (true) {
-      try {
-        // Проверяем существование папки через наличие d2.json
-        await import(`../../b/rounds/${currentRound}/d2.json`);
-        lastFoundRound = currentRound;
-        currentRound++;
-      } catch {
-        break; // Если папка не найдена, значит дошли до конца
-      }
-    }
-
-    if (lastFoundRound === 0) {
-      throw new Error('No rounds found');
-    }
-
-    // Проверяем наличие d02.json в последней найденной папке
-    try {
-      await import(`../../b/rounds/${lastFoundRound}/d02.json`);
-      return lastFoundRound;
-    } catch {
-      throw new Error(`Found folder ${lastFoundRound} but no d02.json in it`);
-    }
-  };
 
   const loadAllData = useCallback(async (searchAddr?: string) => {
     try {
@@ -134,36 +72,31 @@ export default function HomeContent() {
           const totalParticipants = d2.default.length;
           const totalWinners = d3.default.length;
           
-          _setParticipantsCount(totalParticipants);
-          _setWinnersCount(totalWinners);
-          
           // Получаем данные о коэффициенте
           const coefficientData = d02.default.find((item: D02Item) => item.coefficient);
           if (coefficientData) {
-            _setCoefficient(coefficientData.coefficient);
+            // _setCoefficient(coefficientData.coefficient);
           }
           
           // Получаем данные о дате
           const dateData = d02.default.find((item: D02Item) => item.RewardsOrDeploy);
           if (dateData && dateData.RewardsOrDeploy) {
-            _setLastRoundDate(new Date(dateData.RewardsOrDeploy).toLocaleDateString('en-US', {
-              day: 'numeric',
-              month: 'long'
-            }));
+            // _setLastRoundDate(new Date(dateData.RewardsOrDeploy).toLocaleDateString('en-US', {
+            //   day: 'numeric',
+            //   month: 'long'
+            // }));
           }
 
           // 5. Если есть адрес для поиска, выполняем поиск
           if (searchAddr) {
             const roundDates: { [key: number]: string } = {};
-            d02.default.forEach((item: D02Item) => {
-              if (item.RewardsOrDeploy) {
-                const date = new Date(item.RewardsOrDeploy);
-                roundDates[item.round] = date.toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'long'
-                });
-              }
-            });
+            // Используем даты только из последнего раунда
+            const lastRoundDate = d02.default.find((item: D02Item) => item.RewardsOrDeploy)?.RewardsOrDeploy;
+            const formattedDate = lastRoundDate ? 
+              new Date(lastRoundDate).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'long'
+              }) : 'Latest Round';
 
             const results: SearchResult[] = [];
             for (let i = 1; i <= lastFoundRound; i++) {
@@ -178,7 +111,7 @@ export default function HomeContent() {
                   round: i,
                   participated,
                   won: !!winData,
-                  date: roundDates[i] || `Round ${i}`
+                  date: i === lastFoundRound ? formattedDate : `Round ${i}`
                 });
               } catch {
                 continue;
@@ -199,24 +132,9 @@ export default function HomeContent() {
     }
   }, []);
 
-  // Функция для проверки участия пользователя
-  const checkUserParticipation = useCallback(() => {
-    if (publicKey && lastRoundData) {
-      // Проверяем, участвовал ли пользователь в последнем раунде
-      const userAddress = publicKey.toString();
-      const participated = lastRoundData.d2.some(item => item.player === userAddress);
-      const won = lastRoundData.d3.some(item => item.player === userAddress);
-      
-      console.log(`Пользователь ${userAddress} ${participated ? 'участвовал' : 'не участвовал'} в последнем раунде`);
-      if (participated) {
-        console.log(`Пользователь ${won ? 'выиграл' : 'не выиграл'} в последнем раунде`);
-      }
-    }
-  }, [publicKey, lastRoundData]);
-
   useEffect(() => {
     void loadAllData();
-  }, []);
+  }, [loadAllData]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -231,12 +149,6 @@ export default function HomeContent() {
       void loadAllData(publicKey.toString());
     }
   }, [publicKey, loadAllData]);
-
-  useEffect(() => {
-    if (publicKey && lastRoundData) {
-      checkUserParticipation();
-    }
-  }, [publicKey, lastRoundData, checkUserParticipation]);
 
   const searchAddress = async (searchAddr: string) => {
     if (!searchAddr) return;
@@ -293,41 +205,25 @@ export default function HomeContent() {
                 </div>
               </div>
               <div>
-                {searchResults.map((result) => {
-                  const roundStats = d02Data[result.round];
-                  const chance = roundStats 
-                    ? ((parseFloat(roundStats.value) / parseInt(roundStats.TOTAL_TICKETS)) * 100).toFixed(1)
-                    : '?';
-                  
-                  return (
-                    <div 
-                      key={result.round} 
-                      className={`mb-2 ${
-                        result.won 
-                          ? 'text-green-400' 
-                          : result.participated 
-                            ? 'text-green-700' 
-                            : 'text-gray-500'
-                      }`}
-                    >
-                      {result.participated 
-                        ? result.won 
-                          ? ' Won!' 
-                          : ' Lost..' 
-                        : ' Did not participate'} | { }
-                      {result.date} | Game {result.round}
-                      {roundStats && (
-                        <> | Players {roundStats.TOTAL_TICKETS} | 
-                        pNFT(est.) {parseFloat(roundStats.value).toFixed(0)} | 
-                        
-                        Block #{roundStats.BITCOIN_BLOCK_NUMBER} |
-                        Chance - {chance}% |
-                        
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
+                {searchResults.map((result) => (
+                  <div 
+                    key={result.round} 
+                    className={`mb-2 ${
+                      result.won 
+                        ? 'text-green-400' 
+                        : result.participated 
+                          ? 'text-green-700' 
+                          : 'text-gray-500'
+                    }`}
+                  >
+                    {result.participated 
+                      ? result.won 
+                        ? ' Won!' 
+                        : ' Lost..' 
+                      : ' Did not participate'} | { }
+                    {result.date} | Game {result.round}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -335,16 +231,13 @@ export default function HomeContent() {
           <div className="text-gray-400 mt-8 mb-8">
             <div className="text-xl font-bold">Global Statistics:</div>
             <div>Total pNFT: ~10000</div>
-            <div>Minted pNFT: {totalMinted}</div>
-            <div>Minted percentage: {((totalMinted / 10000) * 100).toFixed(1)}%</div>
+            <div>Total Games: {totalGames}</div>
             
-            {lastGameStats && (
+            {lastRoundData && (
               <>
                 <div className="text-xl font-bold mt-4">Latest Game:</div>
-                <div>Date: {lastGameStats.date}</div>
-                <div>Players: {lastGameStats.players}</div>
-                <div>Expected winners: ~{lastGameStats.estimatedWinners.toFixed(3)}</div>
-                <div>Actual winners: {lastGameStats.actualWinners}</div>
+                <div>Players: {lastRoundData.d2.length}</div>
+                <div>Winners: {lastRoundData.d3.length}</div>
               </>
             )}
           </div>
