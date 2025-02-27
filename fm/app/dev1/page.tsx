@@ -18,7 +18,6 @@ interface SearchResult {
   participated: boolean;
   won: boolean;
   date: string;
-  minted?: boolean;
   extendedMinted?: boolean;
   mintAddress?: string;
 }
@@ -109,7 +108,7 @@ function DevContent() {
                 { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
                 { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
             ],
-            data: Buffer.from([4])
+            data: Buffer.from([1])
         }));
         
         transaction.feePayer = publicKey;
@@ -172,163 +171,6 @@ function DevContent() {
         alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
         setLoading(false);
-    }
-  };
-
-  const onCreateMintAndTokenWithRoundSpecificMerkleProofTracked = async () => {
-    if (!publicKey || !sendTransaction) {
-      alert("Пожалуйста, подключите кошелек");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Проверяем, что номер раунда валидный
-      const roundNumber = parseInt(manualRoundNumber);
-      if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 21) {
-        alert("Пожалуйста, введите корректный номер раунда (1-21)");
-        return;
-      }
-
-      // Проверяем существование раунда и загружаем данные
-      let d3Data;
-      try {
-        d3Data = await import(`../../../b/rounds/${roundNumber}/d3.json`);
-      } catch {
-        alert(`Раунд ${roundNumber} не найден!`);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Получаем все адреса из d3
-      const addresses = d3Data.default.map((item: { player: string }) => item.player);
-      
-      // Создаем листья для меркл-дерева
-      const leaves = addresses.map((addr: string) => {
-        const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
-        return sha256(pkBytes);
-      });
-      
-      // Сортируем листья для консистентности
-      const sortedLeaves = leaves.slice().sort(Buffer.compare);
-      
-      // Создаем меркл-дерево
-      const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
-      
-      // Вычисляем хеш (лист) для текущего адреса
-      const leaf = sha256(Buffer.from(publicKey.toBytes()));
-      
-      // Получаем доказательство для текущего адреса
-      const proof = tree.getProof(leaf);
-      
-      if (!proof || proof.length === 0) {
-        alert(`Ваш адрес не найден в списке участников раунда ${roundNumber}!`);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Преобразуем доказательство в массив байтов
-      const proofBuffers = proof.map(p => p.data);
-      
-      // Проверяем доказательство вручную
-      if (!verifyMerkleProof(proofBuffers, leaf, tree.getRoot())) {
-        alert('Ошибка: Merkle proof не прошел локальную проверку!');
-        setIsLoading(false);
-        return;
-      }
-
-      // Создаем новый keypair для mint аккаунта
-      const newMintKeypair = Keypair.generate();
-      
-      // Получаем адрес ассоциированного токен аккаунта
-      const associatedTokenAccount = await getAssociatedTokenAddress(
-        newMintKeypair.publicKey,
-        publicKey,
-        false
-      );
-
-      // Получаем адрес PDA для отслеживания минтинга
-      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("is_minted"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
-          publicKey.toBuffer(),
-        ],
-        PROGRAM_ID
-      );
-      console.log("Mint record PDA:", mintRecordPDA.toBase58());
-
-      // Получаем PDA для mint authority
-      const [programAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority")],
-        PROGRAM_ID
-      );
-
-      // Создаем буфер данных для инструкции
-      // [0] - номер инструкции (14)
-      // [1] - номер раунда (0-20)
-      // [2..] - данные доказательства (каждый узел - 32 байта)
-      const dataLength = 2 + (proofBuffers.length * 32);
-      const dataBuffer = Buffer.alloc(dataLength);
-      dataBuffer[0] = 14; // Инструкция 14
-      dataBuffer[1] = roundNumber - 1; // Номер раунда (0-based в контракте)
-      
-      // Записываем каждый узел доказательства в буфер
-      for (let i = 0; i < proofBuffers.length; i++) {
-        proofBuffers[i].copy(dataBuffer, 2 + (i * 32));
-      }
-
-      // Создаем инструкцию
-      const createWithMerkleTrackedIx = new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
-          { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: publicKey, isSigner: true, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-          { pubkey: programAuthority, isSigner: false, isWritable: false },
-          { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
-        ],
-        data: dataBuffer
-      });
-
-      // Создаем транзакцию
-      const transaction = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-      
-      transaction.add(createWithMerkleTrackedIx);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = blockhash;
-
-      try {
-        const signature = await sendTransaction(transaction, connection, {
-          signers: [newMintKeypair]
-        });
-        
-        console.log("Transaction sent:", signature);
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature
-        });
-        
-        console.log("Transaction confirmed");
-        setMintKeypair(newMintKeypair);
-        setAtaAddress(associatedTokenAccount);
-        alert(`Минт и токен успешно созданы с отслеживанием для раунда ${roundNumber}!`);
-      } catch (error) {
-        console.error("Error sending transaction:", error);
-        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-        setIsLoading(false);
     }
   };
 
@@ -634,10 +476,7 @@ function DevContent() {
         
         // Проверяем каждый раунд на минтинг
         for (let i = 0; i < updatedResults.length; i++) {
-          const hasMinted = await checkIfMintedInRound(updatedResults[i].round);
-          updatedResults[i].minted = hasMinted;
-          
-          // Проверяем расширенное отслеживание минтинга
+          // Проверяем только расширенное отслеживание минтинга
           const mintAddress = await checkIfMintedInRoundExtended(updatedResults[i].round);
           if (mintAddress) {
             updatedResults[i].extendedMinted = true;
@@ -793,32 +632,6 @@ function DevContent() {
     }
   };
 
-  // Функция для проверки, минтил ли пользователь в конкретном раунде
-  const checkIfMintedInRound = async (roundNumber: number): Promise<boolean> => {
-    if (!publicKey) return false;
-    
-    try {
-      // Получаем адрес PDA для отслеживания минтинга
-      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("is_minted"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
-          publicKey.toBuffer(),
-        ],
-        PROGRAM_ID
-      );
-      
-      // Проверяем существование аккаунта
-      const accountInfo = await connection.getAccountInfo(mintRecordPDA);
-      
-      // Если аккаунт существует и принадлежит программе, значит пользователь минтил в этом раунде
-      return accountInfo !== null && accountInfo.owner.equals(PROGRAM_ID);
-    } catch (error) {
-      console.error(`Ошибка при проверке минтинга для раунда ${roundNumber}:`, error);
-      return false;
-    }
-  };
-
   // Функция для проверки расширенного отслеживания минтинга и получения адреса минта
   const checkIfMintedInRoundExtended = async (roundNumber: number): Promise<string | null> => {
     if (!publicKey) return null;
@@ -905,11 +718,6 @@ function DevContent() {
                 {winningRounds.map((result) => (
                   <div key={result.round} className="text-green-400">
                     Раунд {result.round} | {result.date} | Выигрыш подтвержден! ✅
-                    {result.minted !== undefined && (
-                      <span className={result.minted ? "text-blue-400 ml-2" : "text-yellow-400 ml-2"}>
-                        {result.minted ? "Минт выполнен ✓" : "Минт не выполнен ✗"}
-                      </span>
-                    )}
                     {result.extendedMinted !== undefined && (
                       <span className={result.extendedMinted ? "text-purple-400 ml-2" : "text-gray-400 ml-2"}>
                         {result.extendedMinted ? "Расширенный минт выполнен ✓" : "Расширенный минт не выполнен ✗"}
@@ -966,26 +774,6 @@ function DevContent() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
               >
                 {isLoading ? 'Processing...' : '16. Создать минт и токен с расширенным отслеживанием'}
-            </button>
-            </div>
-
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="number"
-                min="1"
-                max="21"
-                value={manualRoundNumber}
-                onChange={(e) => setManualRoundNumber(e.target.value)}
-                className="bg-gray-800 text-white px-3 py-1.5 text-sm border border-gray-700 rounded w-20"
-                placeholder="Раунд"
-                disabled={isLoading}
-              />
-            <button 
-                onClick={onCreateMintAndTokenWithRoundSpecificMerkleProofTracked}
-                disabled={!publicKey || isLoading}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
-              >
-                {isLoading ? 'Processing...' : '14. Создать минт и токен с отслеживанием минтинга'}
             </button>
             </div>
 
