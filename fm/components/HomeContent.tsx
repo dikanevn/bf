@@ -180,7 +180,14 @@ export default function HomeContent() {
 
   useEffect(() => {
     void loadAllData();
-  }, []);
+  }, [loadAllData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void loadAllData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [loadAllData]);
 
   useEffect(() => {
     if (publicKey) {

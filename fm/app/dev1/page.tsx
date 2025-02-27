@@ -51,7 +51,6 @@ function DevContent() {
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
   const [mintKeypair, setMintKeypair] = useState<Keypair | null>(null);
-  const [tokenAccountKeypair, setTokenAccountKeypair] = useState<Keypair | null>(null);
   const [metadataAddress, setMetadataAddress] = useState<PublicKey | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [ataAddress, setAtaAddress] = useState<PublicKey | null>(null);
@@ -226,7 +225,6 @@ function DevContent() {
         const txid = await connection.sendRawTransaction(signedTx.serialize());
         await connection.confirmTransaction(txid);
         
-        setTokenAccountKeypair(null); // Сбрасываем старый токен аккаунт
         setAtaAddress(associatedTokenAccount); // Сохраняем адрес АТА
         alert(`Ассоциированный токен аккаунт создан!\nATA: ${associatedTokenAccount.toString()}`);
     } catch (error) {
