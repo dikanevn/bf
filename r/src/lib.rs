@@ -11,6 +11,8 @@ use solana_program::{
     sysvar::rent::Rent,
     sysvar::Sysvar,
     hash::hash,
+    borsh::try_from_slice_unchecked,
+    program_pack::IsInitialized,
 };
 use spl_token::{
     instruction as token_instruction,
@@ -22,6 +24,25 @@ use mpl_token_metadata::{
     types::DataV2,
 };
 use spl_associated_token_account::instruction;
+use borsh::{BorshDeserialize, BorshSerialize};
+
+// Структура для хранения информации о минтинге токенов по раундам
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct MintRecord {
+    pub is_initialized: bool,
+    pub owner: Pubkey,
+    pub minted_rounds: [bool; 21], // Массив флагов для каждого раунда (true = уже минтил)
+}
+
+impl IsInitialized for MintRecord {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl MintRecord {
+    pub const LEN: usize = 1 + 32 + 21; // is_initialized + owner + minted_rounds
+}
 
 // Массив всех корней Merkle дерева для каждого раунда
 pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
@@ -113,14 +134,6 @@ pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
     ]
 ];
 
-// Корневой хеш меркл-дерева (полученный офф-чейн)
-pub const MERKLE_ROOT: [u8; 32] = [
-    0x90, 0x60, 0xf8, 0xcb, 0xf8, 0xce, 0xa8, 0xa4,
-    0x8c, 0xb4, 0x69, 0x7c, 0x62, 0xe8, 0xaa, 0x4f,
-    0x10, 0x4c, 0x9a, 0x22, 0x69, 0xb4, 0x6f, 0xc6,
-    0x9b, 0x49, 0x74, 0x92, 0x3c, 0xff, 0x1b, 0x13
-];
-
 // Объявляем точку входа для программы
 entrypoint!(process_instruction);
 
@@ -161,13 +174,17 @@ pub fn process_instruction(
             msg!("Creating mint and token (all in one)...");
             create_mint_and_token(program_id, accounts)
         },
-        10 => {
-            msg!("Creating mint and token with Merkle proof verification...");
-            create_mint_and_token_with_merkle_proof(program_id, accounts, &instruction_data[1..])
-        },
         13 => {
             msg!("Creating mint and token with Merkle proof verification for specific round...");
             create_mint_and_token_with_round_merkle_proof(program_id, accounts, &instruction_data[1..])
+        },
+        14 => {
+            msg!("Creating mint record account...");
+            create_mint_record(program_id, accounts)
+        },
+        15 => {
+            msg!("Creating mint and token with Merkle proof verification and mint record check...");
+            create_mint_and_token_with_round_merkle_proof_and_record(program_id, accounts, &instruction_data[1..])
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -560,161 +577,6 @@ fn create_mint_and_token(
     )?;
 
     msg!("All operations completed successfully!");
-    Ok(())
-}
-
-// Добавляем новую функцию
-fn create_mint_and_token_with_merkle_proof(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    proof_data: &[u8],
-) -> ProgramResult {
-    msg!("Starting create_mint_and_token_with_merkle_proof...");
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем все необходимые аккаунты
-    let mint_account = next_account_info(account_info_iter)?;
-    let associated_token_account = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let associated_token_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-
-    msg!("Checking signatures...");
-    // Проверяем подписи
-    if !mint_account.is_signer {
-        msg!("Mint account must be a signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    if !payer.is_signer {
-        msg!("Payer must be a signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
-    // Проверяем, что program_authority это правильный PDA
-    let (expected_authority, bump_seed) = Pubkey::find_program_address(
-        &[b"mint_authority"],
-        program_id
-    );
-    if program_authority.key != &expected_authority {
-        msg!("Invalid program authority provided");
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    // Проверяем Merkle proof
-    msg!("Verifying Merkle proof...");
-    
-    // Проверяем, что данные доказательства имеют правильный формат
-    if proof_data.len() % 32 != 0 {
-        msg!("Invalid proof data length");
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    
-    // Преобразуем данные доказательства в вектор 32-байтных массивов
-    let mut proof = Vec::new();
-    for i in 0..(proof_data.len() / 32) {
-        let mut node = [0u8; 32];
-        node.copy_from_slice(&proof_data[i * 32..(i + 1) * 32]);
-        proof.push(node);
-    }
-    
-    // Вычисляем хеш (лист) для адреса плательщика
-    let leaf = hash(payer.key.as_ref()).to_bytes();
-    
-    // Проверяем доказательство
-    if !verify_merkle_proof(leaf, &proof, MERKLE_ROOT) {
-        msg!("Invalid Merkle proof for address: {}", payer.key);
-        return Err(ProgramError::InvalidArgument);
-    }
-    
-    msg!("Merkle proof verified successfully!");
-
-    msg!("Creating mint account...");
-    // 1. Создаем минт аккаунт
-    let rent = Rent::get()?;
-    let mint_len = Mint::LEN;
-    let lamports = rent.minimum_balance(mint_len);
-
-    invoke(
-        &system_instruction::create_account(
-            &payer.key,
-            &mint_account.key,
-            lamports,
-            mint_len as u64,
-            &spl_token::id(),
-        ),
-        &[
-            payer.clone(),
-            mint_account.clone(),
-            system_program.clone(),
-        ],
-    )?;
-
-    msg!("Initializing mint...");
-    // 2. Инициализируем минт
-    invoke(
-        &spl_token::instruction::initialize_mint(
-            &spl_token::id(),
-            &mint_account.key,
-            &program_authority.key,
-            None,
-            0,
-        )?,
-        &[
-            mint_account.clone(),
-            rent_sysvar.clone(),
-        ],
-    )?;
-
-    msg!("Creating associated token account...");
-    // 3. Создаем ассоциированный токен аккаунт
-    invoke(
-        &spl_associated_token_account::instruction::create_associated_token_account(
-            payer.key,
-            payer.key,
-            mint_account.key,
-            &spl_token::id(),
-        ),
-        &[
-            payer.clone(),
-            associated_token_account.clone(),
-            payer.clone(),
-            mint_account.clone(),
-            system_program.clone(),
-            token_program.clone(),
-            associated_token_program.clone(),
-            rent_sysvar.clone(),
-        ],
-    )?;
-
-    msg!("Minting token...");
-    // 4. Минтим токен
-    let authority_signature_seeds = &[
-        b"mint_authority".as_ref(),
-        &[bump_seed],
-    ];
-    let signers = &[&authority_signature_seeds[..]];
-
-    invoke_signed(
-        &spl_token::instruction::mint_to(
-            &spl_token::id(),
-            mint_account.key,
-            associated_token_account.key,
-            &program_authority.key,
-            &[],
-            1,
-        )?,
-        &[
-            mint_account.clone(),
-            associated_token_account.clone(),
-            program_authority.clone(),
-        ],
-        signers,
-    )?;
-
-    msg!("All operations with Merkle proof verification completed successfully!");
     Ok(())
 }
 
