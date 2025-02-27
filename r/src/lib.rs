@@ -80,6 +80,10 @@ pub fn process_instruction(
             msg!("Creating mint and token with Merkle proof verification and extended tracking for specific round...");
             create_mint_and_token_with_round_merkle_proof_tracked_extended(program_id, accounts, &instruction_data[1..])
         },
+        17 => {
+            msg!("Creating mint, token with Merkle proof verification, extended tracking, and metadata for specific round...");
+            create_mint_token_with_merkle_proof_tracked_extended_and_metadata(program_id, accounts, &instruction_data[1..])
+        },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
             Err(ProgramError::InvalidInstructionData)
@@ -515,6 +519,71 @@ fn create_mint_and_token_with_round_merkle_proof_tracked_extended(
     msg!("Data written successfully");
 
     msg!("All operations with round-specific Merkle proof verification and extended tracking completed successfully!");
+    Ok(())
+}
+
+// Функция для создания минта, токена с проверкой Merkle proof, расширенным отслеживанием минтинга и метаданными
+fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    proof_data: &[u8],
+) -> ProgramResult {
+    msg!("Starting create_mint_token_with_merkle_proof_tracked_extended_and_metadata...");
+    
+    // Сначала создаем минт и токен с расширенным отслеживанием
+    let mint_token_accounts = &accounts[0..9]; // Первые 9 аккаунтов для создания минта и токена
+    create_mint_and_token_with_round_merkle_proof_tracked_extended(program_id, mint_token_accounts, proof_data)?;
+    
+    // Затем создаем метаданные
+    // Получаем необходимые аккаунты для создания метаданных
+    let metadata_account = &accounts[9];
+    let mint_account = &accounts[0]; // Тот же mint_account, что и в первой части
+    let mint_authority = &accounts[2]; // payer из первой части
+    let payer = &accounts[2]; // payer из первой части
+    let metadata_program = &accounts[10];
+    let rent_sysvar = &accounts[6]; // rent_sysvar из первой части
+    let system_program = &accounts[3]; // system_program из первой части
+    
+    let metadata_accounts = &[
+        metadata_account.clone(),
+        mint_account.clone(),
+        mint_authority.clone(),
+        payer.clone(),
+        metadata_program.clone(),
+        rent_sysvar.clone(),
+        system_program.clone(),
+    ];
+    
+    msg!("Creating metadata for the minted token...");
+    
+    let data = DataV2 {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 0,
+        creators: None,
+        collection: None,
+        uses: None,
+    };
+
+    invoke(
+        &instructions::CreateMetadataAccountV3 {
+            metadata: *metadata_account.key,
+            mint: *mint_account.key,
+            mint_authority: *mint_authority.key,
+            payer: *payer.key,
+            update_authority: (*mint_authority.key, true),
+            system_program: *system_program.key,
+            rent: None,
+        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
+            data,
+            is_mutable: true,
+            collection_details: None,
+        }),
+        metadata_accounts,
+    )?;
+
+    msg!("Mint, token with Merkle proof verification, extended tracking, and metadata created successfully!");
     Ok(())
 }
 
