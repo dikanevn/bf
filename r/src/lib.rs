@@ -70,8 +70,6 @@ pub fn process_instruction(
             msg!("Program is initialized!");
             Ok(())
         }
-        1 => create_metadata(program_id, accounts),
-        2 => set_mint_authority(program_id, accounts),
         15 => {
             msg!("Deleting mint record account for specific round...");
             delete_mint_record_for_round(program_id, accounts, &instruction_data[1..])
@@ -84,115 +82,15 @@ pub fn process_instruction(
             msg!("Creating mint, token with Merkle proof verification, extended tracking, and metadata for specific round...");
             create_mint_token_with_merkle_proof_tracked_extended_and_metadata(program_id, accounts, &instruction_data[1..])
         },
+        18 => {
+            msg!("Creating metadata for existing mint...");
+            create_metadata_for_existing_mint(program_id, accounts, &instruction_data[1..])
+        },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
             Err(ProgramError::InvalidInstructionData)
         }
     }
-}
-
-fn create_metadata(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем необходимые аккаунты
-    let metadata_account = next_account_info(account_info_iter)?;
-    let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let metadata_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-
-    let data = DataV2 {
-        name: "NFT".to_string(),
-        symbol: "NFT".to_string(),
-        uri: "".to_string(),
-        seller_fee_basis_points: 0,
-        creators: None,
-        collection: None,
-        uses: None,
-    };
-
-    invoke(
-        &instructions::CreateMetadataAccountV3 {
-            metadata: *metadata_account.key,
-            mint: *mint_account.key,
-            mint_authority: *mint_authority.key,
-            payer: *payer.key,
-            update_authority: (*mint_authority.key, true),
-            system_program: *system_program.key,
-            rent: None,
-        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
-            data,
-            is_mutable: true,
-            collection_details: None,
-        }),
-        &[
-            metadata_account.clone(),
-            mint_account.clone(),
-            mint_authority.clone(),
-            payer.clone(),
-            metadata_program.clone(),
-            rent_sysvar.clone(),
-            system_program.clone(),
-        ],
-    )?;
-
-    msg!("Metadata created successfully!");
-    Ok(())
-}
-
-// Добавляем новую функцию для установки mint authority
-fn set_mint_authority(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Получаем необходимые аккаунты
-    let mint_account = next_account_info(account_info_iter)?;
-    let current_authority = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-
-    // Проверяем, что текущий authority подписал транзакцию
-    if !current_authority.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
-    // Проверяем, что program_authority это правильный PDA
-    let (expected_authority, _bump) = Pubkey::find_program_address(
-        &[b"mint_authority"],
-        program_id
-    );
-    if program_authority.key != &expected_authority {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    // Создаем инструкцию для установки нового mint authority
-    let set_authority_ix = spl_token::instruction::set_authority(
-        &spl_token::id(),
-        mint_account.key,
-        Some(&expected_authority),
-        spl_token::instruction::AuthorityType::MintTokens,
-        current_authority.key,
-        &[],
-    )?;
-
-    // Выполняем инструкцию
-    invoke(
-        &set_authority_ix,
-        &[
-            mint_account.clone(),
-            current_authority.clone(),
-            program_authority.clone(),
-        ],
-    )?;
-
-    msg!("Mint authority successfully transferred to program");
-    Ok(())
 }
 
 // Добавляем новую функцию для удаления аккаунта отслеживания минтинга для конкретного раунда
@@ -538,7 +436,7 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
     // Получаем необходимые аккаунты для создания метаданных
     let metadata_account = &accounts[9];
     let mint_account = &accounts[0]; // Тот же mint_account, что и в первой части
-    let mint_authority = &accounts[2]; // payer из первой части
+    let mint_authority = &accounts[7]; // program_authority вместо payer
     let payer = &accounts[2]; // payer из первой части
     let metadata_program = &accounts[10];
     let rent_sysvar = &accounts[6]; // rent_sysvar из первой части
@@ -560,13 +458,26 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
         name: "NFT".to_string(),
         symbol: "NFT".to_string(),
         uri: "".to_string(),
-        seller_fee_basis_points: 0,
+        seller_fee_basis_points: 600,
         creators: None,
         collection: None,
         uses: None,
     };
 
-    invoke(
+    // Получаем bump seed для program_authority
+    let (_, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    invoke_signed(
         &instructions::CreateMetadataAccountV3 {
             metadata: *metadata_account.key,
             mint: *mint_account.key,
@@ -581,9 +492,97 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
             collection_details: None,
         }),
         metadata_accounts,
+        signers,
     )?;
 
     msg!("Mint, token with Merkle proof verification, extended tracking, and metadata created successfully!");
+    Ok(())
+}
+
+// Функция для создания метаданных для существующего минта
+fn create_metadata_for_existing_mint(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    msg!("Starting create_metadata_for_existing_mint...");
+    
+    // Получаем необходимые аккаунты
+    let account_info_iter = &mut accounts.iter();
+    
+    let metadata_account = next_account_info(account_info_iter)?;
+    let mint_account = next_account_info(account_info_iter)?;
+    let mint_authority = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let metadata_program = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
+    
+    // Проверяем подпись
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if mint_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Создаем метаданные
+    msg!("Creating metadata for the existing mint...");
+    
+    let data = DataV2 {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 700,
+        creators: None,
+        collection: None,
+        uses: None,
+    };
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    let metadata_accounts = &[
+        metadata_account.clone(),
+        mint_account.clone(),
+        mint_authority.clone(),
+        payer.clone(),
+        metadata_program.clone(),
+        system_program.clone(),
+        rent_sysvar.clone(),
+    ];
+
+    invoke_signed(
+        &instructions::CreateMetadataAccountV3 {
+            metadata: *metadata_account.key,
+            mint: *mint_account.key,
+            mint_authority: *mint_authority.key,
+            payer: *payer.key,
+            update_authority: (*mint_authority.key, true),
+            system_program: *system_program.key,
+            rent: None,
+        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
+            data,
+            is_mutable: true,
+            collection_details: None,
+        }),
+        metadata_accounts,
+        signers,
+    )?;
+
+    msg!("Metadata created successfully for existing mint!");
     Ok(())
 }
 
