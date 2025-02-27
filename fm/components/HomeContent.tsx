@@ -3,10 +3,9 @@
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect, useCallback } from 'react';
-import type { D02Item } from '../types';
 import Link from 'next/link';
 
-// Определяем типы для данных раундов
+// Исправляем типы для более строгой проверки
 interface RoundDataItem {
   player: string;
 }
@@ -28,6 +27,13 @@ interface D02Data {
   winnersCount?: number;
 }
 
+interface LastGameStats {
+  date: string;
+  players: number;
+  estimatedWinners: number;
+  actualWinners: number;
+}
+
 export default function HomeContent() {
   const [address, setAddress] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -37,12 +43,7 @@ export default function HomeContent() {
   const [totalGames, setTotalGames] = useState(0);
   const [d02Data, setD02Data] = useState<{[key: number]: D02Data}>({});
   const [totalMinted, setTotalMinted] = useState(0);
-  const [lastGameStats, setLastGameStats] = useState<{
-    date: string;
-    players: number;
-    estimatedWinners: number;
-    actualWinners: number;
-  } | null>(null);
+  const [lastGameStats, setLastGameStats] = useState<LastGameStats | null>(null);
 
   const findLastRound = async () => {
     let currentRound = 1;
@@ -80,27 +81,28 @@ export default function HomeContent() {
 
       // 3. Загружаем d02.json последнего раунда
       const d02Module = await import(`../../b/rounds/${lastRound}/d02.json`);
-      const d02RawData = d02Module.default;
+      const d02RawData = d02Module.default as D02Data[];
       
       // Обрабатываем данные d02
-      const d02Processed = d02RawData.reduce((acc: {[key: number]: D02Item}, item: D02Item) => {
+      const d02Processed = d02RawData.reduce<{[key: number]: D02Data}>((acc, item) => {
         acc[item.round] = item;
         return acc;
       }, {});
       setD02Data(d02Processed);
       
       // Подсчитываем общее количество намайненных pNFT
-      const totalMintedCount = d02RawData.reduce((sum: number, item: D02Item) => {
+      const totalMintedCount = d02RawData.reduce((sum, item) => {
         return sum + (item.winnersCount || 0);
       }, 0);
       setTotalMinted(totalMintedCount);
 
       // 4. Загружаем данные последней игры
-      const lastGame = d02RawData.find((item: D02Item) => item.round === lastRound);
-      if (lastGame && lastGame.RewardsOrDeploy) {
+      const lastGame = d02RawData.find((item) => item.round === lastRound);
+      if (lastGame?.RewardsOrDeploy) {
         try {
           const d3LastGame = await import(`../../b/rounds/${lastRound}/d3.json`);
-          const actualWinners = d3LastGame.default.length;
+          const d3Data = d3LastGame.default as RoundDataItem[];
+          const actualWinners = d3Data.length;
           
           setLastGameStats({
             date: new Date(lastGame.RewardsOrDeploy).toLocaleDateString('en-US', {
@@ -109,7 +111,7 @@ export default function HomeContent() {
             }),
             players: parseInt(lastGame.TOTAL_TICKETS),
             estimatedWinners: parseFloat(lastGame.value),
-            actualWinners: actualWinners
+            actualWinners
           });
         } catch (err) {
           console.error('Error loading last game data:', err);
@@ -118,11 +120,10 @@ export default function HomeContent() {
 
       // 5. Если есть адрес для поиска, выполняем поиск
       if (searchAddr) {
-        const roundDates: { [key: number]: string } = {};
-        d02RawData.forEach((item: D02Item) => {
+        const roundDates: Record<number, string> = {};
+        d02RawData.forEach((item) => {
           if (item.RewardsOrDeploy) {
-            const date = new Date(item.RewardsOrDeploy);
-            roundDates[item.round] = date.toLocaleDateString('en-US', {
+            roundDates[item.round] = new Date(item.RewardsOrDeploy).toLocaleDateString('en-US', {
               day: 'numeric',
               month: 'long'
             });
@@ -135,8 +136,11 @@ export default function HomeContent() {
             const d2Data = await import(`../../b/rounds/${i}/d2.json`);
             const d3Data = await import(`../../b/rounds/${i}/d3.json`);
             
-            const participated = d2Data.default.some((item: RoundDataItem) => item.player === searchAddr);
-            const winData = d3Data.default.find((item: RoundDataItem) => item.player === searchAddr);
+            const d2Players = d2Data.default as RoundDataItem[];
+            const d3Players = d3Data.default as RoundDataItem[];
+            
+            const participated = d2Players.some((item) => item.player === searchAddr);
+            const winData = d3Players.find((item) => item.player === searchAddr);
             
             results.push({
               round: i,
@@ -144,7 +148,8 @@ export default function HomeContent() {
               won: !!winData,
               date: roundDates[i] || `Round ${i}`
             });
-          } catch {
+          } catch (err) {
+            console.error(`Error loading data for round ${i}:`, err);
             continue;
           }
         }

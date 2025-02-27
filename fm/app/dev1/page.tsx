@@ -63,19 +63,6 @@ function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean
   return computedHash.equals(root);
 }
 
-// Функция для нахождения адреса метаданных для минта
-function findMetadataAddress(mint: PublicKey): PublicKey {
-  const [metadataAddress] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-      mint.toBuffer(),
-    ],
-    TOKEN_METADATA_PROGRAM_ID
-  );
-  return metadataAddress;
-}
-
 function DevContent() {
   const { publicKey, signTransaction, sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -282,7 +269,10 @@ function DevContent() {
       
       // Записываем каждый узел доказательства в буфер
       for (let i = 0; i < proofBuffers.length; i++) {
-        proofBuffers[i].copy(dataBuffer, 2 + (i * 32));
+        const buffer = proofBuffers[i] as Buffer;
+        if (buffer) {
+          buffer.copy(dataBuffer, 2 + (i * 32));
+        }
       }
 
       // Создаем инструкцию
@@ -450,7 +440,10 @@ function DevContent() {
       
       // Записываем каждый узел доказательства в буфер
       for (let i = 0; i < proofBuffers.length; i++) {
-        proofBuffers[i].copy(dataBuffer, 2 + (i * 32));
+        const buffer = proofBuffers[i] as Buffer;
+        if (buffer) {
+          buffer.copy(dataBuffer, 2 + (i * 32));
+        }
       }
 
       // Создаем инструкцию
@@ -535,7 +528,7 @@ function DevContent() {
       let mintPublicKey: PublicKey;
       try {
         mintPublicKey = new PublicKey(mintAddressInput);
-      } catch (error) {
+      } catch {
         alert("Неверный формат адреса минта");
         setIsLoading(false);
         return;
@@ -655,7 +648,7 @@ function DevContent() {
       console.error(`Ошибка при проверке расширенного минтинга для раунда ${roundNumber}:`, err);
       return null;
     }
-  }, [publicKey]);
+  }, [publicKey, connection]);
 
   const loadWinningRounds = useCallback(async (address: string) => {
     try {
@@ -722,13 +715,16 @@ function DevContent() {
         
         // Проверяем каждый раунд на минтинг
         for (let i = 0; i < updatedResults.length; i++) {
-          // Проверяем только расширенное отслеживание минтинга
-          const mintAddress = await checkIfMintedInRoundExtended(updatedResults[i].round);
-          if (mintAddress) {
-            updatedResults[i].extendedMinted = true;
-            updatedResults[i].mintAddress = mintAddress;
-          } else {
-            updatedResults[i].extendedMinted = false;
+          const result = updatedResults[i];
+          if (result && typeof result.round === 'number') {
+            // Проверяем только расширенное отслеживание минтинга
+            const mintAddress = await checkIfMintedInRoundExtended(result.round);
+            if (mintAddress) {
+              result.extendedMinted = true;
+              result.mintAddress = mintAddress;
+            } else {
+              result.extendedMinted = false;
+            }
           }
         }
         
@@ -745,6 +741,7 @@ function DevContent() {
       setWinningRounds(results.filter(r => r.won).sort((a, b) => b.round - a.round));
     } catch (err) {
       console.error("Ошибка при загрузке выигрышных раундов:", err);
+      setWinningRounds([]);
     }
   }, [publicKey, checkIfMintedInRoundExtended]);
 
