@@ -1,0 +1,16 @@
+git add .
+git commit -m "q"
+git push -u origin main
+
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+
+git log --oneline
+q
+git branch -D clean_version
+git checkout e2e6138
+git checkout -b clean_version
+git checkout main
+git reset --hard clean_version
+git clean -fd 
