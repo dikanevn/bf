@@ -11,8 +11,6 @@ use solana_program::{
     sysvar::rent::Rent,
     sysvar::Sysvar,
     hash::hash,
-    borsh::try_from_slice_unchecked,
-    program_pack::IsInitialized,
 };
 use spl_token::{
     instruction as token_instruction,
@@ -24,25 +22,6 @@ use mpl_token_metadata::{
     types::DataV2,
 };
 use spl_associated_token_account::instruction;
-use borsh::{BorshDeserialize, BorshSerialize};
-
-// Структура для хранения информации о минтинге токенов по раундам
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct MintRecord {
-    pub is_initialized: bool,
-    pub owner: Pubkey,
-    pub minted_rounds: [bool; 21], // Массив флагов для каждого раунда (true = уже минтил)
-}
-
-impl IsInitialized for MintRecord {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-
-impl MintRecord {
-    pub const LEN: usize = 1 + 32 + 21; // is_initialized + owner + minted_rounds
-}
 
 // Массив всех корней Merkle дерева для каждого раунда
 pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
@@ -177,14 +156,6 @@ pub fn process_instruction(
         13 => {
             msg!("Creating mint and token with Merkle proof verification for specific round...");
             create_mint_and_token_with_round_merkle_proof(program_id, accounts, &instruction_data[1..])
-        },
-        14 => {
-            msg!("Creating mint record account...");
-            create_mint_record(program_id, accounts)
-        },
-        15 => {
-            msg!("Creating mint and token with Merkle proof verification and mint record check...");
-            create_mint_and_token_with_round_merkle_proof_and_record(program_id, accounts, &instruction_data[1..])
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
