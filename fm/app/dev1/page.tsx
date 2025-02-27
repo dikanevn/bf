@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect } from 'react';
@@ -42,8 +42,32 @@ const DevnetWalletProviderDynamic = dynamic(
 
 // Вспомогательная функция для хеширования
 function sha256(data: Buffer): Buffer {
-  const hashHex = jsSha256(data);
-  return Buffer.from(hashHex, 'hex');
+    // Используем тот же формат, что и в контракте
+    const hashHex = jsSha256(data);
+    return Buffer.from(hashHex, 'hex');
+}
+
+// Константа с корнем меркл-дерева из контракта
+const MERKLE_ROOT = Buffer.from([
+    0x90, 0x60, 0xf8, 0xcb, 0xf8, 0xce, 0xa8, 0xa4,
+    0x8c, 0xb4, 0x69, 0x7c, 0x62, 0xe8, 0xaa, 0x4f,
+    0x10, 0x4c, 0x9a, 0x22, 0x69, 0xb4, 0x6f, 0xc6,
+    0x9b, 0x49, 0x74, 0x92, 0x3c, 0xff, 0x1b, 0x13
+]);
+
+// Функция для проверки меркл-доказательства
+function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean {
+    let computedHash = leaf;
+    
+    for (const proofElement of proof) {
+        if (Buffer.compare(computedHash, proofElement) < 0) {
+            computedHash = sha256(Buffer.concat([computedHash, proofElement]));
+        } else {
+            computedHash = sha256(Buffer.concat([proofElement, computedHash]));
+        }
+    }
+    
+    return computedHash.equals(root);
 }
 
 function DevContent() {
@@ -535,92 +559,108 @@ function DevContent() {
   };
 
   const onCreateMintAndTokenWithMerkle = async () => {
+    if (!publicKey || !sendTransaction) {
+        alert('Пожалуйста, подключите кошелек!');
+        return;
+    }
+
     try {
-        if (!publicKey || !sendTransaction) {
-            alert("Пожалуйста, подключите кошелек!");
+        setIsLoading(true);
+
+        // Проверяем баланс
+        const balance = await connection.getBalance(publicKey);
+        if (balance < LAMPORTS_PER_SOL) {
+            alert('Недостаточно SOL на балансе. Нужно минимум 1 SOL.');
             return;
         }
-        
-        setIsLoading(true);
-        const newMintKeypair = Keypair.generate();
-        
-        const associatedTokenAccount = await getAssociatedTokenAddress(
-            newMintKeypair.publicKey,
-            publicKey,
-            false
-        );
 
-        const [programAuthority] = PublicKey.findProgramAddressSync(
-            [Buffer.from("mint_authority")],
-            PROGRAM_ID
-        );
-
-        // Создаем листья для меркл-дерева из адресов последнего раунда
+        console.log('Создаем keypair для минта...');
+        const mintKeypair = Keypair.generate();
+        
+        // Получаем последний раунд и создаем меркл-дерево
+        console.log('Получаем данные последнего раунда...');
         let currentRound = 1;
-        let lastFoundRound = 0;
+        let lastRound = 0;
         
         while (true) {
             try {
                 await import(`../../../b/rounds/${currentRound}/d3.json`);
-                lastFoundRound = currentRound;
+                lastRound = currentRound;
                 currentRound++;
             } catch {
                 break;
             }
         }
 
-        if (lastFoundRound === 0) {
+        if (lastRound === 0) {
             alert('Раунды не найдены');
             return;
         }
 
-        // Загружаем d3.json последнего раунда
-        const d3 = await import(`../../../b/rounds/${lastFoundRound}/d3.json`);
-        
-        // Получаем все адреса из d3
+        // Загружаем адреса из последнего раунда
+        const d3 = await import(`../../../b/rounds/${lastRound}/d3.json`);
         const addresses = d3.default.map((item: { player: string }) => item.player);
         
-        // Создаем листья для меркл-дерева
+        if (!addresses.includes(publicKey.toBase58())) {
+            alert('Ваш адрес не находится в вайтлисте!');
+            return;
+        }
+
+        console.log('Создаем меркл-дерево...');
         const leaves = addresses.map((addr: string) => {
             const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
             return sha256(pkBytes);
         });
-        
-        // Сортируем листья для консистентности
         const sortedLeaves = leaves.slice().sort(Buffer.compare);
-        
-        // Создаем меркл-дерево
         const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
         
-        // Получаем доказательство для текущего адреса
-        const currentLeaf = sha256(Buffer.from(publicKey.toBytes()));
-        const proof = tree.getProof(currentLeaf);
+        // Получаем свой лист и доказательство
+        const authorityBytes = Buffer.from(publicKey.toBytes());
+        const authorityLeaf = sha256(authorityBytes);
+        const proofObjects = tree.getProof(authorityLeaf);
 
-        if (!proof || proof.length === 0) {
-            alert("Ваш адрес не найден в белом списке!");
+        if (!proofObjects || proofObjects.length === 0) {
+            alert('Ошибка: не удалось получить меркл-доказательство!');
             return;
         }
 
-        // Преобразуем доказательство в массив байтов
-        const proofBuffers = proof.map(p => p.data);
-
-        // Формируем данные инструкции: [1 байт - номер инструкции][1 байт - длина proof][N * 32 байт - элементы proof]
-        const dataLength = 2 + (proofBuffers.length * 32);
-        const instructionData = Buffer.alloc(dataLength);
+        // Проверяем доказательство локально перед отправкой
+        const root = tree.getRoot();
+        const merkleProofBuffers = proofObjects.map(p => p.data);
+        const isValid = verifyMerkleProof(merkleProofBuffers, authorityLeaf, root);
         
-        instructionData[0] = 10; // Номер инструкции
-        instructionData[1] = proofBuffers.length; // Длина proof
-        
-        // Записываем элементы proof
-        for (let i = 0; i < proofBuffers.length; i++) {
-            proofBuffers[i].copy(instructionData, 2 + (i * 32));
+        if (!isValid) {
+            console.error('Локальная проверка меркл-доказательства не прошла!');
+            console.log('Root:', root.toString('hex'));
+            console.log('Leaf:', authorityLeaf.toString('hex'));
+            console.log('Proof:', merkleProofBuffers.map(b => b.toString('hex')));
+            alert('Ошибка: локальная проверка меркл-доказательства не прошла!');
+            return;
         }
 
-        const createAllIx = new TransactionInstruction({
-            programId: PROGRAM_ID,
+        console.log('Локальная проверка меркл-доказательства успешна');
+        console.log('Отправляем транзакцию...');
+
+        // Получаем PDA для program authority
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Вычисляем адрес ATA
+        const ata = await getAssociatedTokenAddress(
+            mintKeypair.publicKey,
+            publicKey
+        );
+
+        // Получаем последний блокхеш
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+
+        // Создаем инструкцию
+        const instruction = new TransactionInstruction({
             keys: [
-                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
-                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: ata, isSigner: false, isWritable: true },
                 { pubkey: publicKey, isSigner: true, isWritable: true },
                 { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
                 { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -628,37 +668,55 @@ function DevContent() {
                 { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
                 { pubkey: programAuthority, isSigner: false, isWritable: false },
             ],
-            data: instructionData
+            programId: PROGRAM_ID,
+            data: Buffer.concat([
+                Buffer.from([10]), // Instruction discriminator
+                Buffer.from([merkleProofBuffers.length]), // Proof length
+                ...merkleProofBuffers // Proof elements
+            ])
         });
 
         const transaction = new Transaction();
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-        
-        transaction.add(createAllIx);
-        transaction.feePayer = publicKey;
+        transaction.add(instruction);
         transaction.recentBlockhash = blockhash;
+        transaction.lastValidBlockHeight = lastValidBlockHeight;
+        transaction.feePayer = publicKey;
 
-        try {
-            const signature = await sendTransaction(transaction, connection, {
-                signers: [newMintKeypair]
-            });
-            
-            await connection.confirmTransaction({
-                signature,
-                blockhash,
-                lastValidBlockHeight
-            });
+        // Подписываем транзакцию mint keypair'ом
+        transaction.partialSign(mintKeypair);
+        
+        // Отправляем транзакцию
+        const serializedTransaction = transaction.serialize({
+            requireAllSignatures: false
+        });
 
-            setMintKeypair(newMintKeypair);
-            setAtaAddress(associatedTokenAccount);
-            alert('Минт создан, ATA создан и токен заминчен успешно с проверкой меркл-дерева!');
-        } catch (sendError) {
-            console.error("Ошибка при отправке транзакции:", sendError);
-            alert(`Ошибка при отправке транзакции: ${sendError instanceof Error ? sendError.message : String(sendError)}`);
+        const signature = await sendTransaction(transaction, connection, {
+            skipPreflight: false,
+            preflightCommitment: 'processed',
+            maxRetries: 5
+        });
+
+        // Ждем подтверждения
+        const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+        }, 'confirmed');
+
+        if (confirmation.value.err) {
+            throw new Error(`Ошибка подтверждения: ${confirmation.value.err}`);
         }
-    } catch (error) {
-        console.error("Общая ошибка:", error);
-        alert(`Общая ошибка: ${error instanceof Error ? error.message : String(error)}`);
+
+        console.log('Транзакция успешно выполнена:', signature);
+        alert('Минт успешно создан! Signature: ' + signature);
+
+    } catch (error: unknown) {
+        console.error('Ошибка:', error);
+        if (error && typeof error === 'object' && 'logs' in error) {
+            console.error('Логи программы:', (error as { logs: string[] }).logs);
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        alert(`Ошибка: ${message}`);
     } finally {
         setIsLoading(false);
     }
@@ -897,7 +955,7 @@ function DevContent() {
   }, [publicKey]);
 
   return (
-    <div className="min-h-screen bg-black overflow-auto">
+    <div className="min-h-screen bg-black">
       <div className="pt-[2vh] px-[2vw] text-gray-400">
         <div className="flex items-center justify-between mb-8">
           <Link href="/" className="text-blue-400 hover:text-blue-300">
