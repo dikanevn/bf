@@ -84,6 +84,7 @@ function DevContent() {
   const [totalGames, setTotalGames] = useState(0);
   const [totalWins, setTotalWins] = useState(0);
   const [totalLosses, setTotalLosses] = useState(0);
+  const [manualRoundNumber, setManualRoundNumber] = useState<string>("1");
 
   const onCreateMetadata = async () => {
     if (!publicKey || !signTransaction || !mintKeypair) {
@@ -433,8 +434,16 @@ function DevContent() {
             return;
         }
         
-        // Преобразуем доказательство в массив байтов
+        // Проверяем доказательство локально перед отправкой
         const proofBuffers = proof.map(p => p.data);
+        const isValid = verifyMerkleProof(proofBuffers, leaf, tree.getRoot());
+        if (!isValid) {
+            alert('Ошибка: Merkle proof не прошел локальную проверку!');
+            setIsLoading(false);
+            return;
+        }
+        
+        console.log(`Merkle proof для адреса ${publicKey.toString()} успешно проверен локально`);
         
         // Создаем новый keypair для mint аккаунта
         const newMintKeypair = Keypair.generate();
@@ -502,6 +511,312 @@ function DevContent() {
             
             console.log("Transaction confirmed");
             alert(`Минт, ATA и токен успешно созданы с проверкой Merkle proof для раунда ${lastFoundRound}!`);
+        } catch (error) {
+            console.error("Error sending transaction:", error);
+            alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const onCreateMintAndTokenWithCalculatedMerkleProof = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        
+        // Находим последний раунд
+        let currentRound = 1;
+        let lastFoundRound = 0;
+        
+        while (true) {
+            try {
+                await import(`../../../b/rounds/${currentRound}/d3.json`);
+                lastFoundRound = currentRound;
+                currentRound++;
+            } catch {
+                break;
+            }
+        }
+
+        if (lastFoundRound === 0) {
+            alert('Раунды не найдены');
+            setIsLoading(false);
+            return;
+        }
+
+        // Загружаем d3.json последнего раунда
+        const d3 = await import(`../../../b/rounds/${lastFoundRound}/d3.json`);
+        
+        // Получаем все адреса из d3
+        const addresses = d3.default.map((item: { player: string }) => item.player);
+        
+        // Создаем листья для меркл-дерева
+        const leaves = addresses.map((addr: string) => {
+            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+            return sha256(pkBytes);
+        });
+        
+        // Сортируем листья для консистентности
+        const sortedLeaves = leaves.slice().sort(Buffer.compare);
+        
+        // Создаем меркл-дерево
+        const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+        
+        // Получаем корень в виде байтов (для информации)
+        const root = tree.getRoot();
+        console.log("Используем вычисленный Merkle Root:", Array.from(root).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', '));
+        
+        // Вычисляем хеш (лист) для текущего адреса
+        const leaf = sha256(Buffer.from(publicKey.toBytes()));
+        
+        // Получаем доказательство для текущего адреса
+        const proof = tree.getProof(leaf);
+        
+        if (!proof || proof.length === 0) {
+            alert(`Ваш адрес не найден в списке участников раунда ${lastFoundRound}!`);
+            setIsLoading(false);
+            return;
+        }
+        
+        // Преобразуем доказательство в массив байтов
+        const proofBuffers = proof.map(p => p.data);
+        
+        // Проверяем доказательство вручную
+        if (!verifyMerkleProof(proofBuffers, leaf, root)) {
+            alert('Ошибка: Merkle proof не прошел локальную проверку!');
+            setIsLoading(false);
+            return;
+        }
+        
+        console.log(`Merkle proof для адреса ${publicKey.toString()} успешно проверен локально`);
+        
+        // Создаем новый keypair для mint аккаунта
+        const newMintKeypair = Keypair.generate();
+        
+        // Получаем адрес ассоциированного токен аккаунта
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        // Получаем PDA для mint authority
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Создаем буфер данных для инструкции
+        // [0] - номер инструкции (10)
+        // [1..] - данные доказательства (каждый узел - 32 байта)
+        const dataLength = 1 + (proofBuffers.length * 32);
+        const dataBuffer = Buffer.alloc(dataLength);
+        dataBuffer[0] = 10; // Инструкция 10 (используем ту же инструкцию, что и кнопка 10)
+        
+        // Записываем каждый узел доказательства в буфер
+        for (let i = 0; i < proofBuffers.length; i++) {
+            proofBuffers[i].copy(dataBuffer, 1 + (i * 32));
+        }
+
+        // Создаем инструкцию
+        const createWithMerkleIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: dataBuffer
+        });
+
+        // Создаем транзакцию
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createWithMerkleIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            console.log("Transaction sent:", signature);
+            await connection.confirmTransaction({
+                blockhash,
+                lastValidBlockHeight,
+                signature
+            });
+            
+            console.log("Transaction confirmed");
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert(`Минт и токен успешно созданы с вычисленным Merkle proof для раунда ${lastFoundRound}!`);
+        } catch (error) {
+            console.error("Error sending transaction:", error);
+            alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const onCreateMintAndTokenWithManualRoundMerkleProof = async () => {
+    try {
+        if (!publicKey || !sendTransaction) {
+            alert("Пожалуйста, подключите кошелек!");
+            return;
+        }
+        
+        setIsLoading(true);
+        
+        // Проверяем введенный номер раунда
+        const roundNumber = parseInt(manualRoundNumber);
+        if (isNaN(roundNumber) || roundNumber < 1) {
+            alert('Пожалуйста, введите корректный номер раунда (целое число больше 0)');
+            setIsLoading(false);
+            return;
+        }
+        
+        // Проверяем существование раунда и загружаем данные
+        let d3Data;
+        try {
+            d3Data = await import(`../../../b/rounds/${roundNumber}/d3.json`);
+        } catch {
+            alert(`Раунд ${roundNumber} не найден!`);
+            setIsLoading(false);
+            return;
+        }
+        
+        // Получаем все адреса из d3
+        const addresses = d3Data.default.map((item: { player: string }) => item.player);
+        
+        // Создаем листья для меркл-дерева
+        const leaves = addresses.map((addr: string) => {
+            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+            return sha256(pkBytes);
+        });
+        
+        // Сортируем листья для консистентности
+        const sortedLeaves = leaves.slice().sort(Buffer.compare);
+        
+        // Создаем меркл-дерево
+        const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+        
+        // Получаем корень в виде байтов (для информации)
+        const root = tree.getRoot();
+        console.log(`Используем вычисленный Merkle Root для раунда ${roundNumber}:`, 
+            Array.from(root).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', '));
+        
+        // Вычисляем хеш (лист) для текущего адреса
+        const leaf = sha256(Buffer.from(publicKey.toBytes()));
+        
+        // Получаем доказательство для текущего адреса
+        const proof = tree.getProof(leaf);
+        
+        if (!proof || proof.length === 0) {
+            alert(`Ваш адрес не найден в списке участников раунда ${roundNumber}!`);
+            setIsLoading(false);
+            return;
+        }
+        
+        // Преобразуем доказательство в массив байтов
+        const proofBuffers = proof.map(p => p.data);
+        
+        // Проверяем доказательство вручную
+        if (!verifyMerkleProof(proofBuffers, leaf, root)) {
+            alert('Ошибка: Merkle proof не прошел локальную проверку!');
+            setIsLoading(false);
+            return;
+        }
+        
+        console.log(`Merkle proof для адреса ${publicKey.toString()} успешно проверен локально`);
+        
+        // Создаем новый keypair для mint аккаунта
+        const newMintKeypair = Keypair.generate();
+        
+        // Получаем адрес ассоциированного токен аккаунта
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+            newMintKeypair.publicKey,
+            publicKey,
+            false
+        );
+
+        // Получаем PDA для mint authority
+        const [programAuthority] = PublicKey.findProgramAddressSync(
+            [Buffer.from("mint_authority")],
+            PROGRAM_ID
+        );
+
+        // Создаем буфер данных для инструкции
+        // [0] - номер инструкции (10)
+        // [1..] - данные доказательства (каждый узел - 32 байта)
+        const dataLength = 1 + (proofBuffers.length * 32);
+        const dataBuffer = Buffer.alloc(dataLength);
+        dataBuffer[0] = 10; // Инструкция 10 (используем ту же инструкцию, что и кнопка 10)
+        
+        // Записываем каждый узел доказательства в буфер
+        for (let i = 0; i < proofBuffers.length; i++) {
+            proofBuffers[i].copy(dataBuffer, 1 + (i * 32));
+        }
+
+        // Создаем инструкцию
+        const createWithMerkleIx = new TransactionInstruction({
+            programId: PROGRAM_ID,
+            keys: [
+                { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+                { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+                { pubkey: publicKey, isSigner: true, isWritable: true },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+                { pubkey: programAuthority, isSigner: false, isWritable: false },
+            ],
+            data: dataBuffer
+        });
+
+        // Создаем транзакцию
+        const transaction = new Transaction();
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        
+        transaction.add(createWithMerkleIx);
+        transaction.feePayer = publicKey;
+        transaction.recentBlockhash = blockhash;
+
+        try {
+            const signature = await sendTransaction(transaction, connection, {
+                signers: [newMintKeypair]
+            });
+            
+            console.log("Transaction sent:", signature);
+            await connection.confirmTransaction({
+                blockhash,
+                lastValidBlockHeight,
+                signature
+            });
+            
+            console.log("Transaction confirmed");
+            setMintKeypair(newMintKeypair);
+            setAtaAddress(associatedTokenAccount);
+            alert(`Минт и токен успешно созданы с вычисленным Merkle proof для раунда ${roundNumber}!`);
         } catch (error) {
             console.error("Error sending transaction:", error);
             alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
@@ -817,6 +1132,33 @@ function DevContent() {
             >
               {isLoading ? 'Processing...' : '10. Создать минт и токен с проверкой Merkle proof'}
             </button>
+
+            <button 
+              onClick={onCreateMintAndTokenWithCalculatedMerkleProof}
+              disabled={!publicKey || isLoading}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : '11. Создать минт и токен с вычисленным Merkle proof'}
+            </button>
+
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="number"
+                min="1"
+                value={manualRoundNumber}
+                onChange={(e) => setManualRoundNumber(e.target.value)}
+                className="bg-gray-800 text-white px-3 py-1.5 text-sm border border-gray-700 rounded w-20"
+                placeholder="Раунд"
+                disabled={isLoading}
+              />
+              <button 
+                onClick={onCreateMintAndTokenWithManualRoundMerkleProof}
+                disabled={!publicKey || isLoading}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-sm disabled:opacity-50 flex-1"
+              >
+                {isLoading ? 'Processing...' : '12. Создать минт и токен с Merkle proof для выбранного раунда'}
+              </button>
+            </div>
           </div>
         )}
       </div>
