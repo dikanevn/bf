@@ -47,6 +47,10 @@ pub fn process_instruction(
     }
 
     match instruction_data[0] {
+        15 => {
+            msg!("Instruction: Delete mint record for specific round");
+            instructions::instruction_15::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
         17 => {
             msg!("Instruction: Create mint, token with Merkle proof verification, extended tracking, and metadata");
             instructions::instruction_17::process_instruction(program_id, accounts, &instruction_data[1..])
