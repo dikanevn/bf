@@ -4,10 +4,22 @@ import { expect } from 'chai';
 import * as dotenv from 'dotenv';
 import { createHash } from 'crypto';
 import bs58 from 'bs58';
+import { MerkleTree } from 'merkletreejs';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+
+// Функция для вычисления sha256 хеша
+function sha256(data: Buffer): Buffer {
+  return createHash('sha256').update(data).digest();
+}
 
 describe('Instruction 17', function() {
   // Увеличиваем таймаут до 30 секунд
@@ -28,6 +40,38 @@ describe('Instruction 17', function() {
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
     console.log('Адрес минта:', mint.publicKey.toBase58());
 
+    // Загружаем данные раунда 11
+    const d3Data = JSON.parse(fs.readFileSync(path.join(__dirname, '../../b/rounds/11/d3.json'), 'utf8'));
+    
+    // Получаем все адреса из d3
+    const addresses = d3Data.map((item: { player: string }) => item.player);
+    
+    // Создаем листья для меркл-дерева
+    const leaves = addresses.map((addr: string) => {
+      const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+      return createHash('sha256').update(pkBytes).digest();
+    });
+    
+    // Сортируем листья для консистентности
+    const sortedLeaves = leaves.slice().sort(Buffer.compare);
+    
+    // Создаем меркл-дерево
+    const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+    
+    // Вычисляем хеш (лист) для текущего адреса
+    const leaf = createHash('sha256').update(payer.publicKey.toBuffer()).digest();
+    
+    // Получаем доказательство для текущего адреса
+    const proof = tree.getProof(leaf).map(p => p.data);
+
+    // Проверяем доказательство
+    const isValid = tree.verify(proof, leaf, tree.getRoot());
+    console.log('Merkle proof валиден:', isValid);
+    
+    if (!isValid) {
+      throw new Error('Адрес не найден в списке участников раунда 11');
+    }
+
     // Получаем адрес ассоциированного токен аккаунта
     const associatedTokenAccount = await getAssociatedTokenAddress(
       mint.publicKey,
@@ -47,7 +91,7 @@ describe('Instruction 17', function() {
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('is_minted_ext'),
-        Buffer.from([0]), // Используем раунд 0
+        Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
         payer.publicKey.toBuffer(),
       ],
       new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
@@ -77,15 +121,11 @@ describe('Instruction 17', function() {
     );
     console.log('Master Edition address:', masterEdition.toBase58());
 
-    // Создаем Merkle proof для адреса плательщика
-    const leaf = createHash('sha256').update(payer.publicKey.toBuffer()).digest();
-    const proof: Buffer[] = []; // Пустое доказательство для раунда 0
-
     // Создаем буфер данных для инструкции
     const dataLength = 2 + (proof.length * 32);
     const dataBuffer = Buffer.alloc(dataLength);
     dataBuffer[0] = 17; // Инструкция 17
-    dataBuffer[1] = 11; // Раунд 0
+    dataBuffer[1] = 10; // Используем раунд 10 (соответствует раунду 11 в UI)
     
     // Записываем каждый узел доказательства в буфер
     for (let i = 0; i < proof.length; i++) {
@@ -129,6 +169,10 @@ describe('Instruction 17', function() {
       
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       console.log('Статус подтверждения:', confirmation);
+
+      // Добавляем задержку перед проверкой аккаунтов
+      console.log('Ждем 5 секунд перед проверкой аккаунтов...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       console.log('Проверяем создание аккаунтов...');
       

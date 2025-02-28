@@ -2,8 +2,9 @@
   "name": "r-tests",
   "version": "1.0.0",
   "description": "Tests for Solana program",
+  "type": "module",
   "scripts": {
-    "test": "mocha -r ts-node/register tests/**/*.ts"
+    "test": "mocha --loader=ts-node/esm tests/**/*.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

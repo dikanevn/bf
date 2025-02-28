@@ -35,8 +35,8 @@ pub fn process_instruction(
     let mint_token_accounts = &accounts[0..9]; // Первые 9 аккаунтов для создания минта и токена
     create_mint_and_token_with_round_merkle_proof_tracked_extended(program_id, mint_token_accounts, instruction_data)?;
     
-    // Затем создаем метаданные
-    // Получаем необходимые аккаунты для создания метаданных
+    // Затем создаем метаданные и Master Edition
+    // Получаем необходимые аккаунты
     let metadata_account = &accounts[9];
     let master_edition_account = &accounts[10];
     let mint_account = &accounts[0]; // Тот же mint_account, что и в первой части
@@ -46,10 +46,22 @@ pub fn process_instruction(
     let sysvar_instructions = &accounts[12];
     let spl_token_program = &accounts[4]; // spl_token_program из первой части
     let metadata_program = &accounts[11];
-    
-    msg!("Creating metadata for the minted token...");
-    
-    // Создаем CreateV1 инструкцию
+
+    msg!("Creating metadata and master edition for the minted token...");
+
+    // Получаем bump seed для program_authority
+    let (_, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
     let create_v1 = CreateV1 {
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
@@ -79,19 +91,6 @@ pub fn process_instruction(
         print_supply: Some(PrintSupply::Zero),
     };
 
-    // Получаем bump seed для program_authority
-    let (_, bump_seed) = Pubkey::find_program_address(
-        &[b"mint_authority"],
-        program_id
-    );
-
-    // Создаем seeds для подписи
-    let authority_signature_seeds = &[
-        b"mint_authority".as_ref(),
-        &[bump_seed],
-    ];
-    let signers = &[&authority_signature_seeds[..]];
-
     invoke_signed(
         &create_v1.instruction(args),
         &[
@@ -109,7 +108,7 @@ pub fn process_instruction(
         signers,
     )?;
 
-    msg!("Mint, token with Merkle proof verification, extended tracking, and metadata created successfully!");
+    msg!("Mint, token with Merkle proof verification, extended tracking, metadata and master edition created successfully!");
     Ok(())
 }
 
