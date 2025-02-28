@@ -98,9 +98,13 @@ pub fn process_instruction(
             msg!("Creating mint, metadata and master edition with Merkle proof verification...");
             create_mint_metadata_and_master_edition(program_id, accounts, &instruction_data[1..])
         },
-        22 => {
-            msg!("Creating pNFT with Merkle proof...");
-            create_pnft_with_merkle_proof(program_id, accounts, &instruction_data[1..])
+        23 => {
+            msg!("Creating clean NFT using CreateV1...");
+            create_clean_nft(program_id, accounts)
+        },
+        24 => {
+            msg!("Creating NFT with Merkle proof verification using CreateV1...");
+            create_nft_with_merkle_proof(program_id, accounts, &instruction_data[1..])
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -984,13 +988,12 @@ fn create_mint_metadata_and_master_edition(
     Ok(())
 }
 
-// Функция для создания pNFT с проверкой Merkle proof
-fn create_pnft_with_merkle_proof(
+// Функция для создания чистого NFT без проверки Merkle proof
+fn create_clean_nft(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    proof_data: &[u8],
 ) -> ProgramResult {
-    msg!("Starting create_pnft_with_merkle_proof...");
+    msg!("Starting create_clean_nft...");
     let account_info_iter = &mut accounts.iter();
     
     // Получаем все необходимые аккаунты
@@ -1000,11 +1003,10 @@ fn create_pnft_with_merkle_proof(
     let mint_authority = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let update_authority = next_account_info(account_info_iter)?;
-    let _system_program = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let sysvar_instructions = next_account_info(account_info_iter)?;
     let spl_token_program = next_account_info(account_info_iter)?;
     let metadata_program = next_account_info(account_info_iter)?;
-    let _mint_record_account = next_account_info(account_info_iter)?;
 
     // Проверяем подписи
     if !mint_account.is_signer {
@@ -1014,6 +1016,120 @@ fn create_pnft_with_merkle_proof(
     if !payer.is_signer {
         msg!("Payer must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if mint_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Создаем CreateV1 инструкцию
+    let create_v1 = CreateV1 {
+        metadata: *metadata_account.key,
+        master_edition: Some(*master_edition_account.key),
+        mint: (*mint_account.key, true),
+        authority: *mint_authority.key,
+        payer: *payer.key,
+        update_authority: (*update_authority.key, true),
+        system_program: *system_program.key,
+        sysvar_instructions: *sysvar_instructions.key,
+        spl_token_program: Some(*spl_token_program.key),
+    };
+
+    let args = CreateV1InstructionArgs {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 700,
+        creators: None,
+        primary_sale_happened: false,
+        is_mutable: true,
+        token_standard: TokenStandard::ProgrammableNonFungible,
+        collection: None,
+        uses: None,
+        collection_details: None,
+        rule_set: None,
+        decimals: Some(0),
+        print_supply: Some(PrintSupply::Zero),
+    };
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    // Вызываем CreateV1 инструкцию
+    invoke_signed(
+        &create_v1.instruction(args),
+        &[
+            metadata_account.clone(),
+            master_edition_account.clone(),
+            mint_account.clone(),
+            mint_authority.clone(),
+            payer.clone(),
+            update_authority.clone(),
+            system_program.clone(),
+            sysvar_instructions.clone(),
+            spl_token_program.clone(),
+            metadata_program.clone(),
+        ],
+        signers,
+    )?;
+
+    msg!("Clean NFT created successfully!");
+    Ok(())
+}
+
+// Функция для создания NFT с проверкой Merkle proof используя CreateV1
+fn create_nft_with_merkle_proof(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    proof_data: &[u8],
+) -> ProgramResult {
+    msg!("Starting create_nft_with_merkle_proof...");
+    let account_info_iter = &mut accounts.iter();
+    
+    // Получаем все необходимые аккаунты
+    let metadata_account = next_account_info(account_info_iter)?;
+    let master_edition_account = next_account_info(account_info_iter)?;
+    let mint_account = next_account_info(account_info_iter)?;
+    let mint_authority = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let update_authority = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let sysvar_instructions = next_account_info(account_info_iter)?;
+    let spl_token_program = next_account_info(account_info_iter)?;
+    let metadata_program = next_account_info(account_info_iter)?;
+    let associated_token_account = next_account_info(account_info_iter)?;
+    let associated_token_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
+    let mint_record_account = next_account_info(account_info_iter)?;
+
+    // Проверяем подписи
+    if !mint_account.is_signer {
+        msg!("Mint account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем program_authority PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if mint_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
     }
 
     // Проверяем данные доказательства
@@ -1058,17 +1174,143 @@ fn create_pnft_with_merkle_proof(
         return Err(ProgramError::InvalidArgument);
     }
 
-    // Проверяем, что program_authority это правильный PDA
-    let (expected_authority, bump_seed) = Pubkey::find_program_address(
-        &[b"mint_authority"],
+    // Проверяем PDA для отслеживания минтинга
+    let (expected_mint_record_address, mint_record_bump) = Pubkey::find_program_address(
+        &[
+            b"is_minted_ext",
+            &[round_number as u8],
+            payer.key.as_ref(),
+        ],
         program_id
     );
-    if mint_authority.key != &expected_authority {
-        msg!("Invalid program authority provided");
+    
+    if mint_record_account.key != &expected_mint_record_address {
+        msg!("Invalid mint record account address");
         return Err(ProgramError::InvalidArgument);
     }
+    
+    if !mint_record_account.data_is_empty() && mint_record_account.owner == program_id {
+        msg!("User has already minted in round {}", round_number);
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
 
-    // Создаем CreateV1 инструкцию
+    // Создаем минт аккаунт
+    msg!("Creating mint account...");
+    let rent = Rent::get()?;
+    let mint_len = Mint::LEN;
+    let lamports = rent.minimum_balance(mint_len);
+
+    invoke(
+        &system_instruction::create_account(
+            &payer.key,
+            &mint_account.key,
+            lamports,
+            mint_len as u64,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+
+    // Инициализируем минт
+    msg!("Initializing mint...");
+    invoke(
+        &spl_token::instruction::initialize_mint(
+            &spl_token::id(),
+            &mint_account.key,
+            &mint_authority.key,
+            Some(&mint_authority.key),
+            0,
+        )?,
+        &[
+            mint_account.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    // Создаем ассоциированный токен аккаунт
+    msg!("Creating associated token account...");
+    invoke(
+        &spl_associated_token_account::instruction::create_associated_token_account(
+            payer.key,
+            payer.key,
+            mint_account.key,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            associated_token_account.clone(),
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+            spl_token_program.clone(),
+            associated_token_program.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    // Минтим токен
+    msg!("Minting token...");
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            &spl_token::id(),
+            mint_account.key,
+            associated_token_account.key,
+            &mint_authority.key,
+            &[],
+            1,
+        )?,
+        &[
+            mint_account.clone(),
+            associated_token_account.clone(),
+            mint_authority.clone(),
+        ],
+        signers,
+    )?;
+
+    // Создаем PDA для отслеживания минтинга
+    msg!("Creating extended mint record PDA...");
+    let mint_record_size = 32;
+    let mint_record_lamports = rent.minimum_balance(mint_record_size);
+    
+    let mint_record_signature_seeds = &[
+        b"is_minted_ext".as_ref(),
+        &[round_number as u8],
+        payer.key.as_ref(),
+        &[mint_record_bump],
+    ];
+    let mint_record_signers = &[&mint_record_signature_seeds[..]];
+    
+    invoke_signed(
+        &system_instruction::create_account(
+            &payer.key,
+            &expected_mint_record_address,
+            mint_record_lamports,
+            mint_record_size as u64,
+            program_id,
+        ),
+        &[
+            payer.clone(),
+            mint_record_account.clone(),
+            system_program.clone(),
+        ],
+        mint_record_signers,
+    )?;
+    
+    let mut data = mint_record_account.try_borrow_mut_data()?;
+    data[0..32].copy_from_slice(&mint_account.key.to_bytes());
+
+    // Создаем NFT используя CreateV1
+    msg!("Creating NFT using CreateV1...");
     let create_v1 = CreateV1 {
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
@@ -1076,7 +1318,7 @@ fn create_pnft_with_merkle_proof(
         authority: *mint_authority.key,
         payer: *payer.key,
         update_authority: (*update_authority.key, true),
-        system_program: *spl_token_program.key,
+        system_program: *system_program.key,
         sysvar_instructions: *sysvar_instructions.key,
         spl_token_program: Some(*spl_token_program.key),
     };
@@ -1098,14 +1340,6 @@ fn create_pnft_with_merkle_proof(
         print_supply: Some(PrintSupply::Zero),
     };
 
-    // Создаем seeds для подписи
-    let authority_signature_seeds = &[
-        b"mint_authority".as_ref(),
-        &[bump_seed],
-    ];
-    let signers = &[&authority_signature_seeds[..]];
-
-    // Вызываем CreateV1 инструкцию
     invoke_signed(
         &create_v1.instruction(args),
         &[
@@ -1115,13 +1349,15 @@ fn create_pnft_with_merkle_proof(
             mint_authority.clone(),
             payer.clone(),
             update_authority.clone(),
+            system_program.clone(),
+            sysvar_instructions.clone(),
             spl_token_program.clone(),
             metadata_program.clone(),
         ],
         signers,
     )?;
 
-    msg!("pNFT created successfully!");
+    msg!("NFT with Merkle proof verification created successfully!");
     Ok(())
 }
 

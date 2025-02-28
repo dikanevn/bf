@@ -13,15 +13,19 @@ use solana_program::{
     hash::hash,
 };
 use spl_token::{
-    instruction as token_instruction,
     state::{Mint, Account},
 };
 use solana_program::program_pack::Pack;
 use mpl_token_metadata::{
     instructions,
-    types::DataV2,
+    types::{DataV2, TokenStandard, PrintSupply},
+    instructions::{CreateV1, CreateV1InstructionArgs},
 };
 use spl_associated_token_account::instruction;
+
+// Константы для работы с токен стандартом
+const TOKEN_STANDARD_INDEX: usize = 115;
+const MASTER_EDITION_TOKEN_STANDARD_OFFSET: usize = 1;
 
 // Массив всех корней Merkle дерева для каждого раунда
 pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
@@ -93,6 +97,10 @@ pub fn process_instruction(
         21 => {
             msg!("Creating mint, metadata and master edition with Merkle proof verification...");
             create_mint_metadata_and_master_edition(program_id, accounts, &instruction_data[1..])
+        },
+        23 => {
+            msg!("Creating clean NFT using CreateV1...");
+            create_clean_nft(program_id, accounts)
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -511,7 +519,7 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
 fn create_metadata_for_existing_mint(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    instruction_data: &[u8],
+    _instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("Starting create_metadata_for_existing_mint...");
     
@@ -571,6 +579,10 @@ fn create_metadata_for_existing_mint(
         system_program.clone(),
         rent_sysvar.clone(),
     ];
+
+    // Устанавливаем токен стандарт как ProgrammableNonFungible
+    let mut metadata_data = metadata_account.try_borrow_mut_data()?;
+    metadata_data[TOKEN_STANDARD_INDEX] = TokenStandard::ProgrammableNonFungible as u8;
 
     invoke_signed(
         &instructions::CreateMetadataAccountV3 {
@@ -652,6 +664,11 @@ fn create_master_edition_for_existing_mint(
         system_program.clone(),
         rent_sysvar.clone(),
     ];
+
+    // Устанавливаем токен стандарт как ProgrammableNonFungible в master edition
+    let mut edition_data = master_edition_account.try_borrow_mut_data()?;
+    let data_len = edition_data.len();
+    edition_data[data_len - MASTER_EDITION_TOKEN_STANDARD_OFFSET] = TokenStandard::ProgrammableNonFungible as u8;
 
     invoke_signed(
         &instructions::CreateMasterEditionV3 {
@@ -964,6 +981,105 @@ fn create_mint_metadata_and_master_edition(
     )?;
 
     msg!("Mint, metadata and master edition created successfully!");
+    Ok(())
+}
+
+// Функция для создания чистого NFT без проверки Merkle proof
+fn create_clean_nft(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    msg!("Starting create_clean_nft...");
+    let account_info_iter = &mut accounts.iter();
+    
+    // Получаем все необходимые аккаунты
+    let metadata_account = next_account_info(account_info_iter)?;
+    let master_edition_account = next_account_info(account_info_iter)?;
+    let mint_account = next_account_info(account_info_iter)?;
+    let mint_authority = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let update_authority = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let sysvar_instructions = next_account_info(account_info_iter)?;
+    let spl_token_program = next_account_info(account_info_iter)?;
+    let metadata_program = next_account_info(account_info_iter)?;
+
+    // Проверяем подписи
+    if !mint_account.is_signer {
+        msg!("Mint account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if mint_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Создаем CreateV1 инструкцию
+    let create_v1 = CreateV1 {
+        metadata: *metadata_account.key,
+        master_edition: Some(*master_edition_account.key),
+        mint: (*mint_account.key, true),
+        authority: *mint_authority.key,
+        payer: *payer.key,
+        update_authority: (*update_authority.key, true),
+        system_program: *system_program.key,
+        sysvar_instructions: *sysvar_instructions.key,
+        spl_token_program: Some(*spl_token_program.key),
+    };
+
+    let args = CreateV1InstructionArgs {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 700,
+        creators: None,
+        primary_sale_happened: false,
+        is_mutable: true,
+        token_standard: TokenStandard::ProgrammableNonFungible,
+        collection: None,
+        uses: None,
+        collection_details: None,
+        rule_set: None,
+        decimals: Some(0),
+        print_supply: Some(PrintSupply::Zero),
+    };
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    // Вызываем CreateV1 инструкцию
+    invoke_signed(
+        &create_v1.instruction(args),
+        &[
+            metadata_account.clone(),
+            master_edition_account.clone(),
+            mint_account.clone(),
+            mint_authority.clone(),
+            payer.clone(),
+            update_authority.clone(),
+            system_program.clone(),
+            sysvar_instructions.clone(),
+            spl_token_program.clone(),
+            metadata_program.clone(),
+        ],
+        signers,
+    )?;
+
+    msg!("Clean NFT created successfully!");
     Ok(())
 }
 

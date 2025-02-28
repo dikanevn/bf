@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
@@ -448,6 +448,18 @@ function DevContent() {
         TOKEN_METADATA_PROGRAM_ID
       );
       console.log("Metadata address:", metadataAddress.toBase58());
+
+      // Получаем адрес master edition
+      const [masterEditionAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+          Buffer.from("edition"),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Master Edition address:", masterEditionAddress.toBase58());
 
       // Создаем буфер данных для инструкции
       // [0] - номер инструкции (17)
@@ -1232,6 +1244,126 @@ function DevContent() {
     }
   };
 
+  const onCreateCleanNft = async () => {
+    if (!publicKey || !sendTransaction || !signTransaction) {
+      alert("Пожалуйста, подключите кошелек");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Создаем новый keypair для mint аккаунта
+      const newMintKeypair = Keypair.generate();
+      
+      // Получаем адрес ассоциированного токен аккаунта
+      const associatedTokenAccount = await getAssociatedTokenAddress(
+        newMintKeypair.publicKey,
+        publicKey,
+        false
+      );
+
+      // Получаем PDA для mint authority
+      const [programAuthority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority")],
+        PROGRAM_ID
+      );
+      
+      // Получаем адрес метаданных
+      const [metadataAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Metadata address:", metadataAddress.toBase58());
+
+      // Получаем адрес master edition
+      const [masterEditionAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+          Buffer.from("edition"),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Master Edition address:", masterEditionAddress.toBase58());
+
+      // Создаем инструкцию
+      const createCleanNftIx = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: metadataAddress, isSigner: false, isWritable: true },
+          { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
+          { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: publicKey, isSigner: true, isWritable: true }, // update_authority
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.from([23]) // Инструкция 23
+      });
+
+      // Создаем транзакцию
+      const transaction = new Transaction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      
+      // Добавляем инструкцию для увеличения лимита CU
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ 
+        units: 1000000 
+      });
+      
+      // Добавляем приоритетные комиссии
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
+        microLamports: 1000000 
+      });
+      
+      transaction.add(modifyComputeUnits);
+      transaction.add(addPriorityFee);
+      transaction.add(createCleanNftIx);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+
+      try {
+        // Подписываем транзакцию локально keypair'ом минта
+        transaction.partialSign(newMintKeypair);
+        
+        // Отправляем транзакцию на подпись пользователю
+        const signedTransaction = await signTransaction(transaction);
+        
+        // Отправляем подписанную транзакцию
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        console.log("Transaction sent:", signature);
+        await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature
+        });
+        
+        console.log("Transaction confirmed");
+        setMintKeypair(newMintKeypair);
+        setAtaAddress(associatedTokenAccount);
+        setMetadataAddress(metadataAddress);
+        alert(`Чистый NFT успешно создан!`);
+      } catch (error) {
+        console.error("Error sending transaction:", error);
+        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -1386,23 +1518,23 @@ function DevContent() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="21"
-                    value={manualRoundNumber}
-                    onChange={(e) => setManualRoundNumber(e.target.value)}
-                    className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
-                    placeholder="Раунд"
-                    disabled={isLoading}
-                  />
+                <div>
                   <button
                     disabled={!publicKey || isLoading}
                     onClick={onCreateMintMetadataAndMasterEdition}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
                     {isLoading ? "Обработка..." : "21. Создать минт, метаданные и master edition с проверкой Merkle"}
+                  </button>
+                </div>
+
+                <div>
+                  <button
+                    disabled={!publicKey || isLoading}
+                    onClick={onCreateCleanNft}
+                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs disabled:opacity-50 w-full"
+                  >
+                    {isLoading ? "Обработка..." : "23. Создать чистый NFT"}
                   </button>
                 </div>
               </div>
