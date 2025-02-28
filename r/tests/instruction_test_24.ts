@@ -7,7 +7,7 @@ dotenv.config();
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-describe('Create Clean NFT (Instruction 23)', function() {
+describe('Instruction 24', function() {
   // Увеличиваем таймаут до 30 секунд
   this.timeout(30000);
 
@@ -66,7 +66,7 @@ describe('Create Clean NFT (Instruction 23)', function() {
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
-        data: Buffer.from([23]) // Instruction 23
+        data: Buffer.from([24]) // Instruction 23
       });
 
       // Создаем и отправляем транзакцию
