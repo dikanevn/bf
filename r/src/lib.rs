@@ -1019,10 +1019,6 @@ fn create_clean_nft(
     let sysvar_instructions = next_account_info(account_info_iter)?;
     let spl_token_program = next_account_info(account_info_iter)?;
     let metadata_program = next_account_info(account_info_iter)?;
-    let associated_token_account = next_account_info(account_info_iter)?;
-    let associated_token_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-    let mint_record_account = next_account_info(account_info_iter)?;
 
     // Проверяем подписи
     if !mint_account.is_signer {
@@ -1102,6 +1098,7 @@ fn create_clean_nft(
     msg!("Clean NFT created successfully!");
     Ok(())
 }
+
 fn create_clean_nft_and_ata(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

@@ -22,7 +22,7 @@ describe('Instruction 24', function() {
   // Создаем кейпару для минта
   const mint = Keypair.generate();
 
-  it('should create a clean NFT', async function() {
+  it('should create a clean NFT 24', async function() {
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(
       [Buffer.from('mint_authority')],
