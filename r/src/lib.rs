@@ -18,7 +18,7 @@ use spl_token::{
 };
 use solana_program::program_pack::Pack;
 use mpl_token_metadata::{
-    instructions::{self, SetTokenStandard},
+    instructions,
     types::DataV2,
 };
 use spl_associated_token_account::instruction;
@@ -93,10 +93,6 @@ pub fn process_instruction(
         21 => {
             msg!("Creating mint, metadata and master edition with Merkle proof verification...");
             create_mint_metadata_and_master_edition(program_id, accounts, &instruction_data[1..])
-        },
-        22 => {
-            msg!("Setting token standard to Programmable NFT...");
-            set_token_standard_handler(program_id, accounts)
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -990,45 +986,6 @@ fn verify_merkle_proof(leaf: [u8;32], proof: &Vec<[u8;32]>, root: [u8;32]) -> bo
         computed = hash(&bytes).to_bytes();
     }
     computed == root
-}
-
-fn set_token_standard_handler(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    msg!("Setting token standard to Programmable NFT");
-
-    let metadata_account = &accounts[0];
-    let update_authority = &accounts[1];
-    let mint_account = &accounts[2];
-
-    // Проверяем, что update authority подписал транзакцию
-    if !update_authority.is_signer {
-        msg!("Update authority must sign");
-        return Ok(());
-    }
-
-    // Создаем инструкцию для установки токен стандарта
-    let ix = SetTokenStandard {
-        metadata: *metadata_account.key,
-        update_authority: *update_authority.key,
-        mint: *mint_account.key,
-        edition: None,
-    }.instruction();
-
-    // Выполняем инструкцию
-    invoke_signed(
-        &ix,
-        &[
-            metadata_account.clone(),
-            update_authority.clone(),
-            mint_account.clone(),
-        ],
-        &[],
-    )?;
-
-    msg!("Token standard set to Programmable NFT successfully");
-    Ok(())
 }
 
 #[cfg(test)]
