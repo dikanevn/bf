@@ -18,8 +18,8 @@ use spl_token::{
     state::Account as TokenAccount,
 };
 use mpl_token_metadata::{
-    instructions,
-    types::DataV2,
+    instructions::{CreateV1, CreateV1InstructionArgs},
+    types::{TokenStandard, PrintSupply},
 };
 
 use crate::ALL_MERKLE_ROOTS;
@@ -38,35 +38,45 @@ pub fn process_instruction(
     // Затем создаем метаданные
     // Получаем необходимые аккаунты для создания метаданных
     let metadata_account = &accounts[9];
+    let master_edition_account = &accounts[10];
     let mint_account = &accounts[0]; // Тот же mint_account, что и в первой части
     let program_authority = &accounts[7]; // program_authority вместо payer
     let payer = &accounts[2]; // payer из первой части
-    let metadata_program = &accounts[10];
-    let rent_sysvar = &accounts[6]; // rent_sysvar из первой части
     let system_program = &accounts[3]; // system_program из первой части
-    let token_program = &accounts[5]; // spl_token_program из первой части
-    
-    let metadata_accounts = &[
-        metadata_account.clone(),
-        mint_account.clone(),
-        program_authority.clone(),
-        payer.clone(),
-        metadata_program.clone(),
-        rent_sysvar.clone(),
-        system_program.clone(),
-        token_program.clone(),
-    ];
+    let sysvar_instructions = &accounts[12];
+    let spl_token_program = &accounts[4]; // spl_token_program из первой части
+    let metadata_program = &accounts[11];
     
     msg!("Creating metadata for the minted token...");
     
-    let data = DataV2 {
+    // Создаем CreateV1 инструкцию
+    let create_v1 = CreateV1 {
+        metadata: *metadata_account.key,
+        master_edition: Some(*master_edition_account.key),
+        mint: (*mint_account.key, true),
+        authority: *program_authority.key,
+        payer: *payer.key,
+        update_authority: (*program_authority.key, true),
+        system_program: *system_program.key,
+        sysvar_instructions: *sysvar_instructions.key,
+        spl_token_program: Some(*spl_token_program.key),
+    };
+
+    let args = CreateV1InstructionArgs {
         name: "NFT".to_string(),
         symbol: "NFT".to_string(),
         uri: "".to_string(),
-        seller_fee_basis_points: 600,
+        seller_fee_basis_points: 700,
         creators: None,
+        primary_sale_happened: false,
+        is_mutable: true,
+        token_standard: TokenStandard::ProgrammableNonFungible,
         collection: None,
         uses: None,
+        collection_details: None,
+        rule_set: None,
+        decimals: Some(0),
+        print_supply: Some(PrintSupply::Zero),
     };
 
     // Получаем bump seed для program_authority
@@ -83,20 +93,19 @@ pub fn process_instruction(
     let signers = &[&authority_signature_seeds[..]];
 
     invoke_signed(
-        &instructions::CreateMetadataAccountV3 {
-            metadata: *metadata_account.key,
-            mint: *mint_account.key,
-            mint_authority: *program_authority.key,
-            payer: *payer.key,
-            update_authority: (*program_authority.key, true),
-            system_program: *system_program.key,
-            rent: None,
-        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
-            data,
-            is_mutable: true,
-            collection_details: None,
-        }),
-        metadata_accounts,
+        &create_v1.instruction(args),
+        &[
+            metadata_account.clone(),
+            master_edition_account.clone(),
+            mint_account.clone(),
+            program_authority.clone(),
+            payer.clone(),
+            program_authority.clone(), // update_authority
+            system_program.clone(),
+            sysvar_instructions.clone(),
+            spl_token_program.clone(),
+            metadata_program.clone(),
+        ],
         signers,
     )?;
 

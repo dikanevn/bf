@@ -2,6 +2,7 @@ import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_INSTRUCTIONS_PUBK
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { expect } from 'chai';
 import * as dotenv from 'dotenv';
+import bs58 from 'bs58';
 
 dotenv.config();
 
@@ -14,10 +15,9 @@ describe('Instruction 24', function() {
   // Подключение к девнет
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
   
-  // Загружаем приватный ключ из .env
+  // Загружаем приватный ключ из .env в формате base58
   const privateKeyString = process.env.PRIVATE_KEY!;
-  const privateKeyArray = privateKeyString.split(',').map(num => parseInt(num));
-  const payer = Keypair.fromSecretKey(new Uint8Array(privateKeyArray));
+  const payer = Keypair.fromSecretKey(bs58.decode(privateKeyString));
 
   // Создаем кейпару для минта
   const mint = Keypair.generate();
