@@ -1,0 +1,18 @@
+Параметры запуска:
+  Сеть: devnet
+  Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
+  Mint-адрес токена: 1Q5FrW2CUAM9BtXGhugUXsPYJPBqKHubvMSGdyJAxMf
+(node:3781660) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+=== Ассоциированный токен-аккаунт (ATA) ===
+ATA: A86njNdybLeiyUnHChbW8NVwfAbxHYLGYVwKo7LatYwP
+
+=== Token Record PDA ===
+Token Record Address: HzWzVaMT4feMnBhd6FGzBKuVck6VU1mR7hntM6aq1whc,254
+Ошибка при получении Token Record: {
+  "name": "AccountNotFoundError",
+  "source": "sdk"
+}
+
+Завершено успешно.

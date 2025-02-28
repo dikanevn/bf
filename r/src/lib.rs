@@ -90,10 +90,6 @@ pub fn process_instruction(
             msg!("Creating master edition for existing mint...");
             create_master_edition_for_existing_mint(program_id, accounts, &instruction_data[1..])
         },
-        21 => {
-            msg!("Creating token record for pNFT...");
-            create_token_record_for_pnft(program_id, accounts, &instruction_data[1..])
-        },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
             Err(ProgramError::InvalidInstructionData)
@@ -672,92 +668,6 @@ fn create_master_edition_for_existing_mint(
     )?;
 
     msg!("Master Edition created successfully for existing mint!");
-    Ok(())
-}
-
-// Функция для создания Token Record для pNFT
-fn create_token_record_for_pnft(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    _instruction_data: &[u8],
-) -> ProgramResult {
-    msg!("Starting create_token_record_for_pnft...");
-    
-    // Получаем необходимые аккаунты
-    let account_info_iter = &mut accounts.iter();
-    
-    let metadata_account = next_account_info(account_info_iter)?;
-    let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
-    let payer = next_account_info(account_info_iter)?;
-    let metadata_program = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
-    
-    // Проверяем подпись
-    if !payer.is_signer {
-        msg!("Payer must be a signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    
-    // Проверяем, что program_authority это правильный PDA
-    let (expected_authority, bump_seed) = Pubkey::find_program_address(
-        &[b"mint_authority"],
-        program_id
-    );
-    if mint_authority.key != &expected_authority {
-        msg!("Invalid program authority provided");
-        return Err(ProgramError::InvalidArgument);
-    }
-    
-    msg!("Creating metadata with pNFT token standard...");
-    
-    let data = DataV2 {
-        name: "pNFT".to_string(),
-        symbol: "pNFT".to_string(),
-        uri: "".to_string(),
-        seller_fee_basis_points: 700,
-        creators: None,
-        collection: None,
-        uses: None,
-    };
-
-    // Создаем seeds для подписи
-    let authority_signature_seeds = &[
-        b"mint_authority".as_ref(),
-        &[bump_seed],
-    ];
-    let signers = &[&authority_signature_seeds[..]];
-
-    let metadata_accounts = &[
-        metadata_account.clone(),
-        mint_account.clone(),
-        mint_authority.clone(),
-        payer.clone(),
-        metadata_program.clone(),
-        system_program.clone(),
-        rent_sysvar.clone(),
-    ];
-
-    invoke_signed(
-        &instructions::CreateMetadataAccountV3 {
-            metadata: *metadata_account.key,
-            mint: *mint_account.key,
-            mint_authority: *mint_authority.key,
-            payer: *payer.key,
-            update_authority: (*mint_authority.key, true),
-            system_program: *system_program.key,
-            rent: None,
-        }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
-            data,
-            is_mutable: true,
-            collection_details: None,
-        }),
-        metadata_accounts,
-        signers,
-    )?;
-
-    msg!("pNFT metadata created successfully!");
     Ok(())
 }
 

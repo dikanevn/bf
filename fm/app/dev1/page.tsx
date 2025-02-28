@@ -9,6 +9,16 @@ import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
 import { MerkleTree } from 'merkletreejs';
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import { 
+  generateSigner,
+  percentAmount,
+  none,
+  createSignerFromKeypair,
+  signerIdentity,
+  createSignerFromKeypair as umiCreateSignerFromKeypair, 
+  publicKey as publicKeyUmi
+} from '@metaplex-foundation/umi';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -64,7 +74,7 @@ function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean
 }
 
 function DevContent() {
-  const { publicKey, signTransaction, sendTransaction } = useWallet();
+  const { publicKey, signTransaction, sendTransaction, wallet } = useWallet();
   const { connection } = useConnection();
   const [loading, setLoading] = useState(false);
   const [mintKeypair, setMintKeypair] = useState<Keypair | null>(null);
@@ -76,6 +86,7 @@ function DevContent() {
   const [totalWins, setTotalWins] = useState(0);
   const [totalLosses, setTotalLosses] = useState(0);
   const [manualRoundNumber, setManualRoundNumber] = useState<string>("1");
+  const [mintAddress, setMintAddress] = useState<string>('');
   interface NftInfo {
     mintAccount: unknown;
     tokenAccount: unknown;
@@ -731,106 +742,6 @@ function DevContent() {
     }
   };
 
-  const onCreateProgrammableNftForExistingMint = async () => {
-    if (!publicKey || !sendTransaction || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Запрашиваем адрес минта у пользователя
-      const mintAddressInput = prompt("Введите адрес минта:");
-      if (!mintAddressInput) {
-        alert("Адрес минта не указан");
-        setIsLoading(false);
-        return;
-      }
-
-      // Проверяем валидность адреса минта
-      let mintPublicKey: PublicKey;
-      try {
-        mintPublicKey = new PublicKey(mintAddressInput);
-      } catch {
-        alert("Неверный формат адреса минта");
-        setIsLoading(false);
-        return;
-      }
-
-      // Получаем PDA для mint authority
-      const [programAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority")],
-        PROGRAM_ID
-      );
-      
-      // Получаем адрес метаданных
-      const [metadataAddress] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("metadata"),
-          TOKEN_METADATA_PROGRAM_ID.toBytes(),
-          mintPublicKey.toBytes(),
-        ],
-        TOKEN_METADATA_PROGRAM_ID
-      );
-      console.log("Metadata address:", metadataAddress.toBase58());
-
-      // Создаем буфер данных для инструкции
-      // [0] - номер инструкции (21)
-      const dataBuffer = Buffer.alloc(1);
-      dataBuffer[0] = 21;
-
-      // Создаем инструкцию
-      const createProgrammableNftIx = new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: metadataAddress, isSigner: false, isWritable: true },
-          { pubkey: mintPublicKey, isSigner: false, isWritable: false },
-          { pubkey: programAuthority, isSigner: false, isWritable: false },
-          { pubkey: publicKey, isSigner: true, isWritable: true },
-          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        data: dataBuffer
-      });
-
-      // Создаем транзакцию
-      const transaction = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-      
-      transaction.add(createProgrammableNftIx);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = blockhash;
-
-      try {
-        // Отправляем транзакцию на подпись пользователю
-        const signedTransaction = await signTransaction(transaction);
-        
-        // Отправляем подписанную транзакцию
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        console.log("Transaction sent:", signature);
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature
-        });
-        
-        console.log("Transaction confirmed");
-        alert(`Программируемый NFT успешно создан для минта ${mintPublicKey.toBase58()}!`);
-      } catch (error) {
-        console.error("Error sending transaction:", error);
-        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const checkIfMintedInRoundExtended = useCallback(async (roundNumber: number): Promise<string | null> => {
     if (!publicKey) return null;
     
@@ -1313,16 +1224,6 @@ function DevContent() {
                     className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded w-full"
                   >
                     {isLoading ? "Обработка..." : "20. Создать Master Edition для существующего минта"}
-                  </button>
-                </div>
-
-                <div>
-                  <button
-                    disabled={!publicKey || isLoading}
-                    onClick={onCreateProgrammableNftForExistingMint}
-                    className="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded w-full"
-                  >
-                    {isLoading ? "Обработка..." : "21. Создать программируемый NFT для существующего минта"}
                   </button>
                 </div>
               </div>
