@@ -100,7 +100,7 @@ pub fn process_instruction(
         },
         23 => {
             msg!("Creating clean NFT using CreateV1...");
-            create_clean_nft(program_id, accounts)
+            create_clean_nft_and_mint(program_id, accounts)
         },
         24 => {
             msg!("Creating clean NFT and minting token...");
@@ -1000,8 +1000,8 @@ fn create_mint_metadata_and_master_edition(
     Ok(())
 }
 
-// Функция для создания чистого NFT без проверки Merkle proof
-fn create_clean_nft(
+
+fn create_clean_nft_and_mint(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
