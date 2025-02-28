@@ -103,8 +103,9 @@ pub fn process_instruction(
             create_clean_nft(program_id, accounts)
         },
         24 => {
-            msg!("Creating NFT with Merkle proof verification and clean metadata...");
-            create_nft_with_merkle_proof_and_clean_metadata(program_id, accounts, &instruction_data[1..])
+            msg!("Creating clean NFT and minting token...");
+            create_clean_nft_and_ata(program_id, accounts)
+
         },
         _ => {
             msg!("Invalid instruction: {:?}", instruction_data);
@@ -363,7 +364,7 @@ fn create_mint_and_token_with_round_merkle_proof_tracked_extended(
     )?;
 
     msg!("Minting token...");
-    // 4. Минтим токен
+    // Минтим токен
     let authority_signature_seeds = &[
         b"mint_authority".as_ref(),
         &[bump_seed],
@@ -383,6 +384,7 @@ fn create_mint_and_token_with_round_merkle_proof_tracked_extended(
             mint_account.clone(),
             associated_token_account.clone(),
             program_authority.clone(),
+            token_program.clone(),
         ],
         signers,
     )?;
@@ -456,20 +458,22 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
     // Получаем необходимые аккаунты для создания метаданных
     let metadata_account = &accounts[9];
     let mint_account = &accounts[0]; // Тот же mint_account, что и в первой части
-    let mint_authority = &accounts[7]; // program_authority вместо payer
+    let program_authority = &accounts[7]; // program_authority вместо payer
     let payer = &accounts[2]; // payer из первой части
     let metadata_program = &accounts[10];
     let rent_sysvar = &accounts[6]; // rent_sysvar из первой части
     let system_program = &accounts[3]; // system_program из первой части
+    let token_program = &accounts[5]; // spl_token_program из первой части
     
     let metadata_accounts = &[
         metadata_account.clone(),
         mint_account.clone(),
-        mint_authority.clone(),
+        program_authority.clone(),
         payer.clone(),
         metadata_program.clone(),
         rent_sysvar.clone(),
         system_program.clone(),
+        token_program.clone(),
     ];
     
     msg!("Creating metadata for the minted token...");
@@ -501,9 +505,9 @@ fn create_mint_token_with_merkle_proof_tracked_extended_and_metadata(
         &instructions::CreateMetadataAccountV3 {
             metadata: *metadata_account.key,
             mint: *mint_account.key,
-            mint_authority: *mint_authority.key,
+            mint_authority: *program_authority.key,
             payer: *payer.key,
-            update_authority: (*mint_authority.key, true),
+            update_authority: (*program_authority.key, true),
             system_program: *system_program.key,
             rent: None,
         }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
@@ -532,11 +536,12 @@ fn create_metadata_for_existing_mint(
     
     let metadata_account = next_account_info(account_info_iter)?;
     let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let metadata_program = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let rent_sysvar = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
     
     // Проверяем подпись
     if !payer.is_signer {
@@ -549,7 +554,7 @@ fn create_metadata_for_existing_mint(
         &[b"mint_authority"],
         program_id
     );
-    if mint_authority.key != &expected_authority {
+    if program_authority.key != &expected_authority {
         msg!("Invalid program authority provided");
         return Err(ProgramError::InvalidArgument);
     }
@@ -577,11 +582,12 @@ fn create_metadata_for_existing_mint(
     let metadata_accounts = &[
         metadata_account.clone(),
         mint_account.clone(),
-        mint_authority.clone(),
+        program_authority.clone(),
         payer.clone(),
         metadata_program.clone(),
         system_program.clone(),
         rent_sysvar.clone(),
+        token_program.clone(),
     ];
 
     // Устанавливаем токен стандарт как ProgrammableNonFungible
@@ -592,9 +598,9 @@ fn create_metadata_for_existing_mint(
         &instructions::CreateMetadataAccountV3 {
             metadata: *metadata_account.key,
             mint: *mint_account.key,
-            mint_authority: *mint_authority.key,
+            mint_authority: *program_authority.key,
             payer: *payer.key,
-            update_authority: (*mint_authority.key, true),
+            update_authority: (*program_authority.key, true),
             system_program: *system_program.key,
             rent: None,
         }.instruction(instructions::CreateMetadataAccountV3InstructionArgs {
@@ -624,12 +630,13 @@ fn create_master_edition_for_existing_mint(
     let master_edition_account = next_account_info(account_info_iter)?;
     let metadata_account = next_account_info(account_info_iter)?;
     let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let metadata_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let rent_sysvar = next_account_info(account_info_iter)?;
+    let spl_token_program = next_account_info(account_info_iter)?;
     
     // Проверяем подпись
     if !payer.is_signer {
@@ -642,7 +649,7 @@ fn create_master_edition_for_existing_mint(
         &[b"mint_authority"],
         program_id
     );
-    if mint_authority.key != &expected_authority {
+    if program_authority.key != &expected_authority {
         msg!("Invalid program authority provided");
         return Err(ProgramError::InvalidArgument);
     }
@@ -661,12 +668,13 @@ fn create_master_edition_for_existing_mint(
         master_edition_account.clone(),
         metadata_account.clone(),
         mint_account.clone(),
-        mint_authority.clone(),
+        program_authority.clone(),
         payer.clone(),
         metadata_program.clone(),
         token_program.clone(),
         system_program.clone(),
         rent_sysvar.clone(),
+        spl_token_program.clone(),
     ];
 
     // Устанавливаем токен стандарт как ProgrammableNonFungible в master edition
@@ -678,8 +686,8 @@ fn create_master_edition_for_existing_mint(
         &instructions::CreateMasterEditionV3 {
             edition: *master_edition_account.key,
             mint: *mint_account.key,
-            update_authority: *mint_authority.key,
-            mint_authority: *mint_authority.key,
+            update_authority: *program_authority.key,
+            mint_authority: *program_authority.key,
             payer: *payer.key,
             metadata: *metadata_account.key,
             token_program: *token_program.key,
@@ -718,6 +726,7 @@ fn create_mint_metadata_and_master_edition(
     let metadata_account = next_account_info(account_info_iter)?;
     let metadata_program = next_account_info(account_info_iter)?;
     let master_edition_account = next_account_info(account_info_iter)?;
+    let spl_token_program = next_account_info(account_info_iter)?;
 
     // Проверяем подписи
     if !mint_account.is_signer {
@@ -880,6 +889,7 @@ fn create_mint_metadata_and_master_edition(
             mint_account.clone(),
             associated_token_account.clone(),
             program_authority.clone(),
+            spl_token_program.clone(),
         ],
         signers,
     )?;
@@ -950,6 +960,7 @@ fn create_mint_metadata_and_master_edition(
             metadata_program.clone(),
             system_program.clone(),
             rent_sysvar.clone(),
+            spl_token_program.clone(),
         ],
         signers,
     )?;
@@ -980,6 +991,7 @@ fn create_mint_metadata_and_master_edition(
             token_program.clone(),
             system_program.clone(),
             rent_sysvar.clone(),
+            spl_token_program.clone(),
         ],
         signers,
     )?;
@@ -1000,7 +1012,7 @@ fn create_clean_nft(
     let metadata_account = next_account_info(account_info_iter)?;
     let master_edition_account = next_account_info(account_info_iter)?;
     let mint_account = next_account_info(account_info_iter)?;
-    let mint_authority = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let update_authority = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
@@ -1027,7 +1039,7 @@ fn create_clean_nft(
         &[b"mint_authority"],
         program_id
     );
-    if mint_authority.key != &expected_authority {
+    if program_authority.key != &expected_authority {
         msg!("Invalid program authority provided");
         return Err(ProgramError::InvalidArgument);
     }
@@ -1037,9 +1049,9 @@ fn create_clean_nft(
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
         mint: (*mint_account.key, true),
-        authority: *mint_authority.key,
+        authority: *program_authority.key,
         payer: *payer.key,
-        update_authority: (*update_authority.key, true),
+        update_authority: (*program_authority.key, true),
         system_program: *system_program.key,
         sysvar_instructions: *sysvar_instructions.key,
         spl_token_program: Some(*spl_token_program.key),
@@ -1076,9 +1088,106 @@ fn create_clean_nft(
             metadata_account.clone(),
             master_edition_account.clone(),
             mint_account.clone(),
-            mint_authority.clone(),
+            program_authority.clone(),
             payer.clone(),
-            update_authority.clone(),
+            program_authority.clone(), // update_authority
+            system_program.clone(),
+            sysvar_instructions.clone(),
+            spl_token_program.clone(),
+            metadata_program.clone(),
+        ],
+        signers,
+    )?;
+
+    msg!("Clean NFT created successfully!");
+    Ok(())
+}
+fn create_clean_nft_and_ata(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    msg!("Starting create_clean_nft...");
+    let account_info_iter = &mut accounts.iter();
+    
+    // Получаем все необходимые аккаунты
+    let metadata_account = next_account_info(account_info_iter)?;
+    let master_edition_account = next_account_info(account_info_iter)?;
+    let mint_account = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
+    let payer = next_account_info(account_info_iter)?;
+    let update_authority = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
+    let sysvar_instructions = next_account_info(account_info_iter)?;
+    let spl_token_program = next_account_info(account_info_iter)?;
+    let metadata_program = next_account_info(account_info_iter)?;
+
+    // Проверяем подписи
+    if !mint_account.is_signer {
+        msg!("Mint account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    if !payer.is_signer {
+        msg!("Payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Проверяем, что program_authority это правильный PDA
+    let (expected_authority, bump_seed) = Pubkey::find_program_address(
+        &[b"mint_authority"],
+        program_id
+    );
+    if program_authority.key != &expected_authority {
+        msg!("Invalid program authority provided");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    // Создаем CreateV1 инструкцию
+    let create_v1 = CreateV1 {
+        metadata: *metadata_account.key,
+        master_edition: Some(*master_edition_account.key),
+        mint: (*mint_account.key, true),
+        authority: *program_authority.key,
+        payer: *payer.key,
+        update_authority: (*program_authority.key, true),
+        system_program: *system_program.key,
+        sysvar_instructions: *sysvar_instructions.key,
+        spl_token_program: Some(*spl_token_program.key),
+    };
+
+    let args = CreateV1InstructionArgs {
+        name: "NFT".to_string(),
+        symbol: "NFT".to_string(),
+        uri: "".to_string(),
+        seller_fee_basis_points: 700,
+        creators: None,
+        primary_sale_happened: false,
+        is_mutable: true,
+        token_standard: TokenStandard::ProgrammableNonFungible,
+        collection: None,
+        uses: None,
+        collection_details: None,
+        rule_set: None,
+        decimals: Some(0),
+        print_supply: Some(PrintSupply::Zero),
+    };
+
+    // Создаем seeds для подписи
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[bump_seed],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    // Вызываем CreateV1 инструкцию
+    invoke_signed(
+        &create_v1.instruction(args),
+        &[
+            metadata_account.clone(),
+            master_edition_account.clone(),
+            mint_account.clone(),
+            program_authority.clone(),
+            payer.clone(),
+            program_authority.clone(), // update_authority
             system_program.clone(),
             sysvar_instructions.clone(),
             spl_token_program.clone(),

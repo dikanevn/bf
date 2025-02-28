@@ -1,21 +1,21 @@
 Параметры запуска:
   Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-  Mint-адрес токена: CHTeST4GCwZueT59QLZYRofXHvnD19MZSC8cnzJ5BEDk
-(node:4139453) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+  Mint-адрес токена: 5JbY65QvUhfzZd8CNpqvLBSojHh3fPatqFM11LD5jUeV
+(node:383429) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: 2JEgVsfsL6vabN8UgWqrnNGRTo2ANTHfGwXA1ZioiX6m
+ATA: Bq1pQ9Bo4bYuwobTvJBJgDEf5NnrGaJJiJowHjKx3tEL
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "DqG8E8JRT1cAPjpHY81H9cM85ebpHT3Lxd164kUQh8Mk",
+      "freezeAuthority": "CV8MEjYYLUNFovsjiaW6YUipFarD146PjSv47ukVgLx9",
       "isInitialized": true,
-      "mintAuthority": "DqG8E8JRT1cAPjpHY81H9cM85ebpHT3Lxd164kUQh8Mk",
-      "supply": "1"
+      "mintAuthority": "CV8MEjYYLUNFovsjiaW6YUipFarD146PjSv47ukVgLx9",
+      "supply": "0"
     },
     "type": "mint"
   },
@@ -24,18 +24,11 @@ Mint Account Data: {
 }
 
 === Информация о токен-аккаунте (ATA) ===
-Mint: CHTeST4GCwZueT59QLZYRofXHvnD19MZSC8cnzJ5BEDk
-Owner: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-Amount: 1
-Delegate: нет
-State: frozen
-Is Native: false
-Delegated Amount: 0
-Close Authority: нет
+Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: BEafpJVFPizJoRkdoxxpaCQp7HE4MA3Yr2VL9i9Vk8b6,253
-Master Edition PDA: DqG8E8JRT1cAPjpHY81H9cM85ebpHT3Lxd164kUQh8Mk,255
+Metadata PDA: G5NWbFLb91hNeHDhzHrTrFYrnkoMiLJ1wZeHmQ2edb3h,255
+Master Edition PDA: CV8MEjYYLUNFovsjiaW6YUipFarD146PjSv47ukVgLx9,255
 
 === Детали цифрового актива ===
 

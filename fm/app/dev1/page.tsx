@@ -4,7 +4,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import { createInitializeMintInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
@@ -19,6 +19,13 @@ import {
   createSignerFromKeypair as umiCreateSignerFromKeypair, 
   publicKey as publicKeyUmi
 } from '@metaplex-foundation/umi';
+import { Connection, clusterApiUrl } from '@solana/web3.js';
+import { findMetadataPda, findMasterEditionV2Pda } from '@metaplex-foundation/js';
+import { Metadata, Edition } from '@metaplex-foundation/mpl-token-metadata';
+
+import { 
+  createAssociatedTokenAccountInstruction 
+} from '@solana/spl-token';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -286,6 +293,7 @@ function DevContent() {
   }
   const [nftInfo, setNftInfo] = useState<NftInfo | null>(null);
   const [isLoadingNftInfo, setIsLoadingNftInfo] = useState(false);
+  const [isLoading24, setIsLoading24] = useState(false);
 
   const onDeleteMintRecordForRound = async () => {
     if (!publicKey || !sendTransaction) {
@@ -1555,6 +1563,7 @@ function DevContent() {
     }
   };
 
+<<<<<<< HEAD
   const onCreateNftWithMerkleProofAndCleanMetadata = async () => {
     try {
       if (!publicKey || !sendTransaction || !signTransaction) {
@@ -1628,6 +1637,38 @@ function DevContent() {
       );
 
       // Получаем адрес метаданных
+=======
+  async function createProgramAuthority(programId: PublicKey) {
+    const [programAuthority, bumpSeed] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mint_authority")],
+      programId
+    );
+    return { programAuthority, bumpSeed };
+  }
+
+  const onCreateCleanNftAndMint = async () => {
+    if (!publicKey) {
+      alert('Пожалуйста, подключите кошелек!');
+      return;
+    }
+    setIsLoading24(true);
+    try {
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      const newMintKeypair = Keypair.generate();
+      
+      // Получаем адрес ATA
+      const associatedTokenAccount = getAssociatedTokenAddressSync(
+        newMintKeypair.publicKey,
+        publicKey,
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Получаем program authority
+      const { programAuthority } = await createProgramAuthority(PROGRAM_ID);
+      
+>>>>>>> 68a6f36 (test na baze)
       const [metadataAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
@@ -1637,7 +1678,10 @@ function DevContent() {
         TOKEN_METADATA_PROGRAM_ID
       );
 
+<<<<<<< HEAD
       // Получаем адрес master edition
+=======
+>>>>>>> 68a6f36 (test na baze)
       const [masterEditionAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
@@ -1648,6 +1692,7 @@ function DevContent() {
         TOKEN_METADATA_PROGRAM_ID
       );
 
+<<<<<<< HEAD
       // Получаем адрес PDA для расширенного отслеживания минтинга
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
@@ -1675,14 +1720,53 @@ function DevContent() {
 
       // Создаем инструкцию
       const createNftWithMerkleProofAndCleanMetadataIx = new TransactionInstruction({
+=======
+      // Создаем инструкцию для создания минт аккаунта
+      const lamports = await connection.getMinimumBalanceForRentExemption(82);
+      const createMintAccountIx = SystemProgram.createAccount({
+        fromPubkey: publicKey,
+        newAccountPubkey: newMintKeypair.publicKey,
+        space: 82,
+        lamports,
+        programId: TOKEN_PROGRAM_ID,
+      });
+
+      // Создаем инструкцию для инициализации минта
+      const initializeMintIx = createInitializeMintInstruction(
+        newMintKeypair.publicKey,
+        0,
+        programAuthority,
+        programAuthority,
+        TOKEN_PROGRAM_ID
+      );
+
+      // Создаем инструкцию для создания ATA
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        publicKey,
+        associatedTokenAccount,
+        publicKey,
+        newMintKeypair.publicKey,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Создаем основную инструкцию
+      const createCleanNftIx = new TransactionInstruction({
+>>>>>>> 68a6f36 (test na baze)
         programId: PROGRAM_ID,
         keys: [
           { pubkey: metadataAddress, isSigner: false, isWritable: true },
           { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
           { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+<<<<<<< HEAD
           { pubkey: programAuthority, isSigner: false, isWritable: false },
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: programAuthority, isSigner: false, isWritable: false },
+=======
+          { pubkey: programAuthority, isSigner: false, isWritable: true },
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: programAuthority, isSigner: false, isWritable: true }, // update_authority
+>>>>>>> 68a6f36 (test na baze)
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -1690,9 +1774,14 @@ function DevContent() {
           { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
           { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+<<<<<<< HEAD
           { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
         ],
         data: dataBuffer
+=======
+        ],
+        data: Buffer.from([24]) // Инструкция 24
+>>>>>>> 68a6f36 (test na baze)
       });
 
       // Создаем транзакцию
@@ -1711,6 +1800,7 @@ function DevContent() {
       
       transaction.add(modifyComputeUnits);
       transaction.add(addPriorityFee);
+<<<<<<< HEAD
       transaction.add(createNftWithMerkleProofAndCleanMetadataIx);
       transaction.feePayer = publicKey;
       transaction.recentBlockhash = blockhash;
@@ -1746,6 +1836,42 @@ function DevContent() {
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
+=======
+      transaction.add(createMintAccountIx);
+      transaction.add(initializeMintIx);
+      transaction.add(createAtaIx);
+      transaction.add(createCleanNftIx);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+      
+      // Подписываем транзакцию mint keypair'ом
+      transaction.partialSign(newMintKeypair);
+      
+      // Отправляем транзакцию
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: true,
+      });
+      
+      // Ждем подтверждения
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      });
+
+      if (confirmation.value.err) {
+        throw new Error('Транзакция не прошла');
+      }
+
+      console.log("Транзакция успешно выполнена!");
+      alert('NFT успешно создан и токен заминчен!');
+      
+    } catch (error: any) {
+      console.error('Ошибка:', error);
+      alert(`Ошибка: ${error.message}`);
+    } finally {
+      setIsLoading24(false);
+>>>>>>> 68a6f36 (test na baze)
     }
   };
 
@@ -1917,11 +2043,22 @@ function DevContent() {
                   <button
                     disabled={!publicKey || isLoading}
                     onClick={onCreateCleanNft}
-                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs disabled:opacity-50 w-full"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
-                    {isLoading ? "Обработка..." : "23. Создать чистый NFT"}
+                    {loading ? 'Создание...' : '23. Создать чистый NFT'}
                   </button>
                 </div>
+
+                <div>
+                  <button
+                    disabled={!publicKey || isLoading}
+                    onClick={onCreateCleanNftAndMint}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
+                  >
+                    {loading ? 'Создание...' : '24. onCreateCleanNftAndMint'}
+                  </button>
+                </div>
+
               </div>
 
               <button 
@@ -1940,6 +2077,7 @@ function DevContent() {
                 {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
               </button>
 
+<<<<<<< HEAD
               <div>
                 <button
                   disabled={!publicKey || isLoading}
@@ -1949,6 +2087,9 @@ function DevContent() {
                   {isLoading ? "Обработка..." : "24. Создать NFT с Merkle proof и чистыми метаданными"}
                 </button>
               </div>
+=======
+  
+>>>>>>> 68a6f36 (test na baze)
             </div>
 
             {nftInfo && (
