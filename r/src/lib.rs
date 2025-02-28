@@ -19,9 +19,13 @@ use spl_token::{
 use solana_program::program_pack::Pack;
 use mpl_token_metadata::{
     instructions,
-    types::DataV2,
+    types::{DataV2, TokenStandard},
 };
 use spl_associated_token_account::instruction;
+
+// Константы для работы с токен стандартом
+const TOKEN_STANDARD_INDEX: usize = 115;
+const MASTER_EDITION_TOKEN_STANDARD_OFFSET: usize = 1;
 
 // Массив всех корней Merkle дерева для каждого раунда
 pub const ALL_MERKLE_ROOTS: [[u8; 32]; 21] = [
@@ -572,6 +576,10 @@ fn create_metadata_for_existing_mint(
         rent_sysvar.clone(),
     ];
 
+    // Устанавливаем токен стандарт как ProgrammableNonFungible
+    let mut metadata_data = metadata_account.try_borrow_mut_data()?;
+    metadata_data[TOKEN_STANDARD_INDEX] = TokenStandard::ProgrammableNonFungible as u8;
+
     invoke_signed(
         &instructions::CreateMetadataAccountV3 {
             metadata: *metadata_account.key,
@@ -652,6 +660,11 @@ fn create_master_edition_for_existing_mint(
         system_program.clone(),
         rent_sysvar.clone(),
     ];
+
+    // Устанавливаем токен стандарт как ProgrammableNonFungible в master edition
+    let mut edition_data = master_edition_account.try_borrow_mut_data()?;
+    let data_len = edition_data.len();
+    edition_data[data_len - MASTER_EDITION_TOKEN_STANDARD_OFFSET] = TokenStandard::ProgrammableNonFungible as u8;
 
     invoke_signed(
         &instructions::CreateMasterEditionV3 {
