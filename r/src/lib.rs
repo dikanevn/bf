@@ -1105,6 +1105,155 @@ fn verify_merkle_proof(leaf: [u8;32], proof: &Vec<[u8;32]>, root: [u8;32]) -> bo
     computed == root
 }
 
+// Вспомогательная функция для проверки номера раунда и получения корня Merkle дерева
+fn validate_round_and_get_root(round_number: usize) -> Result<[u8; 32], ProgramError> {
+    msg!("Validating round number: {}", round_number);
+    
+    if round_number >= ALL_MERKLE_ROOTS.len() {
+        msg!("Invalid round number: {}, max is {}", round_number, ALL_MERKLE_ROOTS.len() - 1);
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    Ok(ALL_MERKLE_ROOTS[round_number])
+}
+
+// Вспомогательная функция для проверки и получения PDA для отслеживания минтинга
+fn validate_and_get_mint_record_pda<'a>(
+    program_id: &'a Pubkey,
+    round_number: u8,
+    payer: &'a Pubkey,
+    mint_record_account: &'a AccountInfo<'a>,
+) -> Result<(&'a AccountInfo<'a>, u8), ProgramError> {
+    let (expected_mint_record_address, bump) = Pubkey::find_program_address(
+        &[
+            b"is_minted_ext",
+            &[round_number],
+            payer.as_ref(),
+        ],
+        program_id
+    );
+    
+    if mint_record_account.key != &expected_mint_record_address {
+        msg!("Invalid mint record account address");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    if !mint_record_account.data_is_empty() && mint_record_account.owner == program_id {
+        msg!("User has already minted in round {}", round_number);
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    
+    Ok((mint_record_account, bump))
+}
+
+// Вспомогательная функция для создания и инициализации mint аккаунта
+fn create_and_init_mint_account<'a>(
+    payer: &AccountInfo<'a>,
+    mint_account: &AccountInfo<'a>,
+    program_authority: &AccountInfo<'a>,
+    system_program: &AccountInfo<'a>,
+    rent_sysvar: &AccountInfo<'a>,
+) -> ProgramResult {
+    msg!("Creating and initializing mint account...");
+    let rent = Rent::get()?;
+    let mint_len = Mint::LEN;
+    let lamports = rent.minimum_balance(mint_len);
+
+    invoke(
+        &system_instruction::create_account(
+            &payer.key,
+            &mint_account.key,
+            lamports,
+            mint_len as u64,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+
+    invoke(
+        &spl_token::instruction::initialize_mint(
+            &spl_token::id(),
+            &mint_account.key,
+            &program_authority.key,
+            Some(&program_authority.key),
+            0,
+        )?,
+        &[
+            mint_account.clone(),
+            rent_sysvar.clone(),
+        ],
+    )?;
+
+    Ok(())
+}
+
+// Вспомогательная функция для создания ассоциированного токен аккаунта
+fn create_associated_token_account<'a>(
+    payer: &AccountInfo<'a>,
+    associated_token_account: &AccountInfo<'a>,
+    mint_account: &AccountInfo<'a>,
+    system_program: &AccountInfo<'a>,
+    token_program: &AccountInfo<'a>,
+    associated_token_program: &AccountInfo<'a>,
+    rent_sysvar: &AccountInfo<'a>,
+) -> ProgramResult {
+    msg!("Creating associated token account...");
+    invoke(
+        &spl_associated_token_account::instruction::create_associated_token_account(
+            payer.key,
+            payer.key,
+            mint_account.key,
+            &spl_token::id(),
+        ),
+        &[
+            payer.clone(),
+            associated_token_account.clone(),
+            payer.clone(),
+            mint_account.clone(),
+            system_program.clone(),
+            token_program.clone(),
+            associated_token_program.clone(),
+            rent_sysvar.clone(),
+        ],
+    )
+}
+
+// Вспомогательная функция для минтинга токена
+fn mint_token<'a>(
+    mint_account: &AccountInfo<'a>,
+    associated_token_account: &AccountInfo<'a>,
+    program_authority: &AccountInfo<'a>,
+    authority_bump: u8,
+) -> ProgramResult {
+    msg!("Minting token...");
+    let authority_signature_seeds = &[
+        b"mint_authority".as_ref(),
+        &[authority_bump],
+    ];
+    let signers = &[&authority_signature_seeds[..]];
+
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            &spl_token::id(),
+            mint_account.key,
+            associated_token_account.key,
+            &program_authority.key,
+            &[],
+            1,
+        )?,
+        &[
+            mint_account.clone(),
+            associated_token_account.clone(),
+            program_authority.clone(),
+        ],
+        signers,
+    )
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
