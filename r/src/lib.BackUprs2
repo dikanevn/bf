@@ -1,0 +1,71 @@
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint,
+    entrypoint::ProgramResult,
+    msg,
+    program::invoke_signed,
+    pubkey::Pubkey,
+};
+
+use mpl_token_metadata::instructions::SetTokenStandard;
+
+entrypoint!(process_instruction);
+
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    if instruction_data.is_empty() {
+        msg!("Instruction data is empty");
+        return Ok(());
+    }
+
+    let instruction = instruction_data[0];
+    match instruction {
+        22 => set_token_standard_handler(program_id, accounts),
+        _ => {
+            msg!("Instruction not implemented");
+            Ok(())
+        }
+    }
+}
+
+fn set_token_standard_handler(
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    msg!("Setting token standard to Programmable NFT");
+
+    let metadata_account = &accounts[0];
+    let update_authority = &accounts[1];
+    let mint_account = &accounts[2];
+
+    // Проверяем, что update authority подписал транзакцию
+    if !update_authority.is_signer {
+        msg!("Update authority must sign");
+        return Ok(());
+    }
+
+    // Создаем инструкцию для установки токен стандарта
+    let ix = SetTokenStandard {
+        metadata: *metadata_account.key,
+        update_authority: *update_authority.key,
+        mint: *mint_account.key,
+        edition: None,
+    }.instruction();
+
+    // Выполняем инструкцию
+    invoke_signed(
+        &ix,
+        &[
+            metadata_account.clone(),
+            update_authority.clone(),
+            mint_account.clone(),
+        ],
+        &[],
+    )?;
+
+    msg!("Token standard set to Programmable NFT successfully");
+    Ok(())
+}
