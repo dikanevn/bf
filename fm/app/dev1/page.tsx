@@ -540,145 +540,92 @@ function DevContent() {
   };
 
   const onCreateMetadataForExistingMint = async () => {
-    if (!publicKey || !sendTransaction || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек");
-      return;
-    }
-
-    setIsLoading(true);
-
     try {
-      // Запрашиваем адрес минта у пользователя
-      const mintAddressInput = prompt("Введите адрес минта:");
-      if (!mintAddressInput) {
-        alert("Адрес минта не указан");
-        setIsLoading(false);
-        return;
+      if (!publicKey || !signTransaction || !connection) {
+        throw new Error("Wallet not connected");
       }
 
-      // Проверяем валидность адреса минта
-      let mintPublicKey: PublicKey;
-      try {
-        mintPublicKey = new PublicKey(mintAddressInput);
-      } catch {
-        alert("Неверный формат адреса минта");
-        setIsLoading(false);
-        return;
-      }
+      const mintKeypair = Keypair.generate();
+      console.log("Mint address:", mintKeypair.publicKey.toBase58());
 
-      // Получаем PDA для mint authority
-      const [programAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority")],
-        PROGRAM_ID
-      );
-      
       // Получаем адрес метаданных
       const [metadataAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
           TOKEN_METADATA_PROGRAM_ID.toBytes(),
-          mintPublicKey.toBytes(),
+          mintKeypair.publicKey.toBytes(),
         ],
         TOKEN_METADATA_PROGRAM_ID
       );
       console.log("Metadata address:", metadataAddress.toBase58());
 
-      // Создаем буфер данных для инструкции
-      // [0] - номер инструкции (18)
-      const dataBuffer = Buffer.alloc(1);
-      dataBuffer[0] = 18; // Инструкция 18
+      // Получаем PDA для mint authority
+      const [mintAuthorityPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority")],
+        PROGRAM_ID
+      );
+      console.log("Mint authority PDA:", mintAuthorityPDA.toBase58());
 
       // Создаем инструкцию
-      const createMetadataForExistingMintIx = new TransactionInstruction({
+      const createMetadataIx = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: metadataAddress, isSigner: false, isWritable: true },
-          { pubkey: mintPublicKey, isSigner: false, isWritable: false },
-          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
+          { pubkey: mintAuthorityPDA, isSigner: false, isWritable: false },
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
-        data: dataBuffer
+        data: Buffer.from([18]), // Инструкция 18 - create_metadata_for_existing_mint
       });
 
-      // Создаем транзакцию
-      const transaction = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      const transaction = new Transaction().add(createMetadataIx);
       
-      transaction.add(createMetadataForExistingMintIx);
+      // Устанавливаем последний блок и fee payer
       transaction.feePayer = publicKey;
-      transaction.recentBlockhash = blockhash;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-      try {
-        // Отправляем транзакцию на подпись пользователю
-        const signedTransaction = await signTransaction(transaction);
-        
-        // Отправляем подписанную транзакцию
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        console.log("Transaction sent:", signature);
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature
-        });
-        
-        console.log("Transaction confirmed");
-        setMetadataAddress(metadataAddress);
-        alert(`Метаданные успешно созданы для минта ${mintPublicKey.toBase58()}!`);
-      } catch (error) {
-        console.error("Error sending transaction:", error);
-        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      // Подписываем и отправляем транзакцию
+      const signedTx = await signTransaction(transaction);
+      const txId = await connection.sendRawTransaction(signedTx.serialize());
+      console.log("Transaction sent:", txId);
+      
+      // Ждем подтверждения
+      const confirmation = await connection.confirmTransaction(txId);
+      if (confirmation.value.err) {
+        throw new Error("Error confirming transaction");
       }
+      
+      console.log("Metadata created successfully!");
+      
+      // Обновляем информацию о NFT
+      const nftInfo = await getNftInfo(mintKeypair.publicKey.toBase58());
+      if (nftInfo) {
+        setNftInfo(nftInfo);
+      }
+
     } catch (error) {
-      console.error("Error:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
+      console.error("Error creating metadata:", error);
     }
   };
 
   const onCreateMasterEditionForExistingMint = async () => {
-    if (!publicKey || !sendTransaction || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек");
-      return;
-    }
-
-    setIsLoading(true);
-
     try {
-      // Запрашиваем адрес минта у пользователя
-      const mintAddressInput = prompt("Введите адрес минта:");
-      if (!mintAddressInput) {
-        alert("Адрес минта не указан");
-        setIsLoading(false);
-        return;
+      if (!publicKey || !signTransaction || !connection) {
+        throw new Error("Wallet not connected");
       }
 
-      // Проверяем валидность адреса минта
-      let mintPublicKey: PublicKey;
-      try {
-        mintPublicKey = new PublicKey(mintAddressInput);
-      } catch {
-        alert("Неверный формат адреса минта");
-        setIsLoading(false);
-        return;
-      }
+      const mintKeypair = Keypair.generate();
+      console.log("Mint address:", mintKeypair.publicKey.toBase58());
 
-      // Получаем PDA для mint authority
-      const [programAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority")],
-        PROGRAM_ID
-      );
-      
       // Получаем адрес метаданных
       const [metadataAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
           TOKEN_METADATA_PROGRAM_ID.toBytes(),
-          mintPublicKey.toBytes(),
+          mintKeypair.publicKey.toBytes(),
         ],
         TOKEN_METADATA_PROGRAM_ID
       );
@@ -689,68 +636,64 @@ function DevContent() {
         [
           Buffer.from("metadata"),
           TOKEN_METADATA_PROGRAM_ID.toBytes(),
-          mintPublicKey.toBytes(),
+          mintKeypair.publicKey.toBytes(),
           Buffer.from("edition"),
         ],
         TOKEN_METADATA_PROGRAM_ID
       );
       console.log("Master Edition address:", masterEditionAddress.toBase58());
 
-      // Создаем буфер данных для инструкции
-      // [0] - номер инструкции (20)
-      const dataBuffer = Buffer.alloc(1);
-      dataBuffer[0] = 20; // Инструкция 20
+      // Получаем PDA для mint authority
+      const [mintAuthorityPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority")],
+        PROGRAM_ID
+      );
+      console.log("Mint authority PDA:", mintAuthorityPDA.toBase58());
 
       // Создаем инструкцию
-      const createMasterEditionForExistingMintIx = new TransactionInstruction({
+      const createMasterEditionIx = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
           { pubkey: metadataAddress, isSigner: false, isWritable: true },
-          { pubkey: mintPublicKey, isSigner: false, isWritable: true },
-          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          { pubkey: mintKeypair.publicKey, isSigner: false, isWritable: false },
+          { pubkey: mintAuthorityPDA, isSigner: false, isWritable: false },
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
-        data: dataBuffer
+        data: Buffer.from([20]), // Инструкция 20 - create_master_edition_for_existing_mint
       });
 
-      // Создаем транзакцию
-      const transaction = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      const transaction = new Transaction().add(createMasterEditionIx);
       
-      transaction.add(createMasterEditionForExistingMintIx);
+      // Устанавливаем последний блок и fee payer
       transaction.feePayer = publicKey;
-      transaction.recentBlockhash = blockhash;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-      try {
-        // Отправляем транзакцию на подпись пользователю
-        const signedTransaction = await signTransaction(transaction);
-        
-        // Отправляем подписанную транзакцию
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        console.log("Transaction sent:", signature);
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature
-        });
-        
-        console.log("Transaction confirmed");
-        alert(`Master Edition успешно создан для минта ${mintPublicKey.toBase58()}!`);
-      } catch (error) {
-        console.error("Error sending transaction:", error);
-        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      // Подписываем и отправляем транзакцию
+      const signedTx = await signTransaction(transaction);
+      const txId = await connection.sendRawTransaction(signedTx.serialize());
+      console.log("Transaction sent:", txId);
+      
+      // Ждем подтверждения
+      const confirmation = await connection.confirmTransaction(txId);
+      if (confirmation.value.err) {
+        throw new Error("Error confirming transaction");
       }
+      
+      console.log("Master Edition created successfully!");
+      
+      // Обновляем информацию о NFT
+      const nftInfo = await getNftInfo(mintKeypair.publicKey.toBase58());
+      if (nftInfo) {
+        setNftInfo(nftInfo);
+      }
+
     } catch (error) {
-      console.error("Error:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
+      console.error("Error creating master edition:", error);
     }
   };
 
@@ -1069,13 +1012,13 @@ function DevContent() {
           console.error("Ошибка при получении метаданных:", error);
         }
         
-        setNftInfo({
+        return {
           mintAccount: mintAccountInfo.value,
           tokenAccount: tokenAccountInfo.value,
           metadata: metadataPda.toString(),
           masterEdition: masterEditionPda.toString(),
           metadataData: metadata ? Buffer.from(metadata).toString('base64') : null
-        });
+        };
       }
     } catch (error) {
       console.error("Ошибка при получении информации об NFT:", error);
@@ -1289,97 +1232,6 @@ function DevContent() {
     }
   };
 
-  const onSetTokenStandard = async () => {
-    if (!publicKey || !sendTransaction || !signTransaction) {
-      alert("Пожалуйста, подключите кошелек");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Запрашиваем адрес минта у пользователя
-      const mintAddressInput = prompt("Введите адрес минта:");
-      if (!mintAddressInput) {
-        alert("Адрес минта не указан");
-        setIsLoading(false);
-        return;
-      }
-
-      // Проверяем валидность адреса минта
-      let mintPublicKey: PublicKey;
-      try {
-        mintPublicKey = new PublicKey(mintAddressInput);
-      } catch {
-        alert("Неверный формат адреса минта");
-        setIsLoading(false);
-        return;
-      }
-
-      // Получаем адрес метаданных
-      const [metadataAddress] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("metadata"),
-          TOKEN_METADATA_PROGRAM_ID.toBytes(),
-          mintPublicKey.toBytes(),
-        ],
-        TOKEN_METADATA_PROGRAM_ID
-      );
-      console.log("Metadata address:", metadataAddress.toBase58());
-
-      // Создаем буфер данных для инструкции
-      // [0] - номер инструкции (22)
-      const dataBuffer = Buffer.alloc(1);
-      dataBuffer[0] = 22; // Инструкция 22
-
-      // Создаем инструкцию
-      const setTokenStandardIx = new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: metadataAddress, isSigner: false, isWritable: true },
-          { pubkey: mintPublicKey, isSigner: false, isWritable: false },
-          { pubkey: publicKey, isSigner: true, isWritable: true },
-          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
-        ],
-        data: dataBuffer
-      });
-
-      // Создаем транзакцию
-      const transaction = new Transaction();
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-      
-      transaction.add(setTokenStandardIx);
-      transaction.feePayer = publicKey;
-      transaction.recentBlockhash = blockhash;
-
-      try {
-        // Отправляем транзакцию на подпись пользователю
-        const signedTransaction = await signTransaction(transaction);
-        
-        // Отправляем подписанную транзакцию
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        console.log("Transaction sent:", signature);
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature
-        });
-        
-        console.log("Transaction confirmed");
-        alert(`Токен стандарт успешно установлен в Programmable NFT для минта ${mintPublicKey.toBase58()}!`);
-      } catch (error) {
-        console.error("Error sending transaction:", error);
-        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -1548,19 +1400,9 @@ function DevContent() {
                   <button
                     disabled={!publicKey || isLoading}
                     onClick={onCreateMintMetadataAndMasterEdition}
-                    className="bg-indigo-500 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
-                    {isLoading ? "Обработка..." : "21. Создать минт, метаданные и Master Edition"}
-                  </button>
-                </div>
-
-                <div>
-                  <button
-                    disabled={!publicKey || isLoading}
-                    onClick={onSetTokenStandard}
-                    className="bg-pink-500 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded w-full"
-                  >
-                    {isLoading ? "Обработка..." : "22. Установить токен стандарт в Programmable NFT"}
+                    {isLoading ? "Обработка..." : "21. Создать минт, метаданные и master edition с проверкой Merkle"}
                   </button>
                 </div>
               </div>
