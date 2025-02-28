@@ -4,7 +4,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import { createInitializeMintInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
@@ -19,6 +19,13 @@ import {
   createSignerFromKeypair as umiCreateSignerFromKeypair, 
   publicKey as publicKeyUmi
 } from '@metaplex-foundation/umi';
+import { Connection, clusterApiUrl } from '@solana/web3.js';
+import { findMetadataPda, findMasterEditionV2Pda } from '@metaplex-foundation/js';
+import { Metadata, Edition } from '@metaplex-foundation/mpl-token-metadata';
+
+import { 
+  createAssociatedTokenAccountInstruction 
+} from '@solana/spl-token';
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 const PROGRAM_ID = new PublicKey("YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP");
@@ -73,6 +80,196 @@ function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean
   return computedHash.equals(root);
 }
 
+// Утилитные функции для работы с NFT
+async function validateAndGetMerkleProof(
+  connection: any,
+  wallet: any,
+  round: number,
+  allRoundsMerkleRoots: Buffer[],
+  allRoundsWinners: string[][]
+): Promise<{ proof: Buffer[]; isValid: boolean }> {
+  if (!wallet.publicKey) {
+    throw new Error("Кошелек не подключен");
+  }
+
+  if (round >= allRoundsMerkleRoots.length) {
+    throw new Error("Неверный номер раунда");
+  }
+
+  const winners = allRoundsWinners[round];
+  if (!winners.includes(wallet.publicKey.toBase58())) {
+    throw new Error("Адрес не найден в списке победителей");
+  }
+
+  const leaves = winners.map(addr => sha256(Buffer.from(addr, 'utf8')));
+  const tree = new MerkleTree(leaves, sha256);
+  const leaf = sha256(Buffer.from(wallet.publicKey.toBase58(), 'utf8'));
+  const proof = tree.getProof(leaf).map(p => p.data);
+
+  return {
+    proof,
+    isValid: verifyMerkleProof(proof, leaf, allRoundsMerkleRoots[round])
+  };
+}
+
+async function createMintAndTokenAccounts(
+  connection: any,
+  wallet: any,
+  programId: PublicKey
+): Promise<{
+  mint: Keypair;
+  associatedTokenAccount: PublicKey;
+  programAuthority: PublicKey;
+  bumpSeed: number;
+}> {
+  const mint = Keypair.generate();
+  const [programAuthority, bumpSeed] = await PublicKey.findProgramAddress(
+    [Buffer.from("mint_authority", "utf-8")],
+    programId
+  );
+  
+  const associatedTokenAccount = await getAssociatedTokenAddress(
+    mint.publicKey,
+    wallet.publicKey
+  );
+
+  return {
+    mint,
+    associatedTokenAccount,
+    programAuthority,
+    bumpSeed
+  };
+}
+
+async function createMetadataAccounts(
+  connection: any,
+  mint: PublicKey
+): Promise<{
+  metadata: PublicKey;
+  masterEdition: PublicKey;
+}> {
+  const umi = createUmi(connection.rpcEndpoint);
+  const metadata = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(),
+      mint.toBuffer()
+    ],
+    new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+  )[0];
+
+  const masterEdition = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(),
+      mint.toBuffer(),
+      Buffer.from("edition"),
+    ],
+    new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+  )[0];
+
+  return {
+    metadata,
+    masterEdition
+  };
+}
+
+async function createMintRecordPDA(
+  connection: any,
+  wallet: any,
+  programId: PublicKey,
+  round: number
+): Promise<{
+  mintRecord: PublicKey;
+  mintRecordBump: number;
+}> {
+  const [mintRecord, mintRecordBump] = await PublicKey.findProgramAddress(
+    [
+      Buffer.from("is_minted_ext", "utf-8"),
+      Buffer.from([round]),
+      wallet.publicKey.toBuffer(),
+    ],
+    programId
+  );
+
+  return {
+    mintRecord,
+    mintRecordBump
+  };
+}
+
+async function buildNftTransaction(
+  connection: any,
+  wallet: any,
+  programId: PublicKey,
+  accounts: {
+    mint: Keypair;
+    associatedTokenAccount: PublicKey;
+    programAuthority: PublicKey;
+    metadata: PublicKey;
+    masterEdition: PublicKey;
+    mintRecord: PublicKey;
+  },
+  proof: Buffer[],
+  round: number
+): Promise<Transaction> {
+  const transaction = new Transaction();
+
+  // Добавляем лимиты
+  transaction.add(
+    ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1000000
+    })
+  );
+  transaction.add(
+    ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: 1000
+    })
+  );
+
+  // Создаем буфер для данных инструкции
+  // 1 байт для номера инструкции (24)
+  // 1 байт для номера раунда
+  // 32 байта * количество элементов в proof для самого proof
+  const dataLength = 1 + 1 + (proof.length * 32);
+  const dataBuffer = Buffer.alloc(dataLength);
+
+  // Записываем номер инструкции и раунда
+  dataBuffer.writeUInt8(24, 0);
+  dataBuffer.writeUInt8(round, 1);
+
+  // Записываем proof
+  let offset = 2;
+  for (const proofElement of proof) {
+    proofElement.copy(dataBuffer, offset);
+    offset += 32;
+  }
+
+  const createNftInstruction = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: accounts.metadata, isSigner: false, isWritable: true },
+      { pubkey: accounts.masterEdition, isSigner: false, isWritable: true },
+      { pubkey: accounts.mint.publicKey, isSigner: true, isWritable: true },
+      { pubkey: accounts.programAuthority, isSigner: false, isWritable: false },
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: accounts.programAuthority, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'), isSigner: false, isWritable: false },
+      { pubkey: accounts.associatedTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: accounts.mintRecord, isSigner: false, isWritable: true },
+    ],
+    data: dataBuffer
+  });
+
+  transaction.add(createNftInstruction);
+  return transaction;
+}
+
 function DevContent() {
   const { publicKey, signTransaction, sendTransaction, wallet } = useWallet();
   const { connection } = useConnection();
@@ -96,6 +293,7 @@ function DevContent() {
   }
   const [nftInfo, setNftInfo] = useState<NftInfo | null>(null);
   const [isLoadingNftInfo, setIsLoadingNftInfo] = useState(false);
+  const [isLoading24, setIsLoading24] = useState(false);
 
   const onDeleteMintRecordForRound = async () => {
     if (!publicKey || !sendTransaction) {
@@ -493,6 +691,7 @@ function DevContent() {
           { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
           { pubkey: metadataAddress, isSigner: false, isWritable: true },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
         ],
         data: dataBuffer
       });
@@ -1364,6 +1563,158 @@ function DevContent() {
     }
   };
 
+  async function createProgramAuthority(programId: PublicKey) {
+    const [programAuthority, bumpSeed] = PublicKey.findProgramAddressSync(
+      [Buffer.from("mint_authority")],
+      programId
+    );
+    return { programAuthority, bumpSeed };
+  }
+
+  const onCreateCleanNftAndMint = async () => {
+    if (!publicKey) {
+      alert('Пожалуйста, подключите кошелек!');
+      return;
+    }
+    setIsLoading24(true);
+    try {
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      const newMintKeypair = Keypair.generate();
+      
+      // Получаем адрес ATA
+      const associatedTokenAccount = getAssociatedTokenAddressSync(
+        newMintKeypair.publicKey,
+        publicKey,
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Получаем program authority
+      const { programAuthority } = await createProgramAuthority(PROGRAM_ID);
+      
+      const [metadataAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+
+      const [masterEditionAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+          Buffer.from("edition"),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+
+      // Создаем инструкцию для создания минт аккаунта
+      const lamports = await connection.getMinimumBalanceForRentExemption(82);
+      const createMintAccountIx = SystemProgram.createAccount({
+        fromPubkey: publicKey,
+        newAccountPubkey: newMintKeypair.publicKey,
+        space: 82,
+        lamports,
+        programId: TOKEN_PROGRAM_ID,
+      });
+
+      // Создаем инструкцию для инициализации минта
+      const initializeMintIx = createInitializeMintInstruction(
+        newMintKeypair.publicKey,
+        0,
+        programAuthority,
+        programAuthority,
+        TOKEN_PROGRAM_ID
+      );
+
+      // Создаем инструкцию для создания ATA
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        publicKey,
+        associatedTokenAccount,
+        publicKey,
+        newMintKeypair.publicKey,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Создаем основную инструкцию
+      const createCleanNftIx = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: metadataAddress, isSigner: false, isWritable: true },
+          { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
+          { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+          { pubkey: programAuthority, isSigner: false, isWritable: true },
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: programAuthority, isSigner: false, isWritable: true }, // update_authority
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
+          { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.from([24]) // Инструкция 24
+      });
+
+      // Создаем транзакцию
+      const transaction = new Transaction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      
+      // Добавляем инструкцию для увеличения лимита CU
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ 
+        units: 1000000 
+      });
+      
+      // Добавляем приоритетные комиссии
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
+        microLamports: 1000000 
+      });
+      
+      transaction.add(modifyComputeUnits);
+      transaction.add(addPriorityFee);
+      transaction.add(createMintAccountIx);
+      transaction.add(initializeMintIx);
+      transaction.add(createAtaIx);
+      transaction.add(createCleanNftIx);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+      
+      // Подписываем транзакцию mint keypair'ом
+      transaction.partialSign(newMintKeypair);
+      
+      // Отправляем транзакцию
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: true,
+      });
+      
+      // Ждем подтверждения
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      });
+
+      if (confirmation.value.err) {
+        throw new Error('Транзакция не прошла');
+      }
+
+      console.log("Транзакция успешно выполнена!");
+      alert('NFT успешно создан и токен заминчен!');
+      
+    } catch (error: any) {
+      console.error('Ошибка:', error);
+      alert(`Ошибка: ${error.message}`);
+    } finally {
+      setIsLoading24(false);
+    }
+  };
+
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -1532,11 +1883,22 @@ function DevContent() {
                   <button
                     disabled={!publicKey || isLoading}
                     onClick={onCreateCleanNft}
-                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs disabled:opacity-50 w-full"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
                   >
-                    {isLoading ? "Обработка..." : "23. Создать чистый NFT"}
+                    {loading ? 'Создание...' : '23. Создать чистый NFT'}
                   </button>
                 </div>
+
+                <div>
+                  <button
+                    disabled={!publicKey || isLoading}
+                    onClick={onCreateCleanNftAndMint}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50"
+                  >
+                    {loading ? 'Создание...' : '24. onCreateCleanNftAndMint'}
+                  </button>
+                </div>
+
               </div>
 
               <button 
@@ -1554,6 +1916,8 @@ function DevContent() {
               >
                 {loading ? 'Вычисление...' : '7. Посчитать Merkle Root последнего раунда'}
               </button>
+
+  
             </div>
 
             {nftInfo && (
