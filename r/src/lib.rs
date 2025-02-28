@@ -26,6 +26,10 @@ pub fn process_instruction(
             msg!("Instruction: Create Clean NFT");
             instructions::instruction_24::process_create_clean_nft(program_id, accounts)
         }
+        25 => {
+            msg!("Instruction: Create Clean NFT and Mint Token");
+            instructions::instruction_25::process_create_clean_nft_and_mint(program_id, accounts)
+        }
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)
