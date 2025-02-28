@@ -73,6 +73,174 @@ function verifyMerkleProof(proof: Buffer[], leaf: Buffer, root: Buffer): boolean
   return computedHash.equals(root);
 }
 
+// Утилитные функции для работы с NFT
+async function validateAndGetMerkleProof(
+  connection: any,
+  wallet: any,
+  round: number,
+  allRoundsMerkleRoots: Buffer[],
+  allRoundsWinners: string[][]
+): Promise<{ proof: Buffer[]; isValid: boolean }> {
+  if (!wallet.publicKey) {
+    throw new Error("Кошелек не подключен");
+  }
+
+  if (round >= allRoundsMerkleRoots.length) {
+    throw new Error("Неверный номер раунда");
+  }
+
+  const winners = allRoundsWinners[round];
+  if (!winners.includes(wallet.publicKey.toBase58())) {
+    throw new Error("Адрес не найден в списке победителей");
+  }
+
+  const leaves = winners.map(addr => sha256(Buffer.from(addr, 'utf8')));
+  const tree = new MerkleTree(leaves, sha256);
+  const leaf = sha256(Buffer.from(wallet.publicKey.toBase58(), 'utf8'));
+  const proof = tree.getProof(leaf).map(p => p.data);
+
+  return {
+    proof,
+    isValid: verifyMerkleProof(proof, leaf, allRoundsMerkleRoots[round])
+  };
+}
+
+async function createMintAndTokenAccounts(
+  connection: any,
+  wallet: any,
+  programId: PublicKey
+): Promise<{
+  mint: Keypair;
+  associatedTokenAccount: PublicKey;
+  programAuthority: PublicKey;
+  bumpSeed: number;
+}> {
+  const mint = Keypair.generate();
+  const [programAuthority, bumpSeed] = await PublicKey.findProgramAddress(
+    [Buffer.from("mint_authority", "utf-8")],
+    programId
+  );
+  
+  const associatedTokenAccount = await getAssociatedTokenAddress(
+    mint.publicKey,
+    wallet.publicKey
+  );
+
+  return {
+    mint,
+    associatedTokenAccount,
+    programAuthority,
+    bumpSeed
+  };
+}
+
+async function createMetadataAccounts(
+  connection: any,
+  mint: PublicKey
+): Promise<{
+  metadata: PublicKey;
+  masterEdition: PublicKey;
+}> {
+  const umi = createUmi(connection.rpcEndpoint);
+  const metadata = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(),
+      mint.toBuffer()
+    ],
+    new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+  )[0];
+
+  const masterEdition = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").toBuffer(),
+      mint.toBuffer(),
+      Buffer.from("edition"),
+    ],
+    new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+  )[0];
+
+  return {
+    metadata,
+    masterEdition
+  };
+}
+
+async function createMintRecordPDA(
+  connection: any,
+  wallet: any,
+  programId: PublicKey,
+  round: number
+): Promise<{
+  mintRecord: PublicKey;
+  mintRecordBump: number;
+}> {
+  const [mintRecord, mintRecordBump] = await PublicKey.findProgramAddress(
+    [
+      Buffer.from("is_minted_ext", "utf-8"),
+      Buffer.from([round]),
+      wallet.publicKey.toBuffer(),
+    ],
+    programId
+  );
+
+  return {
+    mintRecord,
+    mintRecordBump
+  };
+}
+
+async function buildNftTransaction(
+  connection: any,
+  wallet: any,
+  programId: PublicKey,
+  accounts: {
+    mint: Keypair;
+    associatedTokenAccount: PublicKey;
+    programAuthority: PublicKey;
+    metadata: PublicKey;
+    masterEdition: PublicKey;
+    mintRecord: PublicKey;
+  },
+  proof: Buffer[],
+  round: number
+): Promise<Transaction> {
+  const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ 
+    units: 1000000 
+  });
+
+  const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
+    microLamports: 1 
+  });
+
+  const mintIx = new TransactionInstruction({
+    programId: programId,
+    keys: [
+      { pubkey: accounts.mint.publicKey, isSigner: true, isWritable: true },
+      { pubkey: accounts.associatedTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: accounts.programAuthority, isSigner: false, isWritable: false },
+      { pubkey: accounts.mintRecord, isSigner: false, isWritable: true },
+      { pubkey: accounts.metadata, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"), isSigner: false, isWritable: false },
+      { pubkey: accounts.masterEdition, isSigner: false, isWritable: true },
+    ],
+    data: Buffer.from([17, round, ...Array.from(Buffer.concat(proof))])
+  });
+
+  const transaction = new Transaction()
+    .add(modifyComputeUnits)
+    .add(addPriorityFee)
+    .add(mintIx);
+
+  return transaction;
+}
+
 function DevContent() {
   const { publicKey, signTransaction, sendTransaction, wallet } = useWallet();
   const { connection } = useConnection();
