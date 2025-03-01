@@ -1,8 +1,12 @@
 {
+  "type": "module",
   "license": "ISC",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "k01": "node --loader ts-node/esm k01.ts",
+    "k02": "node --loader ts-node/esm k02.ts",
+    "k03": "node --loader ts-node/esm k03.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

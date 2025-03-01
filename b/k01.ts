@@ -16,8 +16,12 @@ function generateBeautifulAddress(prefix: string): Keypair {
 async function main() {
   console.log("Начинаем поиск красивого адреса...");
   
-  // Здесь можно изменить префикс, который вы хотите найти
-  const desiredPrefix = "inf";
+  // Получаем префикс из аргументов командной строки или используем значение по умолчанию
+  const args = process.argv.slice(2);
+  const desiredPrefix = args[0] || "inf";
+  
+  console.log(`Ищем адрес с префиксом: ${desiredPrefix}`);
+  
   const keypair = generateBeautifulAddress(desiredPrefix);
   
   const publicKey = keypair.publicKey.toString();

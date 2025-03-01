@@ -9,6 +9,17 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Имя файла для сохранения всех ключей
+const KEYS_FILE = ".env_keys.json";
+
+// Интерфейс для хранения ключей
+interface KeyPair {
+  publicKey: string;
+  secretKey: number[];
+  prefix: string;
+  timestamp: string;
+}
+
 // Функция для генерации адреса с нужным префиксом (используется в воркере)
 function generateBeautifulAddress(prefix: string): Keypair | null {
   // Генерируем определенное количество адресов перед проверкой сообщений от главного потока
@@ -27,11 +38,37 @@ function generateBeautifulAddress(prefix: string): Keypair | null {
   return null; // Не нашли за maxAttempts попыток
 }
 
+// Функция для сохранения ключей в файл
+function saveKeysToFile(keyPair: KeyPair): void {
+  let keys: KeyPair[] = [];
+  
+  // Проверяем существует ли файл и читаем его содержимое
+  if (fs.existsSync(KEYS_FILE)) {
+    try {
+      const fileContent = fs.readFileSync(KEYS_FILE, 'utf8');
+      keys = JSON.parse(fileContent);
+    } catch (error) {
+      console.error('Ошибка при чтении файла с ключами:', error);
+      // Если файл поврежден, начинаем с пустого массива
+    }
+  }
+  
+  // Добавляем новый ключ
+  keys.push(keyPair);
+  
+  // Записываем обновленный массив ключей в файл
+  try {
+    fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
+  } catch (error) {
+    console.error('Ошибка при записи в файл с ключами:', error);
+  }
+}
+
 // Код для воркера
 if (!isMainThread) {
   const { prefix } = workerData;
   
-  // Бесконечный цикл поиска, пока не найдем или не получим сигнал остановки
+  // Бесконечный цикл поиска
   while (true) {
     const result = generateBeautifulAddress(prefix);
     
@@ -48,15 +85,16 @@ if (!isMainThread) {
 // Код для главного потока
 else {
   async function main() {
-    console.log("Начинаем поиск красивого адреса, используя все доступные ядра...");
+    console.log("Начинаем бесконечный поиск красивых адресов, используя все доступные ядра...");
+    console.log(`Все найденные ключи будут сохраняться в файл: ${KEYS_FILE}`);
     
     // Получаем префикс из аргументов командной строки или используем значение по умолчанию
     const args = process.argv.slice(2);
     const desiredPrefix = args[0] || "YAP";
     
-    console.log(`Ищем адрес с префиксом: ${desiredPrefix}`);
+    console.log(`Ищем адреса с префиксом: ${desiredPrefix}`);
     
-    // Определяем количество доступных ядер (можно уменьшить, если нужно оставить ресурсы для других задач)
+    // Определяем количество доступных ядер
     const numCPUs = os.cpus().length;
     console.log(`Запускаем ${numCPUs} потоков для поиска...`);
     
@@ -69,6 +107,9 @@ else {
       workers.forEach(worker => worker.terminate());
     };
     
+    // Счетчик найденных адресов
+    let foundCount = 0;
+    
     // Создаем и запускаем воркеры
     for (let i = 0; i < numCPUs; i++) {
       const worker = new Worker(__filename, {
@@ -80,18 +121,23 @@ else {
       // Обработчик сообщений от воркера
       worker.on('message', (message) => {
         if (message.found) {
-          console.log(`Найден адрес: ${message.publicKey}`);
+          foundCount++;
+          const publicKey = message.publicKey;
           
-          // Сохраняем секретный ключ в файл
-          const filename = `.env_key-${message.publicKey.slice(0, 8)}.json`;
-          fs.writeFileSync(filename, JSON.stringify(message.secretKey));
-          console.log(`Секретный ключ сохранен в файл: ${filename}`);
+          // Создаем объект для сохранения
+          const keyPair: KeyPair = {
+            publicKey: publicKey,
+            secretKey: message.secretKey,
+            prefix: desiredPrefix,
+            timestamp: new Date().toISOString()
+          };
           
-          // Останавливаем все воркеры, так как мы нашли адрес
-          stopAllWorkers();
+          // Сохраняем ключ в общий файл
+          saveKeysToFile(keyPair);
           
-          // Выходим из программы с успешным статусом
-          process.exit(0);
+          console.log(`[${foundCount}] Найден адрес: ${publicKey}`);
+          console.log(`Ключ сохранен в файл: ${KEYS_FILE}`);
+          console.log(`Продолжаем поиск...`);
         }
       });
       
