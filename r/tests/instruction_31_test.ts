@@ -6,18 +6,35 @@ import {
   PublicKey, 
   SystemProgram, 
   SYSVAR_INSTRUCTIONS_PUBKEY, 
+  SYSVAR_RENT_PUBKEY,
   Transaction, 
   TransactionInstruction,
-  sendAndConfirmTransaction
+  sendAndConfirmTransaction,
+  ComputeBudgetProgram
 } from '@solana/web3.js';
 import { 
   TOKEN_PROGRAM_ID, 
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 import { expect } from 'chai';
+import { describe, it } from 'mocha';
 import * as dotenv from 'dotenv';
+import bs58 from 'bs58';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
+
+// Получаем ID программы из переменной окружения
+if (!process.env.PROGRAM_ID) {
+  throw new Error('Переменная окружения PROGRAM_ID не задана. Пожалуйста, установите её перед запуском теста.');
+}
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
+console.log('ID программы:', PROGRAM_ID.toBase58());
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
@@ -48,7 +65,7 @@ describe('Instruction 31', function() {
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(
       [Buffer.from('mint_authority')],
-      new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
+      PROGRAM_ID
     );
     console.log('Program Authority PDA:', programAuthority.toBase58());
 
@@ -102,7 +119,7 @@ describe('Instruction 31', function() {
     try {
       console.log('Создаем инструкцию...');
       const instruction = new TransactionInstruction({
-        programId: new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP'),
+        programId: PROGRAM_ID,
         keys: [
           // Аккаунты для CreateV1
           { pubkey: metadata, isSigner: false, isWritable: true },
@@ -120,6 +137,9 @@ describe('Instruction 31', function() {
           { pubkey: tokenRecord, isSigner: false, isWritable: true },
           { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+          
+          // Аккаунт для rent
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
         data: Buffer.from([31]) // Instruction 31
       });

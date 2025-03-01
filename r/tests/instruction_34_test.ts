@@ -27,8 +27,11 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-// Получаем ID программы из переменной окружения или используем значение по умолчанию
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || 'Y2NcW3Mrchp248Yym4wmtRvDe7CNpBpn1bCtW6EyMjF');
+// Получаем ID программы из переменной окружения
+if (!process.env.PROGRAM_ID) {
+  throw new Error('Переменная окружения PROGRAM_ID не задана. Пожалуйста, установите её перед запуском теста.');
+}
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());

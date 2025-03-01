@@ -5,6 +5,13 @@ import bs58 from 'bs58';
 
 dotenv.config();
 
+// Получаем ID программы из переменной окружения
+if (!process.env.PROGRAM_ID) {
+  throw new Error('Переменная окружения PROGRAM_ID не задана. Пожалуйста, установите её перед запуском теста.');
+}
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
+console.log('ID программы:', PROGRAM_ID.toBase58());
+
 describe('Instruction 15 Test', function() {
   // Увеличиваем таймаут до 30 секунд
   this.timeout(30000);
@@ -27,7 +34,7 @@ describe('Instruction 15 Test', function() {
         Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
         payer.publicKey.toBuffer(),
       ],
-      new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
+      PROGRAM_ID
     );
     console.log('Mint Record PDA:', mintRecordPDA.toBase58());
 
@@ -39,7 +46,7 @@ describe('Instruction 15 Test', function() {
     try {
       console.log('Создаем инструкцию...');
       const instruction = new TransactionInstruction({
-        programId: new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP'),
+        programId: PROGRAM_ID,
         keys: [
           { pubkey: payer.publicKey, isSigner: true, isWritable: true },
           { pubkey: mintRecordPDA, isSigner: false, isWritable: true },

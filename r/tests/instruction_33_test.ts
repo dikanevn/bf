@@ -29,6 +29,13 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+// Получаем ID программы из переменной окружения
+if (!process.env.PROGRAM_ID) {
+  throw new Error('Переменная окружения PROGRAM_ID не задана. Пожалуйста, установите её перед запуском теста.');
+}
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
+console.log('ID программы:', PROGRAM_ID.toBase58());
+
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());
 console.log('Token-2022 Program ID в виде массива байтов:', Array.from(TOKEN_2022_PROGRAM_ID.toBytes()));
@@ -103,7 +110,7 @@ describe('Instruction 33', function() {
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(
       [Buffer.from('mint_authority')],
-      new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
+      PROGRAM_ID
     );
     console.log('Program Authority PDA:', programAuthority.toBase58());
 
@@ -154,16 +161,16 @@ describe('Instruction 33', function() {
     );
     console.log('Token Record PDA:', tokenRecord.toBase58());
 
-    // Получаем адрес PDA для расширенного отслеживания минтинга с Token-2022
+    // Получаем адрес PDA для расширенного отслеживания минтинга
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('is_minted_ext'),
         Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
         payer.publicKey.toBuffer(),
       ],
-      new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
+      PROGRAM_ID
     );
-    console.log('Mint Record PDA (Token-2022):', mintRecordPDA.toBase58());
+    console.log('Mint Record PDA:', mintRecordPDA.toBase58());
 
     // Создаем буфер данных для инструкции
     const dataLength = 1 + 1 + (proof.length * 32); // 1 байт для номера инструкции, 1 байт для номера раунда, и proof
@@ -179,7 +186,7 @@ describe('Instruction 33', function() {
     try {
       console.log('Создаем инструкцию...');
       const instruction = new TransactionInstruction({
-        programId: new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP'),
+        programId: PROGRAM_ID,
         keys: [
           // Аккаунты для CreateV1
           { pubkey: metadata, isSigner: false, isWritable: true },
@@ -198,8 +205,10 @@ describe('Instruction 33', function() {
           { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
           
-          // Дополнительные аккаунты для Merkle proof
+          // Аккаунт для rent
           { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+          
+          // Аккаунт для отслеживания минтинга
           { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
         ],
         data: dataBuffer
