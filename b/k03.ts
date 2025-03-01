@@ -56,9 +56,19 @@ function saveKeysToFile(keyPair: KeyPair): void {
   // Добавляем новый ключ
   keys.push(keyPair);
   
-  // Записываем обновленный массив ключей в файл
+  // Создаем строку, где каждый публичный ключ начинается с новой строки
   try {
-    fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2));
+    // Преобразуем массив ключей в строку JSON
+    const jsonString = JSON.stringify(keys);
+    
+    // Заменяем закрывающую скобку объекта и открывающую скобку следующего объекта
+    // на закрывающую скобку, перенос строки и открывающую скобку
+    const formattedString = jsonString
+      .replace(/\}\,\{/g, '},\n{')
+      .replace(/^\[/, '[\n')  // Добавляем перенос строки после открывающей скобки массива
+      .replace(/\]$/, '\n]'); // Добавляем перенос строки перед закрывающей скобкой массива
+    
+    fs.writeFileSync(KEYS_FILE, formattedString);
   } catch (error) {
     console.error('Ошибка при записи в файл с ключами:', error);
   }

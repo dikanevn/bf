@@ -1,3 +1,11 @@
+/**
+ * Тест для инструкции 17: Создание NFT с проверкой Merkle-доказательства
+ * 
+ * Этот тест проверяет функциональность создания "чистого" NFT и минтинга токена
+ * с верификацией через Merkle-дерево. Используются данные из раунда 11 для
+ * построения Merkle-дерева и проверки, что адрес пользователя находится в списке
+ * разрешенных для минтинга.
+ */
 import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { expect } from 'chai';

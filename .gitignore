@@ -7,7 +7,7 @@ node_modules
 .pnp.*
 
 # Build outputs
-/fm/.env*
+
 
 
 /f/.next
@@ -15,7 +15,10 @@ node_modules
 /f/build
 /b/test-ledger
 
+/b/.env*
+/fm/.env*
 /r/.env*
+
 /r/target
 /r/node_modules
 # Environment

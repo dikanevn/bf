@@ -1,3 +1,9 @@
+/**
+ * Тест для инструкции 15: Удаление записи о минтинге для раунда 10
+ * 
+ * Этот тест проверяет функциональность удаления PDA-аккаунта, который отслеживает
+ * информацию о минтинге NFT для конкретного пользователя в раунде 10.
+ */
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { expect } from 'chai';
 import * as dotenv from 'dotenv';
