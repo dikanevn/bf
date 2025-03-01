@@ -297,6 +297,7 @@ function DevContent() {
   const [isLoading24, setIsLoading24] = useState(false);
   const [isLoading32, setIsLoading32] = useState(false);
   const [isLoading33, setIsLoading33] = useState(false);
+  const [isLoading15, setIsLoading15] = useState(false);
 
   const onCreateMintAndTokenWithRoundSpecificMerkleProofTrackedExtended = async () => {
     if (!publicKey || !sendTransaction) {
@@ -1456,6 +1457,86 @@ function DevContent() {
     }
   };
 
+  const onDeleteMintRecordPDA = async () => {
+    if (!publicKey || !sendTransaction) {
+      alert("Пожалуйста, подключите кошелек");
+      return;
+    }
+
+    setIsLoading15(true);
+
+    try {
+      // Проверяем, что номер раунда валидный
+      const roundNumber = parseInt(manualRoundNumber);
+      if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 21) {
+        alert("Пожалуйста, введите корректный номер раунда (1-21)");
+        setIsLoading15(false);
+        return;
+      }
+
+      // Получаем адрес PDA для расширенного отслеживания минтинга
+      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("is_minted_ext"),
+          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          publicKey.toBuffer(),
+        ],
+        PROGRAM_ID
+      );
+      console.log("Mint Record PDA для удаления:", mintRecordPDA.toBase58());
+
+      // Создаем буфер данных для инструкции
+      const dataBuffer = Buffer.alloc(2);
+      dataBuffer[0] = 15; // Инструкция 15
+      dataBuffer[1] = roundNumber - 1; // Номер раунда (0-based в контракте)
+
+      // Создаем инструкцию
+      const deleteMintRecordIx = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
+        ],
+        data: dataBuffer
+      });
+
+      // Создаем транзакцию
+      const transaction = new Transaction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      
+      transaction.add(deleteMintRecordIx);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+
+      try {
+        const signature = await sendTransaction(transaction, connection);
+        
+        console.log("Transaction sent:", signature);
+        await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature
+        });
+        
+        console.log("Transaction confirmed");
+        alert(`PDA для отслеживания минтинга раунда ${roundNumber} успешно удален!`);
+        
+        // Обновляем список выигрышных раундов
+        if (publicKey) {
+          await loadWinningRounds(publicKey.toString());
+        }
+      } catch (error) {
+        console.error("Error sending transaction:", error);
+        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading15(false);
+    }
+  };
+
   useEffect(() => {
     if (publicKey) {
       void loadWinningRounds(publicKey.toString());
@@ -1591,6 +1672,26 @@ function DevContent() {
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
                 >
                   {isLoading33 ? 'Processing...' : '33. Создать и минтить pNFT с Token-2022 и проверкой Merkle proof'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="21"
+                  value={manualRoundNumber}
+                  onChange={(e) => setManualRoundNumber(e.target.value)}
+                  className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
+                  placeholder="Раунд"
+                  disabled={isLoading15}
+                />
+                <button 
+                  onClick={onDeleteMintRecordPDA}
+                  disabled={!publicKey || isLoading15}
+                  className="bg-red-800 hover:bg-red-900 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
+                >
+                  {isLoading15 ? 'Processing...' : '15. Удалить PDA для отслеживания минтинга'}
                 </button>
               </div>
 

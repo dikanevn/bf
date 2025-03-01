@@ -1,3 +1,5 @@
+// удаление расширенного PDA 10(11)
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
