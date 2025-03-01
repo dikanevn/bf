@@ -4,7 +4,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction, Keypair, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js';
-import { createInitializeMintInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { createInitializeMintInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { useState, useEffect, useCallback } from 'react';
 import { sha256 as jsSha256 } from 'js-sha256';
@@ -296,6 +296,7 @@ function DevContent() {
   const [isLoadingNftInfo, setIsLoadingNftInfo] = useState(false);
   const [isLoading24, setIsLoading24] = useState(false);
   const [isLoading32, setIsLoading32] = useState(false);
+  const [isLoading33, setIsLoading33] = useState(false);
 
   const onCreateMintAndTokenWithRoundSpecificMerkleProofTrackedExtended = async () => {
     if (!publicKey || !sendTransaction) {
@@ -390,12 +391,12 @@ function DevContent() {
 
       // Создаем буфер данных для инструкции
       // [0] - номер инструкции (16)
-      // [1] - номер раунда (0-20)
+      // [1] - номер раунда
       // [2..] - данные доказательства (каждый узел - 32 байта)
       const dataLength = 2 + (proofBuffers.length * 32);
       const dataBuffer = Buffer.alloc(dataLength);
       dataBuffer[0] = 16; // Инструкция 16
-      dataBuffer[1] = roundNumber - 1; // Номер раунда (0-based в контракте)
+      dataBuffer.writeUInt8(roundNumber - 1, 1); // Номер раунда (0-based в контракте)
       
       // Записываем каждый узел доказательства в буфер
       for (let i = 0; i < proofBuffers.length; i++) {
@@ -548,7 +549,7 @@ function DevContent() {
         [Buffer.from("mint_authority")],
         PROGRAM_ID
       );
-      
+
       // Получаем адрес метаданных
       const [metadataAddress] = PublicKey.findProgramAddressSync(
         [
@@ -1063,27 +1064,27 @@ function DevContent() {
       console.log("Program Authority PDA:", programAuthority.toBase58());
 
       // Получаем адрес метаданных
-      const [metadata] = PublicKey.findProgramAddressSync(
+      const [metadataAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
-          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-          newMintKeypair.publicKey.toBuffer(),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
         ],
         TOKEN_METADATA_PROGRAM_ID
       );
-      console.log("Metadata PDA:", metadata.toBase58());
+      console.log("Metadata address:", metadataAddress.toBase58());
 
       // Получаем адрес master edition
-      const [masterEdition] = PublicKey.findProgramAddressSync(
+      const [masterEditionAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("metadata"),
-          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-          newMintKeypair.publicKey.toBuffer(),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
           Buffer.from("edition"),
         ],
         TOKEN_METADATA_PROGRAM_ID
       );
-      console.log("Master Edition PDA:", masterEdition.toBase58());
+      console.log("Master Edition address:", masterEditionAddress.toBase58());
 
       // Получаем адрес ассоциированного токен аккаунта
       const tokenAccount = await getAssociatedTokenAddress(
@@ -1136,8 +1137,8 @@ function DevContent() {
         programId: PROGRAM_ID,
         keys: [
           // Аккаунты для CreateV1
-          { pubkey: metadata, isSigner: false, isWritable: true },
-          { pubkey: masterEdition, isSigner: false, isWritable: true },
+          { pubkey: metadataAddress, isSigner: false, isWritable: true },
+          { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
           { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
           { pubkey: programAuthority, isSigner: false, isWritable: false },
           { pubkey: publicKey, isSigner: true, isWritable: true },
@@ -1201,7 +1202,7 @@ function DevContent() {
         console.log("Transaction confirmed");
         setMintKeypair(newMintKeypair);
         setAtaAddress(tokenAccount);
-        setMetadataAddress(metadata);
+        setMetadataAddress(metadataAddress);
         setMintAddress(newMintKeypair.publicKey.toString());
         alert(`pNFT успешно создан и заминчен с проверкой Merkle proof для раунда ${roundNumber}!`);
         
@@ -1218,6 +1219,240 @@ function DevContent() {
       alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading32(false);
+    }
+  };
+
+  const onCreateAndMintPNFTWithToken2022AndMerkleProof = async () => {
+    if (!publicKey || !sendTransaction || !signTransaction) {
+      alert("Пожалуйста, подключите кошелек");
+      return;
+    }
+
+    setIsLoading33(true);
+
+    try {
+      // Проверяем, что номер раунда валидный
+      const roundNumber = parseInt(manualRoundNumber);
+      if (isNaN(roundNumber) || roundNumber < 1 || roundNumber > 21) {
+        alert("Пожалуйста, введите корректный номер раунда (1-21)");
+        setIsLoading33(false);
+        return;
+      }
+
+      // Проверяем существование раунда и загружаем данные
+      let d3Data;
+      try {
+        d3Data = await import(`../../../b/rounds/${roundNumber}/d3.json`);
+      } catch {
+        alert(`Раунд ${roundNumber} не найден!`);
+        setIsLoading33(false);
+        return;
+      }
+      
+      // Получаем все адреса из d3
+      const addresses = d3Data.default.map((item: { player: string }) => item.player);
+      
+      // Создаем листья для меркл-дерева
+      const leaves = addresses.map((addr: string) => {
+        const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
+        return sha256(pkBytes);
+      });
+      
+      // Сортируем листья для консистентности
+      const sortedLeaves = leaves.slice().sort(Buffer.compare);
+      
+      // Создаем меркл-дерево
+      const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+      
+      // Вычисляем хеш (лист) для текущего адреса
+      const leaf = sha256(Buffer.from(publicKey.toBytes()));
+      
+      // Получаем доказательство для текущего адреса
+      const proof = tree.getProof(leaf);
+      
+      if (!proof || proof.length === 0) {
+        alert(`Ваш адрес не найден в списке участников раунда ${roundNumber}!`);
+        setIsLoading33(false);
+        return;
+      }
+      
+      // Преобразуем доказательство в массив байтов
+      const proofBuffers = proof.map(p => p.data);
+      
+      // Проверяем доказательство вручную
+      if (!verifyMerkleProof(proofBuffers, leaf, tree.getRoot())) {
+        alert('Ошибка: Merkle proof не прошел локальную проверку!');
+        setIsLoading33(false);
+        return;
+      }
+
+      // Создаем новый keypair для mint аккаунта
+      const newMintKeypair = Keypair.generate();
+      
+      // Получаем PDA для mint authority
+      const [programAuthority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority")],
+        PROGRAM_ID
+      );
+      console.log("Program Authority PDA:", programAuthority.toBase58());
+
+      // Получаем адрес метаданных
+      const [metadataAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Metadata address:", metadataAddress.toBase58());
+
+      // Получаем адрес master edition
+      const [masterEditionAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBytes(),
+          newMintKeypair.publicKey.toBytes(),
+          Buffer.from("edition"),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Master Edition address:", masterEditionAddress.toBase58());
+
+      // Получаем адрес ассоциированного токен аккаунта с использованием Token-2022
+      const tokenAccount = await getAssociatedTokenAddress(
+        newMintKeypair.publicKey,
+        publicKey,
+        false,
+        TOKEN_2022_PROGRAM_ID // Используем Token-2022
+      );
+      console.log("Token Account (Token-2022):", tokenAccount.toBase58());
+
+      // Получаем адрес token record
+      const [tokenRecord] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+          newMintKeypair.publicKey.toBuffer(),
+          Buffer.from("token_record"),
+          tokenAccount.toBuffer(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log("Token Record PDA:", tokenRecord.toBase58());
+
+      // Получаем адрес PDA для расширенного отслеживания минтинга
+      const [mintRecordPDA] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("is_minted_ext"),
+          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          publicKey.toBuffer(),
+        ],
+        PROGRAM_ID
+      );
+      console.log("Mint Record PDA:", mintRecordPDA.toBase58());
+
+      // Создаем буфер данных для инструкции
+      const dataLength = 2 + (proofBuffers.length * 32); // 1 байт для номера инструкции, 1 байт для номера раунда, и proof
+      const dataBuffer = Buffer.alloc(dataLength);
+      dataBuffer[0] = 33; // Инструкция 33
+      dataBuffer[1] = roundNumber - 1; // Номер раунда (0-based в контракте)
+      
+      // Записываем каждый узел доказательства в буфер
+      for (let i = 0; i < proofBuffers.length; i++) {
+        const buffer = proofBuffers[i] as Buffer;
+        if (buffer) {
+          buffer.copy(dataBuffer, 2 + (i * 32));
+        }
+      }
+
+      // Создаем инструкцию
+      const instruction = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          // Аккаунты для CreateV1
+          { pubkey: metadataAddress, isSigner: false, isWritable: true },
+          { pubkey: masterEditionAddress, isSigner: false, isWritable: true },
+          { pubkey: newMintKeypair.publicKey, isSigner: true, isWritable: true },
+          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false }, // Используем Token-2022
+          
+          // Дополнительные аккаунты для MintV1
+          { pubkey: publicKey, isSigner: true, isWritable: true }, // token_owner
+          { pubkey: tokenAccount, isSigner: false, isWritable: true },
+          { pubkey: tokenRecord, isSigner: false, isWritable: true },
+          { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
+          
+          // Дополнительные аккаунты для Merkle proof
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
+        ],
+        data: dataBuffer
+      });
+
+      // Создаем транзакцию
+      const transaction = new Transaction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      
+      // Увеличиваем лимит вычислительных единиц
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+        units: 1000000
+      });
+      
+      // Добавляем приоритетные комиссии
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
+        microLamports: 1000000 
+      });
+      
+      transaction.add(modifyComputeUnits);
+      transaction.add(addPriorityFee);
+      transaction.add(instruction);
+      transaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+
+      try {
+        // Подписываем транзакцию локально keypair'ом минта
+        transaction.partialSign(newMintKeypair);
+        
+        // Отправляем транзакцию на подпись пользователю
+        const signedTransaction = await signTransaction(transaction);
+        
+        // Отправляем подписанную транзакцию
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        console.log("Transaction sent:", signature);
+        setTxSignature(signature);
+        
+        await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature
+        });
+        
+        console.log("Transaction confirmed");
+        setMintKeypair(newMintKeypair);
+        setAtaAddress(tokenAccount);
+        setMetadataAddress(metadataAddress);
+        setMintAddress(newMintKeypair.publicKey.toString());
+        alert(`pNFT с Token-2022 успешно создан и заминчен с проверкой Merkle proof для раунда ${roundNumber}!`);
+        
+        // Обновляем список выигрышных раундов
+        if (publicKey) {
+          await loadWinningRounds(publicKey.toString());
+        }
+      } catch (error) {
+        console.error("Error sending transaction:", error);
+        alert(`Ошибка при отправке транзакции: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Ошибка: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading33(false);
     }
   };
 
@@ -1336,6 +1571,26 @@ function DevContent() {
                   className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
                 >
                   {isLoading32 ? 'Processing...' : '32. Создать и минтить pNFT с проверкой Merkle proof'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="21"
+                  value={manualRoundNumber}
+                  onChange={(e) => setManualRoundNumber(e.target.value)}
+                  className="bg-gray-800 text-white px-3 py-1.5 text-xs border border-gray-700 w-16"
+                  placeholder="Раунд"
+                  disabled={isLoading33}
+                />
+                <button 
+                  onClick={onCreateAndMintPNFTWithToken2022AndMerkleProof}
+                  disabled={!publicKey || isLoading33}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-xs disabled:opacity-50 flex-1"
+                >
+                  {isLoading33 ? 'Processing...' : '33. Создать и минтить pNFT с Token-2022 и проверкой Merkle proof'}
                 </button>
               </div>
 

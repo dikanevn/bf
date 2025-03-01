@@ -11,7 +11,8 @@ import {
   ComputeBudgetProgram
 } from '@solana/web3.js';
 import { 
-  ASSOCIATED_TOKEN_PROGRAM_ID
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID
 } from '@solana/spl-token';
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
@@ -29,7 +30,6 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());
 console.log('Token-2022 Program ID в виде массива байтов:', Array.from(TOKEN_2022_PROGRAM_ID.toBytes()));
 
@@ -157,7 +157,7 @@ describe('Instruction 33', function() {
     // Получаем адрес PDA для расширенного отслеживания минтинга с Token-2022
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
-        Buffer.from('is_minted_ext_token2022'),
+        Buffer.from('is_minted_ext'),
         Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
         payer.publicKey.toBuffer(),
       ],

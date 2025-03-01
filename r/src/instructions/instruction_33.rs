@@ -1,3 +1,5 @@
+// с нуля pNFT с проверками 2022
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -122,7 +124,7 @@ pub fn process_instruction(
     // Проверяем PDA для отслеживания минтинга
     let (expected_mint_record_address, mint_record_bump) = Pubkey::find_program_address(
         &[
-            b"is_minted_ext_token2022",
+            b"is_minted_ext",
             &[round_number as u8],
             payer.key.as_ref(),
         ],
@@ -169,14 +171,16 @@ pub fn process_instruction(
 
     // Инициализируем минт с использованием Token-2022
     msg!("Initializing mint with Token-2022...");
+    let init_mint_ix = spl_token_2022::instruction::initialize_mint2(
+        &TOKEN_2022_PROGRAM_ID,
+        &mint_account.key,
+        &program_authority.key,
+        Some(&program_authority.key),
+        0,
+    )?;
+    
     invoke(
-        &spl_token_2022::instruction::initialize_mint2(
-            &TOKEN_2022_PROGRAM_ID,
-            &mint_account.key,
-            &program_authority.key,
-            Some(&program_authority.key),
-            0,
-        )?,
+        &init_mint_ix,
         &[
             mint_account.clone(),
             rent_sysvar.clone(),
@@ -257,7 +261,7 @@ pub fn process_instruction(
     let mint_record_lamports = rent.minimum_balance(mint_record_size);
     
     let mint_record_signature_seeds = &[
-        b"is_minted_ext_token2022".as_ref(),
+        b"is_minted_ext".as_ref(),
         &[round_number as u8],
         payer.key.as_ref(),
         &[mint_record_bump],
