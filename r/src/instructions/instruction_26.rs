@@ -11,7 +11,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use spl_token::{
-    instruction::{initialize_mint, mint_to},
+    instruction::initialize_mint,
     ID as TOKEN_PROGRAM_ID,
 };
 use mpl_token_metadata::{
@@ -26,17 +26,15 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("Starting create_nft_with_merkle_proof_v1...");
+    msg!("Starting create_nft_metadata_with_merkle_proof_v1...");
     
     let account_info_iter = &mut accounts.iter();
     
     // Получаем все необходимые аккаунты
     let mint_account = next_account_info(account_info_iter)?;
-    let associated_token_account = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
-    let associated_token_program = next_account_info(account_info_iter)?;
     let rent_sysvar = next_account_info(account_info_iter)?;
     let program_authority = next_account_info(account_info_iter)?;
     let mint_record_account = next_account_info(account_info_iter)?;
@@ -167,47 +165,6 @@ pub fn process_instruction(
         signers,
     )?;
 
-    // Создаем ассоциированный токен аккаунт
-    msg!("Creating associated token account...");
-    invoke(
-        &spl_associated_token_account::instruction::create_associated_token_account(
-            payer.key,
-            payer.key,
-            mint_account.key,
-            &spl_token::id(),
-        ),
-        &[
-            payer.clone(),
-            associated_token_account.clone(),
-            payer.clone(),
-            mint_account.clone(),
-            system_program.clone(),
-            token_program.clone(),
-            associated_token_program.clone(),
-            rent_sysvar.clone(),
-        ],
-    )?;
-
-    // Минтим токен
-    msg!("Minting token...");
-    invoke_signed(
-        &mint_to(
-            &spl_token::id(),
-            mint_account.key,
-            associated_token_account.key,
-            &program_authority.key,
-            &[],
-            1,
-        )?,
-        &[
-            mint_account.clone(),
-            associated_token_account.clone(),
-            program_authority.clone(),
-            token_program.clone(),
-        ],
-        signers,
-    )?;
-
     // Создаем метаданные NFT
     msg!("Creating metadata and master edition...");
     let create_v1 = CreateV1 {
@@ -288,7 +245,7 @@ pub fn process_instruction(
     let mut data = mint_record_account.try_borrow_mut_data()?;
     data[0..32].copy_from_slice(&mint_account.key.to_bytes());
 
-    msg!("NFT created successfully with Merkle proof verification!");
+    msg!("NFT metadata created successfully with Merkle proof verification!");
     Ok(())
 }
 

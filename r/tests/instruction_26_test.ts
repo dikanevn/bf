@@ -1,27 +1,15 @@
 import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { expect } from 'chai';
 import * as dotenv from 'dotenv';
 import { createHash } from 'crypto';
 import bs58 from 'bs58';
-import { MerkleTree } from 'merkletreejs';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-// Функция для вычисления sha256 хеша
-function sha256(data: Buffer): Buffer {
-  return createHash('sha256').update(data).digest();
-}
-
-describe('Instruction 25', function() {
+describe('Instruction 26', function() {
   // Увеличиваем таймаут до 30 секунд
   this.timeout(30000);
 
@@ -35,50 +23,18 @@ describe('Instruction 25', function() {
   // Создаем кейпару для минта
   const mint = Keypair.generate();
 
-  it('should create an NFT with Merkle proof verification and metadata V1', async function() {
-    console.log('Начинаем тест создания NFT с Merkle proof V1 (инструкция 25)');
+  it('should create NFT metadata with Merkle proof verification', async function() {
+    console.log('Начинаем тест создания NFT metadata с Merkle proof V1 (инструкция 26)');
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
     console.log('Адрес минта:', mint.publicKey.toBase58());
 
-    // Загружаем данные раунда 11
-    const d3Data = JSON.parse(fs.readFileSync(path.join(__dirname, '../../b/rounds/11/d3.json'), 'utf8'));
-    
-    // Получаем все адреса из d3
-    const addresses = d3Data.map((item: { player: string }) => item.player);
-    
-    // Создаем листья для меркл-дерева
-    const leaves = addresses.map((addr: string) => {
-      const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
-      return createHash('sha256').update(pkBytes).digest();
-    });
-    
-    // Сортируем листья для консистентности
-    const sortedLeaves = leaves.slice().sort(Buffer.compare);
-    
-    // Создаем меркл-дерево
-    const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
-    
-    // Вычисляем хеш (лист) для текущего адреса
-    const leaf = createHash('sha256').update(payer.publicKey.toBuffer()).digest();
-    
-    // Получаем доказательство для текущего адреса
-    const proof = tree.getProof(leaf).map(p => p.data);
-
-    // Проверяем доказательство
-    const isValid = tree.verify(proof, leaf, tree.getRoot());
-    console.log('Merkle proof валиден:', isValid);
-    
-    if (!isValid) {
-      throw new Error('Адрес не найден в списке участников раунда 11');
-    }
-
-    // Получаем адрес ассоциированного токен аккаунта
-    const associatedTokenAccount = await getAssociatedTokenAddress(
-      mint.publicKey,
-      payer.publicKey,
-      false
-    );
-    console.log('Адрес ассоциированного токен аккаунта:', associatedTokenAccount.toBase58());
+    // Создаем простой Merkle proof для теста
+    const roundNumber = 0;
+    const leaf = Buffer.from(payer.publicKey.toBytes());
+    const proof = [
+      Buffer.from("11111111111111111111111111111111", "hex"),
+      Buffer.from("22222222222222222222222222222222", "hex"),
+    ];
 
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(
@@ -91,8 +47,8 @@ describe('Instruction 25', function() {
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('is_minted_ext'),
-        Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
-        payer.publicKey.toBuffer(),
+        Buffer.from([roundNumber]),
+        payer.publicKey.toBytes(),
       ],
       new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP')
     );
@@ -102,8 +58,8 @@ describe('Instruction 25', function() {
     const [metadataAddress] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('metadata'),
-        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-        mint.publicKey.toBuffer(),
+        TOKEN_METADATA_PROGRAM_ID.toBytes(),
+        mint.publicKey.toBytes(),
       ],
       TOKEN_METADATA_PROGRAM_ID
     );
@@ -113,8 +69,8 @@ describe('Instruction 25', function() {
     const [masterEdition] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('metadata'),
-        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-        mint.publicKey.toBuffer(),
+        TOKEN_METADATA_PROGRAM_ID.toBytes(),
+        mint.publicKey.toBytes(),
         Buffer.from('edition'),
       ],
       TOKEN_METADATA_PROGRAM_ID
@@ -124,8 +80,8 @@ describe('Instruction 25', function() {
     // Создаем буфер данных для инструкции
     const dataLength = 2 + (proof.length * 32);
     const dataBuffer = Buffer.alloc(dataLength);
-    dataBuffer[0] = 25; // Инструкция 25
-    dataBuffer[1] = 10; // Используем раунд 10 (соответствует раунду 11 в UI)
+    dataBuffer[0] = 26; // Инструкция 26
+    dataBuffer[1] = roundNumber; // Используем раунд 0
     
     // Записываем каждый узел доказательства в буфер
     for (let i = 0; i < proof.length; i++) {
@@ -138,17 +94,16 @@ describe('Instruction 25', function() {
         programId: new PublicKey('YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP'),
         keys: [
           { pubkey: mint.publicKey, isSigner: true, isWritable: true },
-          { pubkey: associatedTokenAccount, isSigner: false, isWritable: true },
           { pubkey: payer.publicKey, isSigner: true, isWritable: true },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
           { pubkey: programAuthority, isSigner: false, isWritable: false },
           { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
           { pubkey: metadataAddress, isSigner: false, isWritable: true },
           { pubkey: masterEdition, isSigner: false, isWritable: true },
           { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
         data: dataBuffer
       });
@@ -175,11 +130,6 @@ describe('Instruction 25', function() {
 
       console.log('Проверяем создание аккаунтов...');
       
-      // Проверяем, что токен был создан
-      const tokenAccount = await connection.getTokenAccountBalance(associatedTokenAccount);
-      console.log('Баланс токен аккаунта:', tokenAccount.value.uiAmount);
-      expect(tokenAccount.value.uiAmount).to.equal(1);
-
       // Проверяем, что метаданные были созданы
       const metadataAccountInfo = await connection.getAccountInfo(metadataAddress);
       console.log('Metadata аккаунт существует:', metadataAccountInfo !== null);
