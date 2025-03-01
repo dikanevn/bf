@@ -1,5 +1,5 @@
 1
-
+fuser -k 3000/tcp
 
 git add . && git commit -m "q" && git push -u origin main
 
