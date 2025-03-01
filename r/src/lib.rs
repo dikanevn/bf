@@ -55,29 +55,9 @@ pub fn process_instruction(
             msg!("Instruction: Create mint, token with Merkle proof verification, extended tracking, and metadata");
             instructions::instruction_17::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-        24 => {
-            msg!("Instruction: Create Clean NFT");
-            instructions::instruction_24::process_create_clean_nft(program_id, accounts)
-        }
-        25 => {
-            msg!("Instruction: Create NFT with Merkle proof verification and metadata V1");
-            instructions::instruction_25::process_instruction(program_id, accounts, &instruction_data[1..])
-        }
-        26 => {
-            msg!("Instruction: Create NFT metadata with Merkle proof verification (without minting)");
-            instructions::instruction_26::process_instruction(program_id, accounts, &instruction_data[1..])
-        }
-        27 => {
-            msg!("Starting create and mint token...");
-            instructions::instruction_27::process_instruction(program_id, accounts, instruction_data)
-        }
-        29 => {
-            msg!("Starting mint token from existing NFT...");
-            instructions::instruction_29::process_instruction(program_id, accounts, instruction_data)
-        }
-        30 => {
-            msg!("Instruction: Create Limited NFT with print supply 1");
-            instructions::instruction_30::process_create_limited_nft(program_id, accounts)
+        31 => {
+            msg!("Instruction: Create and Mint pNFT");
+            instructions::instruction_31::process_create_and_mint_pnft(program_id, accounts)
         }
         _ => {
             msg!("Error: Unknown instruction");
