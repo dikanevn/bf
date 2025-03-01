@@ -59,6 +59,10 @@ pub fn process_instruction(
             msg!("Instruction: Create Clean NFT");
             instructions::instruction_24::process_create_clean_nft(program_id, accounts)
         }
+        25 => {
+            msg!("Instruction: Create NFT with Merkle proof verification and metadata V1");
+            instructions::instruction_25::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)
