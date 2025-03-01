@@ -1,0 +1,45 @@
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint,
+    entrypoint::ProgramResult,
+    msg,
+    pubkey::Pubkey,
+    program_error::ProgramError,
+};
+
+// Точка входа в программу
+entrypoint!(process_instruction);
+
+/// Проверяет, инициализирован ли аккаунт
+pub fn is_initialized(account_data: &[u8]) -> bool {
+    if account_data.len() > 0 {
+        account_data[0] == 1
+    } else {
+        false
+    }
+}
+
+/// Обработчик инструкций
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    msg!("Пустой контракт с функцией is_initialized");
+    
+    // Получаем первый аккаунт из списка
+    let accounts_iter = &mut accounts.iter();
+    let account = next_account_info(accounts_iter)?;
+    
+    // Проверяем, что аккаунт принадлежит нашей программе
+    if account.owner != program_id {
+        msg!("Аккаунт не принадлежит этой программе");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Проверяем, инициализирован ли аккаунт
+    let is_init = is_initialized(&account.data.borrow());
+    msg!("Аккаунт инициализирован: {}", is_init);
+    
+    Ok(())
+}
