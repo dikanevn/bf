@@ -12,3 +12,5 @@ git checkout -b clean_version && git checkout main && git reset --hard clean_ver
 
 
 cargo build-sbf && solana program deploy --program-id YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP target/deploy/r.so 
+
+npx mocha -r ts-node/register tests/instruction_33_test.t
