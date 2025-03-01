@@ -20,7 +20,7 @@ async function mintTokenForExistingMint() {
 
   // Укажите здесь адрес mint токена, созданного в n11.ts
   // Например:
-  const mintAddress = "5xce3KB4ZpF2ExUm8tSbBGw6heL83iH4i21Ycyk8H7Qk"; // Замените на ваш
+  const mintAddress = "Gqfg2MkuHmMR3JCbjM66ZrFBsNuXfyDiAxWmNigzp2US"; // Замените на ваш
   console.log("Используемый mint:", mintAddress);
 
   // 1. Получаем или создаем ассоциированный токен-аккаунт для payer

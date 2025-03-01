@@ -92,7 +92,7 @@ pub fn process_instruction(
         proof.push(node);
     }
     
-    let leaf = solana_program::hash::hash(payer.key.as_ref()).to_bytes();
+    let leaf = payer.key.to_bytes();
     
     if !verify_merkle_proof(leaf, &proof, merkle_root) {
         msg!("Invalid Merkle proof for address: {} in round {}", payer.key, round_number);
@@ -250,13 +250,19 @@ pub fn process_instruction(
 }
 
 fn verify_merkle_proof(leaf: [u8;32], proof: &Vec<[u8;32]>, root: [u8;32]) -> bool {
-    let mut computed = leaf;
-    for node in proof.iter() {
-        let (min, max) = if computed <= *node { (computed, *node) } else { (*node, computed) };
-        let mut bytes = [0u8;64];
-        bytes[..32].copy_from_slice(&min);
-        bytes[32..].copy_from_slice(&max);
-        computed = solana_program::hash::hash(&bytes).to_bytes();
+    let mut current = leaf;
+    
+    for &node in proof {
+        let mut hasher = Sha256::new();
+        if current <= node {
+            hasher.update(&current);
+            hasher.update(&node);
+        } else {
+            hasher.update(&node);
+            hasher.update(&current);
+        }
+        current = hasher.finalize().into();
     }
-    computed == root
+    
+    current == root
 } 

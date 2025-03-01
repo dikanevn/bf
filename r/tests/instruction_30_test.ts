@@ -8,7 +8,7 @@ dotenv.config();
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
-describe('Instruction 24', function() {
+describe('Instruction 30', function() {
   // Увеличиваем таймаут до 30 секунд
   this.timeout(30000);
 
@@ -22,8 +22,8 @@ describe('Instruction 24', function() {
   // Создаем кейпару для минта
   const mint = Keypair.generate();
 
-  it('should create a clean NFT 24', async function() {
-    console.log('Начинаем тест создания чистого NFT (инструкция 24)');
+  it('should create a limited NFT with print supply 1', async function() {
+    console.log('Начинаем тест создания NFT с print supply 1 (инструкция 30)');
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
     console.log('Адрес минта:', mint.publicKey.toBase58());
 
@@ -73,7 +73,7 @@ describe('Instruction 24', function() {
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
-        data: Buffer.from([24]) // Instruction 23
+        data: Buffer.from([30]) // Instruction 30
       });
 
       console.log('Создаем транзакцию...');

@@ -1,3 +1,22 @@
+/*
+ * Инструкция 25: Создание NFT с проверкой Merkle-дерева и метаданными V1
+ * 
+ * Эта инструкция создает NFT с проверкой принадлежности адреса к белому списку через Merkle-дерево.
+ * Процесс:
+ * 1. Загружает данные раунда 11 из файла d3.json
+ * 2. Создает Merkle-дерево из адресов участников
+ * 3. Генерирует и проверяет Merkle-proof для текущего адреса
+ * 4. Создает:
+ *    - Новый минт (токен)
+ *    - Ассоциированный токен аккаунт
+ *    - Аккаунт метаданных
+ *    - Master Edition аккаунт
+ *    - PDA для отслеживания минтинга (mintRecordPDA)
+ * 
+ * Особенность: Использует расширенное отслеживание минтинга через mintRecordPDA
+ * и требует подтверждение через Merkle-proof для минтинга.
+ */
+
 import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { expect } from 'chai';

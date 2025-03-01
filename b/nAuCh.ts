@@ -16,7 +16,7 @@ const payer = Keypair.fromSecretKey(payerSecretKey);
 console.log("Payer публичный ключ:", payer.publicKey.toString());
 
 // Фиксированный mint-адрес, определённый в программе (l/programs/lib.rs)
-const mintPubkey = new PublicKey("7aQ1xxsHnZqxMsSXJhosnTAJo1pK7FMETMzy91ep1VoN");
+const mintPubkey = new PublicKey("Gqfg2MkuHmMR3JCbjM66ZrFBsNuXfyDiAxWmNigzp2US");
 
 // Новый адрес authority, на который необходимо сменить mint authority
 const newAuthority = new PublicKey("2BESDrxqXxBWYwhiuzC4SgsoCmqoMiiEGwZ1en6gT4Se");

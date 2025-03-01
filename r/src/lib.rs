@@ -67,6 +67,18 @@ pub fn process_instruction(
             msg!("Instruction: Create NFT metadata with Merkle proof verification (without minting)");
             instructions::instruction_26::process_instruction(program_id, accounts, &instruction_data[1..])
         }
+        27 => {
+            msg!("Starting create and mint token...");
+            instructions::instruction_27::process_instruction(program_id, accounts, instruction_data)
+        }
+        29 => {
+            msg!("Starting mint token from existing NFT...");
+            instructions::instruction_29::process_instruction(program_id, accounts, instruction_data)
+        }
+        30 => {
+            msg!("Instruction: Create Limited NFT with print supply 1");
+            instructions::instruction_30::process_create_limited_nft(program_id, accounts)
+        }
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)

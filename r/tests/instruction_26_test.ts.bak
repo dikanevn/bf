@@ -1,3 +1,20 @@
+/*
+ * Инструкция 26: Создание только метаданных NFT с проверкой Merkle-дерева
+ * 
+ * Эта инструкция создает только метаданные для NFT с проверкой через Merkle-дерево.
+ * В отличие от инструкции 25, не создает сам токен и ассоциированный токен аккаунт.
+ * 
+ * Процесс:
+ * 1. Использует тестовый Merkle-proof (в реальном использовании нужно заменить на настоящий)
+ * 2. Создает:
+ *    - Аккаунт метаданных
+ *    - Master Edition аккаунт
+ *    - PDA для отслеживания минтинга (mintRecordPDA)
+ * 
+ * Особенность: Используется когда токен уже существует и нужно только добавить 
+ * к нему метаданные с проверкой через Merkle-дерево.
+ */
+
 import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_INSTRUCTIONS_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { expect } from 'chai';
