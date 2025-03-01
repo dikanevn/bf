@@ -1,20 +1,20 @@
 Параметры запуска:
   Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-  Mint-адрес токена: Aw76V2VDqobew43PJZqfbEfYtnrAnpipowq7RuHAiZNo
-(node:2660766) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+  Mint-адрес токена: SMBtHCCC6RYRutFEPb4gZqeBLUZbMNhRKaMKZZLHi7W
+(node:2691438) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: A1uZL3nrzKKCHHHzufb2hJGBbYYyFT1xvViWYGR64xwL
+ATA: 7yyGvKMLmxbsY7bLp96bYY25N3JAi3QpNrHCutFu4vEg
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "AGmGTYM1fpU1qiqPHMQw8mxN2nUuQUoQJ4smZqfWqhHN",
+      "freezeAuthority": "HbfR5UkcW5rWRrTmAoxg3nbot2nGpUxzzRkK6YLhkuvV",
       "isInitialized": true,
-      "mintAuthority": "AGmGTYM1fpU1qiqPHMQw8mxN2nUuQUoQJ4smZqfWqhHN",
+      "mintAuthority": "HbfR5UkcW5rWRrTmAoxg3nbot2nGpUxzzRkK6YLhkuvV",
       "supply": "1"
     },
     "type": "mint"
@@ -24,18 +24,11 @@ Mint Account Data: {
 }
 
 === Информация о токен-аккаунте (ATA) ===
-Mint: Aw76V2VDqobew43PJZqfbEfYtnrAnpipowq7RuHAiZNo
-Owner: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-Amount: 1
-Delegate: нет
-State: frozen
-Is Native: false
-Delegated Amount: 0
-Close Authority: нет
+Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: HPXkbAry3S1C52YcfXZfoiqQ47TmoCDzwP3jXG8HAsh8,254
-Master Edition PDA: AGmGTYM1fpU1qiqPHMQw8mxN2nUuQUoQJ4smZqfWqhHN,255
+Metadata PDA: 4b51MUk9kwxkKP5GkqTXbnvyb4eZurJhda3jJAu3Xfdr,254
+Master Edition PDA: HbfR5UkcW5rWRrTmAoxg3nbot2nGpUxzzRkK6YLhkuvV,255
 
 === Детали цифрового актива ===
 
