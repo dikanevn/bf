@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import axios, { AxiosError } from 'axios';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Определение __dirname для ES модулей
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface GameStatistic {
   gameId: string;

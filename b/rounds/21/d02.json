@@ -373,7 +373,7 @@
     "TOTAL_TICKETS": "230",
     "TOKEN_ADDRESS": "",
     "RNG_ALGORITHM": "SHA-256(SHA-256(BTC_HASH + Solana_pubkey[1:-4]))",
-    "winnersCount": ""
+    "winnersCount": 126
   },
   {
     "round": 22,
