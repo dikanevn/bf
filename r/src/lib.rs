@@ -47,14 +47,17 @@ pub fn process_instruction(
     }
 
     match instruction_data[0] {
+        /*
         15 => {
             msg!("Instruction: Delete mint record for specific round");
             instructions::instruction_15::process_instruction(program_id, accounts, &instruction_data[1..])
         }
+        */
+        /*
         17 => {
             msg!("Instruction: Create mint, token with Merkle proof verification, extended tracking, and metadata");
             instructions::instruction_17::process_instruction(program_id, accounts, &instruction_data[1..])
-        }
+        } 
         31 => {
             msg!("Instruction: Create and Mint pNFT");
             instructions::instruction_31::process_create_and_mint_pnft(program_id, accounts)
@@ -66,15 +69,13 @@ pub fn process_instruction(
         33 => {
             msg!("Instruction: Create and Mint pNFT with Token-2022 and Merkle proof verification");
             instructions::instruction_33::process_instruction(program_id, accounts, &instruction_data[1..])
-        }
+        } */
         34 => {
             msg!("Instruction: Create Collection NFT with Token-2022");
             instructions::instruction_34::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-        35 => {
-            msg!("Instruction: Create Collection NFT with Token-2022 using predefined mint key");
-            instructions::instruction_34::process_instruction(program_id, accounts, &instruction_data[1..])
-        }
+
+        /*
         36 => {
             msg!("Instruction: Create and Mint pNFT with Token-2022, Merkle proof verification and fixed collection");
             instructions::instruction_36::process_instruction(program_id, accounts, &instruction_data[1..])
@@ -83,6 +84,8 @@ pub fn process_instruction(
             msg!("Instruction: Create and Mint pNFT with Token-2022, Merkle proof verification and fixed collection without verification");
             instructions::instruction_37::process_instruction(program_id, accounts, &instruction_data[1..])
         }
+*/
+
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)
