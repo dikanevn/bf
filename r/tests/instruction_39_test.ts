@@ -80,7 +80,7 @@ describe('Instruction 39', function() {
   this.timeout(60000);
 
   // Подключение к девнет
-  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
   // const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
   
   // Загружаем приватный ключ из .env в формате base58
