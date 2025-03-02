@@ -44,7 +44,7 @@ if (!process.env.PROGRAM_ID) {
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
 
 // Фиксированный адрес коллекции
-const COLLECTION_MINT = new PublicKey('YAPxk5i8tUv6MD7wXRPvoBrYd27Shrbbu4xpWYk1jRc');
+const COLLECTION_MINT = new PublicKey('YAP8v1Y4aKiM6HEtpCDabXz7VgH9SXxUgTBHbWaN7hg');
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());

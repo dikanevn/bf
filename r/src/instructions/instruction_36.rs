@@ -22,7 +22,7 @@ use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 use crate::ALL_MERKLE_ROOTS;
 
 // Фиксированный адрес коллекции
-const COLLECTION_MINT: &str = "YAPxk5i8tUv6MD7wXRPvoBrYd27Shrbbu4xpWYk1jRc";
+const COLLECTION_MINT: &str = "YAP8v1Y4aKiM6HEtpCDabXz7VgH9SXxUgTBHbWaN7hg";
 
 pub fn process_instruction(
     program_id: &Pubkey,
