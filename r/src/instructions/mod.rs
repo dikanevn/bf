@@ -25,6 +25,11 @@ pub mod instruction_38;
 pub mod instruction_39;
 */
 
+/*
 pub mod instruction_40;
 pub mod instruction_41;
+*/
+
+
 pub mod instruction_42;
+pub mod instruction_43;

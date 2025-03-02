@@ -13,8 +13,12 @@ git checkout -b clean_version && git checkout main && git reset --hard clean_ver
 solana config set --url https://api.devnet.solana.com
 solana config set --url https://api.mainnet-beta.solana.com
 
-
+  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+  const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
 
 cargo build-sbf && solana program deploy --program-id YARH5uorBN1qRHXZNHMXnDsqg6hKrEQptPbg1eiQPeP target/deploy/r.so 
 
 npx mocha -r ts-node/register tests/instruction_34_test.ts
+
+solana-keygen recover -o buffer-keypair.json
+solana program close 
