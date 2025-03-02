@@ -100,7 +100,7 @@ else {
     
     // Получаем префикс из аргументов командной строки или используем значение по умолчанию
     const args = process.argv.slice(2);
-    const desiredPrefix = args[0] || "YAP";
+    const desiredPrefix = args[0] || "aa";
     
     console.log(`Ищем адреса с префиксом: ${desiredPrefix}`);
     

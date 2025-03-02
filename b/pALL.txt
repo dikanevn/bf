@@ -1,18 +1,18 @@
 Параметры запуска:
   Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-  Mint-адрес токена: DhC3e4621RVJ8caGfYAgSziaMHhrmMPwTWERxZu3fxye
+  Mint-адрес токена: YAP8v1Y4aKiM6HEtpCDabXz7VgH9SXxUgTBHbWaN7hg
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: 7BzDncB7NsmEy1DNtuhc89YWcYsbrDyHnMf7CgeJY5nC
+ATA: drEJzLnZfctMkN37ZTBfuXprgBNES3ZJRQCMjpLbFXN
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5",
+      "freezeAuthority": "GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq",
       "isInitialized": true,
-      "mintAuthority": "BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5",
+      "mintAuthority": "GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq",
       "supply": "1"
     },
     "type": "mint"
@@ -25,8 +25,8 @@ Mint Account Data: {
 Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: 8CWxtPq9jSsyyHv2enpzrBe9bnA7gYaarDT5UzdhftjZ,255
-Master Edition PDA: BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5,253
+Metadata PDA: 6w4jGmtx66taotRJ7hVPydDhRdrKexXLgUTQCbZTNRy7,255
+Master Edition PDA: GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq,252
 
 === Детали цифрового актива ===
 
