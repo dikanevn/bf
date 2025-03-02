@@ -1,18 +1,18 @@
 Параметры запуска:
-  Адрес владельца: YAPtopU8xhtnHcW4W5cBKVA3eLojzDU6q5h5X5eEykt
-  Mint-адрес токена: aaU9nccsJFWzW29ipUgFoq84DqUZjqRRGak7jrwa4ad
+  Адрес владельца: E9kCZevh9Y5piLjkzYuFdMBcr7XU1zdHRdYMnvHFhveH
+  Mint-адрес токена: E2i6VKGsjXXbSXJUL2y6yEkJrHQZwSke7r9yuCQScrun
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: 64EPj36asw1bwfbsSTct8Uqt5ZXxyS6LA7yffGEw4HZW
+ATA: G2TcrAX7XMNndSUVbZEat67sYmBc3Tj1UWoQNzF6gp6a
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk",
+      "freezeAuthority": "DZke9rYUHwyKc2bpFxdbLaMuoyLeM2Df31RSRDVSUHXd",
       "isInitialized": true,
-      "mintAuthority": "DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk",
+      "mintAuthority": "DZke9rYUHwyKc2bpFxdbLaMuoyLeM2Df31RSRDVSUHXd",
       "supply": "1"
     },
     "type": "mint"
@@ -22,11 +22,18 @@ Mint Account Data: {
 }
 
 === Информация о токен-аккаунте (ATA) ===
-Токен-аккаунт не найден.
+Mint: E2i6VKGsjXXbSXJUL2y6yEkJrHQZwSke7r9yuCQScrun
+Owner: E9kCZevh9Y5piLjkzYuFdMBcr7XU1zdHRdYMnvHFhveH
+Amount: 1
+Delegate: нет
+State: frozen
+Is Native: false
+Delegated Amount: 0
+Close Authority: нет
 
 === Метаданные цифрового актива ===
-Metadata PDA: 4MnxZ7eibBqPcwgK8maV2Ku6V7FaUzPVrLkFbhwXMJGP,255
-Master Edition PDA: DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk,255
+Metadata PDA: 958vzULL4owe8B8RG8ULivHBvcQSn7a4szGvjCXis5Se,255
+Master Edition PDA: DZke9rYUHwyKc2bpFxdbLaMuoyLeM2Df31RSRDVSUHXd,255
 
 === Детали цифрового актива ===
 

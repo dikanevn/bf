@@ -47,12 +47,12 @@ pub fn process_instruction(
     }
 
     match instruction_data[0] {
-        /*
+       
         15 => {
             msg!("Instruction: Delete mint record for specific round");
             instructions::instruction_15::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-        */
+       
         /*
         17 => {
             msg!("Instruction: Create mint, token with Merkle proof verification, extended tracking, and metadata");
@@ -89,10 +89,15 @@ pub fn process_instruction(
             msg!("Instruction: Create and Mint pNFT with Token-2022 to program's ATA");
             instructions::instruction_38::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-        */
+        
         39 => {
             msg!("Instruction: Create and Mint pNFT to program's ATA");
             instructions::instruction_39::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
+        */
+        40 => {
+            msg!("Instruction: Create and Mint pNFT with standard SPL Token, Merkle proof and fixed collection");
+            instructions::instruction_40::process_instruction(program_id, accounts, &instruction_data[1..])
         }
         _ => {
             msg!("Error: Unknown instruction");
