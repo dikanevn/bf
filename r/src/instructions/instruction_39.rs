@@ -1,4 +1,4 @@
-// Создание стандартного токена (SPL Token) с чеканкой на АТА программы
+// Создание NFT-коллекции стандартного токена (SPL Token) с чеканкой на АТА программы
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},

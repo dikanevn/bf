@@ -99,6 +99,14 @@ pub fn process_instruction(
             msg!("Instruction: Create and Mint pNFT with standard SPL Token, Merkle proof and fixed collection");
             instructions::instruction_40::process_instruction(program_id, accounts, &instruction_data[1..])
         }
+        41 => {
+            msg!("Instruction: Update pNFT metadata");
+            instructions::instruction_41::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
+        42 => {
+            msg!("Instruction: Withdraw SOL from program PDA to recipient");
+            instructions::instruction_42::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)
