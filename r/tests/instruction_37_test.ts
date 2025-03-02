@@ -108,16 +108,9 @@ describe('Instruction 37', function() {
       throw new Error('Адрес не найден в списке участников раунда 11');
     }
 
-    // Запрашиваем airdrop для оплаты транзакций (если нужно)
+    // Проверяем баланс
     const balance = await connection.getBalance(payer.publicKey);
-    if (balance < 1 * 10**9) {
-      console.log('Запрашиваем airdrop для плательщика...');
-      const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * 10**9);
-      await connection.confirmTransaction(airdropSignature);
-      console.log('Airdrop получен');
-    } else {
-      console.log('Баланс достаточен:', balance / 10**9, 'SOL');
-    }
+    console.log('Текущий баланс:', balance / 10**9, 'SOL');
 
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(

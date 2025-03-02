@@ -50,8 +50,8 @@ describe('Instruction 38', function() {
   this.timeout(60000);
 
   // Подключение к девнет
-  // const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-  const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+  // const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
   
   // Загружаем приватный ключ из .env в формате base58
   const privateKeyString = process.env.PRIVATE_KEY!;
@@ -65,17 +65,10 @@ describe('Instruction 38', function() {
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
     console.log('Адрес минта:', mint.publicKey.toBase58());
     
-    // Запрашиваем airdrop для оплаты транзакций (если нужно)
+    // Проверяем баланс
     const balance = await connection.getBalance(payer.publicKey);
-    if (balance < 1 * 10**9) {
-      console.log('Запрашиваем airdrop для плательщика...');
-      const airdropSignature = await connection.requestAirdrop(payer.publicKey, 2 * 10**9);
-      await connection.confirmTransaction(airdropSignature);
-      console.log('Airdrop получен');
-    } else {
-      console.log('Баланс достаточен:', balance / 10**9, 'SOL');
-    }
-
+    console.log('Текущий баланс:', balance / 10**9, 'SOL');
+    
     // Получаем PDA для mint authority
     const [programAuthority] = PublicKey.findProgramAddressSync(
       [Buffer.from('mint_authority')],
