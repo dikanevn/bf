@@ -1,39 +1,32 @@
 Параметры запуска:
   Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-  Mint-адрес токена: 36TbHXP76B7pXikLjyJVV531EDPfGqBAgwrND2PJsYWQ
+  Mint-адрес токена: DhC3e4621RVJ8caGfYAgSziaMHhrmMPwTWERxZu3fxye
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: AhYeUFsMXyspC7inuu3U77i2Y7cChzEn6HQG2V8v6bC4
+ATA: 7BzDncB7NsmEy1DNtuhc89YWcYsbrDyHnMf7CgeJY5nC
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "WQ5m78EyBobYo4cUXUDpZKFxPUaRBR1sNDQpi8amHMU",
+      "freezeAuthority": "BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5",
       "isInitialized": true,
-      "mintAuthority": "WQ5m78EyBobYo4cUXUDpZKFxPUaRBR1sNDQpi8amHMU",
+      "mintAuthority": "BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5",
       "supply": "1"
     },
     "type": "mint"
   },
-  "program": "spl-token",
+  "program": "spl-token-2022",
   "space": 82
 }
 
 === Информация о токен-аккаунте (ATA) ===
-Mint: 36TbHXP76B7pXikLjyJVV531EDPfGqBAgwrND2PJsYWQ
-Owner: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-Amount: 1
-Delegate: нет
-State: frozen
-Is Native: false
-Delegated Amount: 0
-Close Authority: нет
+Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: 2bArsfLAx6gGoDw9KtDj2s782MEBnqqkZfcYvwUhKn44,255
-Master Edition PDA: WQ5m78EyBobYo4cUXUDpZKFxPUaRBR1sNDQpi8amHMU,254
+Metadata PDA: 8CWxtPq9jSsyyHv2enpzrBe9bnA7gYaarDT5UzdhftjZ,255
+Master Edition PDA: BHXyqcq53gnz3ttW4LJsZa3poZ4oEQNrgBiP7bm5dwr5,253
 
 === Детали цифрового актива ===
 

@@ -1,4 +1,4 @@
-// Создание NFT-коллекции без проверок Merkle дерева и расширенного PDA
+// Создание NFT-коллекции с чеканкой на АТА программы
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -23,7 +23,7 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("Starting create_collection_nft_with_token2022...");
+    msg!("Starting create_nft_with_token2022_to_program_ata...");
     
     let accounts_iter = &mut accounts.iter();
     
@@ -36,7 +36,6 @@ pub fn process_instruction(
     let system_program = next_account_info(accounts_iter)?;
     let sysvar_instructions = next_account_info(accounts_iter)?;
     let token_2022_program = next_account_info(accounts_iter)?;
-    let token_owner = next_account_info(accounts_iter)?;
     let token_account = next_account_info(accounts_iter)?;
     let token_record = next_account_info(accounts_iter)?;
     let spl_ata_program = next_account_info(accounts_iter)?;
@@ -126,8 +125,8 @@ pub fn process_instruction(
         ],
     )?;
 
-    // Создаем метаданные и master edition для коллекции
-    msg!("Creating metadata and master edition for collection...");
+    // Создаем метаданные и master edition для NFT
+    msg!("Creating metadata and master edition for NFT...");
     let create_v1 = CreateV1 {
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
@@ -141,8 +140,8 @@ pub fn process_instruction(
     };
 
     let create_args = CreateV1InstructionArgs {
-        name: "YAPSTER INFINITY".to_string(),
-        symbol: "YAPINF".to_string(),
+        name: "Yapster Infinity".to_string(),
+        symbol: "YAP8v1".to_string(),
         uri: "https://a.b/c.json".to_string(),
         seller_fee_basis_points: 1000,
         creators: None,
@@ -151,7 +150,7 @@ pub fn process_instruction(
         token_standard: TokenStandard::ProgrammableNonFungible,
         collection: None,
         uses: None,
-        collection_details: Some(CollectionDetails::V1 { size: 0 }), // Устанавливаем флаг коллекции
+        collection_details: None,
         rule_set: None,
         decimals: Some(0),
         print_supply: Some(PrintSupply::Zero),
@@ -174,19 +173,19 @@ pub fn process_instruction(
         signers,
     )?;
 
-    // Создаем ассоциированный токен аккаунт с использованием Token-2022
-    msg!("Creating associated token account with Token-2022...");
+    // Создаем ассоциированный токен аккаунт для программы с использованием Token-2022
+    msg!("Creating associated token account for program with Token-2022...");
     invoke(
         &spl_associated_token_account::instruction::create_associated_token_account_idempotent(
             payer.key,
-            token_owner.key,
+            program_authority.key, // Владелец токена - программа (PDA)
             mint_account.key,
             &TOKEN_2022_PROGRAM_ID,
         ),
         &[
             payer.clone(),
             token_account.clone(),
-            token_owner.clone(),
+            program_authority.clone(), // Владелец токена - программа (PDA)
             mint_account.clone(),
             system_program.clone(),
             token_2022_program.clone(),
@@ -195,11 +194,11 @@ pub fn process_instruction(
         ],
     )?;
 
-    // Минтим токен с использованием Token-2022
-    msg!("Minting collection token with Token-2022...");
+    // Минтим токен с использованием Token-2022 на АТА программы
+    msg!("Minting token to program's ATA with Token-2022...");
     let mint_v1 = MintV1 {
         token: *token_account.key,
-        token_owner: Some(*token_owner.key),
+        token_owner: Some(*program_authority.key), // Владелец токена - программа (PDA)
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
         token_record: Some(*token_record.key),
@@ -225,7 +224,7 @@ pub fn process_instruction(
         &mint_v1.instruction(mint_args),
         &[
             token_account.clone(),
-            token_owner.clone(),
+            program_authority.clone(), // Владелец токена - программа (PDA)
             metadata_account.clone(),
             master_edition_account.clone(),
             token_record.clone(),
@@ -241,6 +240,6 @@ pub fn process_instruction(
         signers,
     )?;
 
-    msg!("Collection NFT created and minted successfully with Token-2022!");
+    msg!("NFT created and minted to program's ATA successfully with Token-2022!");
     Ok(())
 } 

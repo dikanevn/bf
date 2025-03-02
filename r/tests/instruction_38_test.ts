@@ -1,11 +1,9 @@
 /**
- * Тест для инструкции 35: Создание Collection NFT с использованием Token-2022 и предопределенным ключом
+ * Тест для инструкции 38: Создание pNFT с использованием Token-2022 и чеканкой на АТА программы
  * 
- * Этот тест проверяет функциональность создания Collection NFT (коллекционного NFT)
- * с использованием стандарта Token-2022 и заранее определенного ключа минта из переменной
- * окружения. Создается новый аккаунт минта с заданным ключом, метаданные и токен с 
- * атрибутами коллекции, который может быть использован для группировки других NFT 
- * в единую коллекцию.
+ * Этот тест проверяет функциональность создания Programmable NFT (pNFT) с использованием
+ * стандарта Token-2022, где токен чеканится на АТА программы, а не пользователя.
+ * Тест демонстрирует полный процесс создания NFT, включая создание АТА для программы.
  */
 import { 
   Connection, 
@@ -42,56 +40,30 @@ if (!process.env.PROGRAM_ID) {
 }
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
 
-// Получаем ключ коллекции из переменной окружения
-if (!process.env.COLLECTION_KEY) {
-  throw new Error('Переменная окружения COLLECTION_KEY не задана. Пожалуйста, установите её перед запуском теста.');
-}
-
-// Создаем кейпару для минта из предоставленного ключа
-let mint: Keypair;
-try {
-  // Пробуем сначала распарсить как массив чисел
-  const collectionKeyStr = process.env.COLLECTION_KEY.trim();
-  
-  // Проверяем, начинается ли строка с [ и заканчивается на ]
-  if (collectionKeyStr.startsWith('[') && collectionKeyStr.endsWith(']')) {
-    const collectionKeyBytes = JSON.parse(collectionKeyStr);
-    if (!Array.isArray(collectionKeyBytes)) {
-      throw new Error('COLLECTION_KEY должен быть массивом чисел');
-    }
-    mint = Keypair.fromSecretKey(Uint8Array.from(collectionKeyBytes));
-  } else {
-    // Если не JSON массив, пробуем как base58 строку
-    mint = Keypair.fromSecretKey(bs58.decode(collectionKeyStr));
-  }
-  
-  console.log('Успешно загружен ключ коллекции');
-  console.log('Публичный адрес коллекции:', mint.publicKey.toBase58());
-} catch (error) {
-  console.error('Ошибка при парсинге COLLECTION_KEY:', error);
-  throw new Error('Не удалось создать кейпару из COLLECTION_KEY. Убедитесь, что это валидный JSON массив чисел или base58 строка.');
-}
-
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());
 console.log('Token-2022 Program ID в виде массива байтов:', Array.from(TOKEN_2022_PROGRAM_ID.toBytes()));
 console.log('ID программы:', PROGRAM_ID.toBase58());
 
-describe('Instruction 35', function() {
+describe('Instruction 38', function() {
   // Увеличиваем таймаут до 60 секунд
   this.timeout(60000);
 
   // Подключение к девнет
-  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+  // const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+  const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
   
   // Загружаем приватный ключ из .env в формате base58
   const privateKeyString = process.env.PRIVATE_KEY!;
   const payer = Keypair.fromSecretKey(bs58.decode(privateKeyString));
+  
+  // Создаем кейпару для минта
+  const mint = Keypair.generate();
 
-  it('should create a Collection NFT with Token-2022 using predefined mint key', async function() {
-    console.log('Начинаем тест создания NFT-коллекции с Token-2022 и предопределенным ключом (инструкция 35)');
+  it('should create a pNFT with Token-2022 and mint to program ATA', async function() {
+    console.log('Начинаем тест создания pNFT с Token-2022 и чеканкой на АТА программы (инструкция 38)');
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
-    console.log('Адрес минта (из предопределенного ключа):', mint.publicKey.toBase58());
+    console.log('Адрес минта:', mint.publicKey.toBase58());
     
     // Запрашиваем airdrop для оплаты транзакций (если нужно)
     const balance = await connection.getBalance(payer.publicKey);
@@ -134,16 +106,16 @@ describe('Instruction 35', function() {
     );
     console.log('Master Edition PDA:', masterEdition.toBase58());
 
-    // Получаем адрес ассоциированного токен аккаунта с использованием Token-2022
+    // Получаем адрес ассоциированного токен аккаунта для программы с использованием Token-2022
     const tokenAccount = await PublicKey.findProgramAddressSync(
       [
-        payer.publicKey.toBuffer(),
+        programAuthority.toBuffer(), // Владелец токена - программа (PDA)
         TOKEN_2022_PROGRAM_ID.toBuffer(),
         mint.publicKey.toBuffer(),
       ],
       ASSOCIATED_TOKEN_PROGRAM_ID
     )[0];
-    console.log('Token Account PDA (Token-2022):', tokenAccount.toBase58());
+    console.log('Program Token Account PDA (Token-2022):', tokenAccount.toBase58());
 
     // Получаем адрес token record
     const [tokenRecord] = PublicKey.findProgramAddressSync(
@@ -160,7 +132,8 @@ describe('Instruction 35', function() {
 
     // Создаем буфер данных для инструкции
     const dataBuffer = Buffer.alloc(1);
-    dataBuffer[0] = 34; // Инструкция 34 , так как не нужна доп инструкция
+    dataBuffer[0] = 38; // Инструкция 38
+
     try {
       console.log('Создаем инструкцию...');
       const instruction = new TransactionInstruction({
@@ -176,8 +149,7 @@ describe('Instruction 35', function() {
           { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
           { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false }, // Используем Token-2022
           
-          // Дополнительные аккаунты для MintV1
-          { pubkey: payer.publicKey, isSigner: true, isWritable: true }, // token_owner
+          // Аккаунты для MintV1 на АТА программы
           { pubkey: tokenAccount, isSigner: false, isWritable: true },
           { pubkey: tokenRecord, isSigner: false, isWritable: true },
           { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -227,7 +199,7 @@ describe('Instruction 35', function() {
       }
 
       const tokenAccountInfo = await connection.getAccountInfo(tokenAccount);
-      console.log('Token аккаунт существует:', tokenAccountInfo !== null);
+      console.log('Token аккаунт программы существует:', tokenAccountInfo !== null);
       if (tokenAccountInfo) {
         console.log('Размер Token аккаунта:', tokenAccountInfo.data.length);
         console.log('Владелец Token аккаунта:', tokenAccountInfo.owner.toBase58());

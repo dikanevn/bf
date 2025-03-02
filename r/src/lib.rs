@@ -69,13 +69,13 @@ pub fn process_instruction(
         33 => {
             msg!("Instruction: Create and Mint pNFT with Token-2022 and Merkle proof verification");
             instructions::instruction_33::process_instruction(program_id, accounts, &instruction_data[1..])
-        } */
-        34 => {
+        } 
+        35 => {
             msg!("Instruction: Create Collection NFT with Token-2022");
-            instructions::instruction_34::process_instruction(program_id, accounts, &instruction_data[1..])
+            instructions::instruction_35::process_instruction(program_id, accounts, &instruction_data[1..])
         }
 
-        /*
+        
         36 => {
             msg!("Instruction: Create and Mint pNFT with Token-2022, Merkle proof verification and fixed collection");
             instructions::instruction_36::process_instruction(program_id, accounts, &instruction_data[1..])
@@ -85,6 +85,10 @@ pub fn process_instruction(
             instructions::instruction_37::process_instruction(program_id, accounts, &instruction_data[1..])
         }
 */
+        38 => {
+            msg!("Instruction: Create and Mint pNFT with Token-2022 to program's ATA");
+            instructions::instruction_38::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
 
         _ => {
             msg!("Error: Unknown instruction");
