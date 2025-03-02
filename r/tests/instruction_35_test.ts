@@ -160,7 +160,7 @@ describe('Instruction 35', function() {
 
     // Создаем буфер данных для инструкции
     const dataBuffer = Buffer.alloc(1);
-    dataBuffer[0] = 34; // Инструкция 34 , так как не нужна доп инструкция
+    dataBuffer[0] = 35; // Инструкция 35
     try {
       console.log('Создаем инструкцию...');
       const instruction = new TransactionInstruction({
