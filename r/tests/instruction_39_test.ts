@@ -1,9 +1,9 @@
 /**
- * Тест для инструкции 38: Создание Collection NFT с использованием Token-2022 и чеканкой на АТА программы
+ * Тест для инструкции 39: Создание стандартного токена с использованием SPL Token и чеканкой на АТА программы
  * 
- * Этот тест проверяет функциональность создания Collection NFT (коллекционного NFT)
- * с использованием стандарта Token-2022, где токен чеканится на АТА программы, а не пользователя.
- * Тест демонстрирует полный процесс создания коллекции NFT, включая создание АТА для программы.
+ * Этот тест проверяет функциональность создания стандартного токена
+ * с использованием стандарта SPL Token, где токен чеканится на АТА программы, а не пользователя.
+ * Тест демонстрирует полный процесс создания токена, включая создание АТА для программы.
  */
 import { 
   Connection, 
@@ -19,7 +19,7 @@ import {
 } from '@solana/web3.js';
 import { 
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID
+  TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
@@ -40,7 +40,7 @@ if (!process.env.PROGRAM_ID) {
 }
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID);
 
-// Получаем ключ коллекции из переменной окружения
+// Получаем ключ токена из переменной окружения
 if (!process.env.COLLECTION_KEY) {
   throw new Error('Переменная окружения COLLECTION_KEY не задана. Пожалуйста, установите её перед запуском теста.');
 }
@@ -63,19 +63,19 @@ try {
     mint = Keypair.fromSecretKey(bs58.decode(collectionKeyStr));
   }
   
-  console.log('Успешно загружен ключ коллекции');
-  console.log('Публичный адрес коллекции:', mint.publicKey.toBase58());
+  console.log('Успешно загружен ключ токена');
+  console.log('Публичный адрес токена:', mint.publicKey.toBase58());
 } catch (error) {
   console.error('Ошибка при парсинге COLLECTION_KEY:', error);
   throw new Error('Не удалось создать кейпару из COLLECTION_KEY. Убедитесь, что это валидный JSON массив чисел или base58 строка.');
 }
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-console.log('Token-2022 Program ID в тесте:', TOKEN_2022_PROGRAM_ID.toBase58());
-console.log('Token-2022 Program ID в виде массива байтов:', Array.from(TOKEN_2022_PROGRAM_ID.toBytes()));
+console.log('Token Program ID в тесте:', TOKEN_PROGRAM_ID.toBase58());
+console.log('Token Program ID в виде массива байтов:', Array.from(TOKEN_PROGRAM_ID.toBytes()));
 console.log('ID программы:', PROGRAM_ID.toBase58());
 
-describe('Instruction 38', function() {
+describe('Instruction 39', function() {
   // Увеличиваем таймаут до 60 секунд
   this.timeout(60000);
 
@@ -87,8 +87,8 @@ describe('Instruction 38', function() {
   const privateKeyString = process.env.PRIVATE_KEY!;
   const payer = Keypair.fromSecretKey(bs58.decode(privateKeyString));
 
-  it('should create a Collection NFT with Token-2022 and mint to program ATA', async function() {
-    console.log('Начинаем тест создания NFT-коллекции с Token-2022 и чеканкой на АТА программы (инструкция 38)');
+  it('should create a standard token with SPL Token and mint to program ATA', async function() {
+    console.log('Начинаем тест создания стандартного токена с SPL Token и чеканкой на АТА программы (инструкция 39)');
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
     console.log('Адрес минта (из предопределенного ключа):', mint.publicKey.toBase58());
     
@@ -126,16 +126,16 @@ describe('Instruction 38', function() {
     );
     console.log('Master Edition PDA:', masterEdition.toBase58());
 
-    // Получаем адрес ассоциированного токен аккаунта для программы с использованием Token-2022
+    // Получаем адрес ассоциированного токен аккаунта для программы с использованием стандартного SPL Token
     const tokenAccount = await PublicKey.findProgramAddressSync(
       [
         programAuthority.toBuffer(), // Владелец токена - программа (PDA)
-        TOKEN_2022_PROGRAM_ID.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
         mint.publicKey.toBuffer(),
       ],
       ASSOCIATED_TOKEN_PROGRAM_ID
     )[0];
-    console.log('Program Token Account PDA (Token-2022):', tokenAccount.toBase58());
+    console.log('Program Token Account PDA (SPL Token):', tokenAccount.toBase58());
 
     // Получаем адрес token record
     const [tokenRecord] = PublicKey.findProgramAddressSync(
@@ -152,7 +152,7 @@ describe('Instruction 38', function() {
 
     // Создаем буфер данных для инструкции
     const dataBuffer = Buffer.alloc(1);
-    dataBuffer[0] = 38; // Инструкция 38
+    dataBuffer[0] = 39; // Инструкция 39
 
     try {
       console.log('Создаем инструкцию...');
@@ -167,7 +167,7 @@ describe('Instruction 38', function() {
           { pubkey: payer.publicKey, isSigner: true, isWritable: true },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           { pubkey: SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false }, // Используем Token-2022
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Используем стандартный SPL Token
           
           // Аккаунты для MintV1 на АТА программы
           { pubkey: tokenAccount, isSigner: false, isWritable: true },
@@ -212,7 +212,7 @@ describe('Instruction 38', function() {
         
         // Здесь можно было бы десериализовать метаданные, чтобы проверить creators и collection_details,
         // но для простоты просто проверим, что аккаунт существует
-        console.log('Метаданные должны содержать creators с program_id в качестве создателя и collection_details');
+        console.log('Метаданные должны содержать creators с program_id в качестве создателя');
       }
 
       const masterEditionAccount = await connection.getAccountInfo(masterEdition);
@@ -227,7 +227,7 @@ describe('Instruction 38', function() {
       if (tokenAccountInfo) {
         console.log('Размер Token аккаунта:', tokenAccountInfo.data.length);
         console.log('Владелец Token аккаунта:', tokenAccountInfo.owner.toBase58());
-        console.log('Владелец Token аккаунта - это Token-2022:', tokenAccountInfo.owner.equals(TOKEN_2022_PROGRAM_ID));
+        console.log('Владелец Token аккаунта - это SPL Token:', tokenAccountInfo.owner.equals(TOKEN_PROGRAM_ID));
       }
 
       const tokenRecordInfo = await connection.getAccountInfo(tokenRecord);
@@ -242,17 +242,17 @@ describe('Instruction 38', function() {
       if (mintInfo) {
         console.log('Размер Mint аккаунта:', mintInfo.data.length);
         console.log('Владелец Mint аккаунта:', mintInfo.owner.toBase58());
-        console.log('Владелец Mint аккаунта - это Token-2022:', mintInfo.owner.equals(TOKEN_2022_PROGRAM_ID));
+        console.log('Владелец Mint аккаунта - это SPL Token:', mintInfo.owner.equals(TOKEN_PROGRAM_ID));
       }
 
       // Проверяем, что токен был отправлен на АТА программы, а не пользователя
       console.log('Проверяем, что токен был отправлен на АТА программы, а не пользователя...');
       
-      // Получаем адрес ассоциированного токен аккаунта пользователя с использованием Token-2022
+      // Получаем адрес ассоциированного токен аккаунта пользователя с использованием стандартного SPL Token
       const userTokenAccount = await PublicKey.findProgramAddressSync(
         [
           payer.publicKey.toBuffer(),
-          TOKEN_2022_PROGRAM_ID.toBuffer(),
+          TOKEN_PROGRAM_ID.toBuffer(),
           mint.publicKey.toBuffer(),
         ],
         ASSOCIATED_TOKEN_PROGRAM_ID
@@ -275,10 +275,10 @@ describe('Instruction 38', function() {
       expect(mintInfo).to.not.be.null;
       
       if (mintInfo) {
-        expect(mintInfo.owner.equals(TOKEN_2022_PROGRAM_ID)).to.be.true;
+        expect(mintInfo.owner.equals(TOKEN_PROGRAM_ID)).to.be.true;
       }
 
-      console.log('Тест успешно завершен! NFT-коллекция создана и отправлена на АТА программы');
+      console.log('Тест успешно завершен! Стандартный токен создан и отправлен на АТА программы');
 
     } catch (err: any) {
       console.error('Произошла ошибка при выполнении теста:');

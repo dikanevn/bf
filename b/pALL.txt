@@ -1,23 +1,23 @@
 Параметры запуска:
   Адрес владельца: YAPtopU8xhtnHcW4W5cBKVA3eLojzDU6q5h5X5eEykt
-  Mint-адрес токена: aaKaP59cMfJ1smjNK3Poui6oKtn8mU7sp3wEj5smQjN
+  Mint-адрес токена: aaU9nccsJFWzW29ipUgFoq84DqUZjqRRGak7jrwa4ad
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: 4p52ogfZiVmrqLHfJVZJzgLmxG1v2B7WVtenJtBcNUU8
+ATA: 64EPj36asw1bwfbsSTct8Uqt5ZXxyS6LA7yffGEw4HZW
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd",
+      "freezeAuthority": "DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk",
       "isInitialized": true,
-      "mintAuthority": "3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd",
+      "mintAuthority": "DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk",
       "supply": "1"
     },
     "type": "mint"
   },
-  "program": "spl-token-2022",
+  "program": "spl-token",
   "space": 82
 }
 
@@ -25,8 +25,8 @@ Mint Account Data: {
 Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: DMYv1PWVXe3v7yCXcJ147UZdKUiT5AmTZbFoth9uQxgP,255
-Master Edition PDA: 3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd,255
+Metadata PDA: 4MnxZ7eibBqPcwgK8maV2Ku6V7FaUzPVrLkFbhwXMJGP,255
+Master Edition PDA: DbbB137YtAe4vk2kYAzkgx2xRWvyNHD44qZkGREGPLhk,255
 
 === Детали цифрового актива ===
 

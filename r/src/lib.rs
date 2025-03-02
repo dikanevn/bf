@@ -84,12 +84,16 @@ pub fn process_instruction(
             msg!("Instruction: Create and Mint pNFT with Token-2022, Merkle proof verification and fixed collection without verification");
             instructions::instruction_37::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-*/
+
         38 => {
             msg!("Instruction: Create and Mint pNFT with Token-2022 to program's ATA");
             instructions::instruction_38::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-
+        */
+        39 => {
+            msg!("Instruction: Create and Mint pNFT to program's ATA");
+            instructions::instruction_39::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)

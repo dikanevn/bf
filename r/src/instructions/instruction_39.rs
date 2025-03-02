@@ -1,4 +1,4 @@
-// Создание NFT-коллекции с чеканкой на АТА программы
+// Создание стандартного токена (SPL Token) с чеканкой на АТА программы
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -16,14 +16,14 @@ use mpl_token_metadata::{
     instructions::{CreateV1, CreateV1InstructionArgs, MintV1, MintV1InstructionArgs},
     types::{TokenStandard, PrintSupply, Collection, CollectionDetails, Creator},
 };
-use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
+use spl_token::ID as TOKEN_PROGRAM_ID;
 
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("Starting create_collection_nft_with_token2022_to_program_ata...");
+    msg!("Starting create_standard_token_to_program_ata...");
     
     let accounts_iter = &mut accounts.iter();
     
@@ -35,7 +35,7 @@ pub fn process_instruction(
     let payer = next_account_info(accounts_iter)?;
     let system_program = next_account_info(accounts_iter)?;
     let sysvar_instructions = next_account_info(accounts_iter)?;
-    let token_2022_program = next_account_info(accounts_iter)?;
+    let token_program = next_account_info(accounts_iter)?;
     let token_account = next_account_info(accounts_iter)?;
     let token_record = next_account_info(accounts_iter)?;
     let spl_ata_program = next_account_info(accounts_iter)?;
@@ -52,11 +52,11 @@ pub fn process_instruction(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Проверяем, что token_2022_program имеет правильный ID
-    if token_2022_program.key != &TOKEN_2022_PROGRAM_ID {
-        msg!("Invalid Token-2022 program ID provided");
-        msg!("Expected: {}", TOKEN_2022_PROGRAM_ID);
-        msg!("Received: {}", token_2022_program.key);
+    // Проверяем, что token_program имеет правильный ID
+    if token_program.key != &TOKEN_PROGRAM_ID {
+        msg!("Invalid Token program ID provided");
+        msg!("Expected: {}", TOKEN_PROGRAM_ID);
+        msg!("Received: {}", token_program.key);
         return Err(ProgramError::InvalidArgument);
     }
 
@@ -79,8 +79,8 @@ pub fn process_instruction(
     ];
     let signers = &[&authority_signature_seeds[..]];
 
-    // Создаем минт аккаунт с использованием Token-2022
-    msg!("Creating mint account with Token-2022...");
+    // Создаем минт аккаунт с использованием стандартного SPL Token
+    msg!("Creating mint account with standard SPL Token...");
     let rent = Rent::get()?;
     let mint_len = 82; // Размер аккаунта Mint в байтах
     let lamports = rent.minimum_balance(mint_len);
@@ -98,7 +98,7 @@ pub fn process_instruction(
             mint_account.key,
             lamports,
             mint_len as u64,
-            &TOKEN_2022_PROGRAM_ID,
+            &TOKEN_PROGRAM_ID,
         ),
         &[
             payer.clone(),
@@ -107,10 +107,10 @@ pub fn process_instruction(
         ],
     )?;
 
-    // Инициализируем минт с использованием Token-2022
-    msg!("Initializing mint with Token-2022...");
-    let init_mint_ix = spl_token_2022::instruction::initialize_mint2(
-        &TOKEN_2022_PROGRAM_ID,
+    // Инициализируем минт с использованием стандартного SPL Token
+    msg!("Initializing mint with standard SPL Token...");
+    let init_mint_ix = spl_token::instruction::initialize_mint(
+        &TOKEN_PROGRAM_ID,
         mint_account.key,
         program_authority.key,
         Some(program_authority.key),
@@ -134,8 +134,8 @@ pub fn process_instruction(
         },
     ];
 
-    // Создаем метаданные и master edition для коллекции
-    msg!("Creating metadata and master edition for collection...");
+    // Создаем метаданные и master edition для токена
+    msg!("Creating metadata and master edition for token...");
     let create_v1 = CreateV1 {
         metadata: *metadata_account.key,
         master_edition: Some(*master_edition_account.key),
@@ -145,7 +145,7 @@ pub fn process_instruction(
         update_authority: (*program_authority.key, true),
         system_program: *system_program.key,
         sysvar_instructions: *sysvar_instructions.key,
-        spl_token_program: Some(*token_2022_program.key), // Используем Token-2022
+        spl_token_program: Some(*token_program.key), // Используем стандартный SPL Token
     };
 
     let create_args = CreateV1InstructionArgs {
@@ -177,19 +177,19 @@ pub fn process_instruction(
             program_authority.clone(), // update_authority
             system_program.clone(),
             sysvar_instructions.clone(),
-            token_2022_program.clone(),
+            token_program.clone(),
         ],
         signers,
     )?;
 
-    // Создаем ассоциированный токен аккаунт для программы с использованием Token-2022
-    msg!("Creating associated token account for program with Token-2022...");
+    // Создаем ассоциированный токен аккаунт для программы с использованием стандартного SPL Token
+    msg!("Creating associated token account for program with standard SPL Token...");
     invoke(
         &spl_associated_token_account::instruction::create_associated_token_account_idempotent(
             payer.key,
             program_authority.key, // Владелец токена - программа (PDA)
             mint_account.key,
-            &TOKEN_2022_PROGRAM_ID,
+            &TOKEN_PROGRAM_ID,
         ),
         &[
             payer.clone(),
@@ -197,14 +197,14 @@ pub fn process_instruction(
             program_authority.clone(), // Владелец токена - программа (PDA)
             mint_account.clone(),
             system_program.clone(),
-            token_2022_program.clone(),
+            token_program.clone(),
             spl_ata_program.clone(),
             rent_sysvar.clone(),
         ],
     )?;
 
-    // Минтим токен с использованием Token-2022 на АТА программы
-    msg!("Minting collection token to program's ATA with Token-2022...");
+    // Минтим токен с использованием стандартного SPL Token на АТА программы
+    msg!("Minting token to program's ATA with standard SPL Token...");
     let mint_v1 = MintV1 {
         token: *token_account.key,
         token_owner: Some(*program_authority.key), // Владелец токена - программа (PDA)
@@ -216,7 +216,7 @@ pub fn process_instruction(
         payer: *payer.key,
         system_program: *system_program.key,
         sysvar_instructions: *sysvar_instructions.key,
-        spl_token_program: *token_2022_program.key, // Используем Token-2022
+        spl_token_program: *token_program.key, // Используем стандартный SPL Token
         spl_ata_program: *spl_ata_program.key,
         authorization_rules_program: None,
         authorization_rules: None,
@@ -242,13 +242,13 @@ pub fn process_instruction(
             payer.clone(),
             system_program.clone(),
             sysvar_instructions.clone(),
-            token_2022_program.clone(),
+            token_program.clone(),
             spl_ata_program.clone(),
             token_metadata_program.clone(),
         ],
         signers,
     )?;
 
-    msg!("Collection NFT created and minted successfully to program's ATA with Token-2022!");
+    msg!("Standard token created and minted successfully to program's ATA!");
     Ok(())
 } 
