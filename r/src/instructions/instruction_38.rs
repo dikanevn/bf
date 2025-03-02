@@ -14,7 +14,7 @@ use solana_program::{
 };
 use mpl_token_metadata::{
     instructions::{CreateV1, CreateV1InstructionArgs, MintV1, MintV1InstructionArgs},
-    types::{TokenStandard, PrintSupply, Collection, CollectionDetails},
+    types::{TokenStandard, PrintSupply, Collection, CollectionDetails, Creator},
 };
 use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
@@ -125,6 +125,15 @@ pub fn process_instruction(
         ],
     )?;
 
+    // Создаем список создателей с program_id в качестве создателя с долей 100%
+    let creators = vec![
+        Creator {
+            address: *program_id,
+            verified: false,
+            share: 100,
+        },
+    ];
+
     // Создаем метаданные и master edition для NFT
     msg!("Creating metadata and master edition for NFT...");
     let create_v1 = CreateV1 {
@@ -144,7 +153,7 @@ pub fn process_instruction(
         symbol: "YAP8v1".to_string(),
         uri: "https://a.b/c.json".to_string(),
         seller_fee_basis_points: 1000,
-        creators: None,
+        creators: Some(creators),
         primary_sale_happened: false,
         is_mutable: true,
         token_standard: TokenStandard::ProgrammableNonFungible,

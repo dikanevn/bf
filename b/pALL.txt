@@ -1,18 +1,18 @@
 Параметры запуска:
-  Адрес владельца: GDi7rtknaEdvgGrm9qpXbF54ZGZMGezmXLky2VQac2c6
-  Mint-адрес токена: YAP8v1Y4aKiM6HEtpCDabXz7VgH9SXxUgTBHbWaN7hg
+  Адрес владельца: YAPtopU8xhtnHcW4W5cBKVA3eLojzDU6q5h5X5eEykt
+  Mint-адрес токена: aaKaP59cMfJ1smjNK3Poui6oKtn8mU7sp3wEj5smQjN
 
 === Ассоциированный токен-аккаунт (ATA) ===
-ATA: drEJzLnZfctMkN37ZTBfuXprgBNES3ZJRQCMjpLbFXN
+ATA: 4p52ogfZiVmrqLHfJVZJzgLmxG1v2B7WVtenJtBcNUU8
 
 === Информация об аккаунте mint ===
 Mint Account Data: {
   "parsed": {
     "info": {
       "decimals": 0,
-      "freezeAuthority": "GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq",
+      "freezeAuthority": "3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd",
       "isInitialized": true,
-      "mintAuthority": "GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq",
+      "mintAuthority": "3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd",
       "supply": "1"
     },
     "type": "mint"
@@ -25,8 +25,8 @@ Mint Account Data: {
 Токен-аккаунт не найден.
 
 === Метаданные цифрового актива ===
-Metadata PDA: 6w4jGmtx66taotRJ7hVPydDhRdrKexXLgUTQCbZTNRy7,255
-Master Edition PDA: GJAuQRFndJZ4LyuzDtiaC7XvicvHuNcxb3TaTbZUo5cq,252
+Metadata PDA: DMYv1PWVXe3v7yCXcJ147UZdKUiT5AmTZbFoth9uQxgP,255
+Master Edition PDA: 3gYW9CC1gqC1UdjvEKdh2Xar8bE1fpAomzft2me5CqMd,255
 
 === Детали цифрового актива ===
 

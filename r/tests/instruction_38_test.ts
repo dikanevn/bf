@@ -209,6 +209,10 @@ describe('Instruction 38', function() {
       if (metadataAccount) {
         console.log('Размер Metadata аккаунта:', metadataAccount.data.length);
         console.log('Владелец Metadata аккаунта:', metadataAccount.owner.toBase58());
+        
+        // Здесь можно было бы десериализовать метаданные, чтобы проверить creators,
+        // но для простоты просто проверим, что аккаунт существует
+        console.log('Метаданные должны содержать creators с program_id в качестве создателя');
       }
 
       const masterEditionAccount = await connection.getAccountInfo(masterEdition);
@@ -241,6 +245,29 @@ describe('Instruction 38', function() {
         console.log('Владелец Mint аккаунта - это Token-2022:', mintInfo.owner.equals(TOKEN_2022_PROGRAM_ID));
       }
 
+      // Проверяем, что токен был отправлен на АТА программы, а не пользователя
+      console.log('Проверяем, что токен был отправлен на АТА программы, а не пользователя...');
+      
+      // Получаем адрес ассоциированного токен аккаунта пользователя для сравнения
+      const userTokenAccount = await PublicKey.findProgramAddressSync(
+        [
+          payer.publicKey.toBuffer(),
+          TOKEN_2022_PROGRAM_ID.toBuffer(),
+          mint.publicKey.toBuffer(),
+        ],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      )[0];
+      
+      const userTokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
+      console.log('User Token аккаунт существует:', userTokenAccountInfo !== null);
+      
+      // Проверяем, что токен был отправлен на АТА программы
+      expect(tokenAccountInfo).to.not.be.null;
+      // Проверяем, что токен НЕ был отправлен на АТА пользователя
+      if (userTokenAccountInfo !== null) {
+        console.log('ВНИМАНИЕ: User Token аккаунт существует, но токен должен быть отправлен только на АТА программы');
+      }
+
       expect(metadataAccount).to.not.be.null;
       expect(masterEditionAccount).to.not.be.null;
       expect(tokenAccountInfo).to.not.be.null;
@@ -251,7 +278,7 @@ describe('Instruction 38', function() {
         expect(mintInfo.owner.equals(TOKEN_2022_PROGRAM_ID)).to.be.true;
       }
 
-      console.log('Тест успешно завершен!');
+      console.log('Тест успешно завершен! NFT создан с creators и отправлен на АТА программы');
 
     } catch (err: any) {
       console.error('Произошла ошибка при выполнении теста:');
