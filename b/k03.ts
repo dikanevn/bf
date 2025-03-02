@@ -105,7 +105,7 @@ else {
     console.log(`Ищем адреса с префиксом: ${desiredPrefix}`);
     
     // Определяем количество доступных ядер
-    const numCPUs = os.cpus().length;
+    const numCPUs = os.cpus().length - 1;
     console.log(`Запускаем ${numCPUs} потоков для поиска...`);
     
     // Массив для хранения всех воркеров
