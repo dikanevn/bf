@@ -47,31 +47,53 @@ function findXValue(targetTotal: number, initialAmount: number): number {
     // нам нужно найти x такое, что initialAmount / (1 - x) = targetTotal
     // Отсюда: x = 1 - initialAmount / targetTotal
     
-    // Используем точное целевое значение для более точного расчета
-    const targetExact = 21000; // Ровно на 0.1 меньше целевого
+    // Начальное приближение
+    let x = 1 - initialAmount / targetTotal;
     
-    // Вычисляем x с высокой точностью
-    const x = 1 - initialAmount / targetExact;
+    // Используем итеративный подход для уточнения значения x
+    // Целевая точность - разница между суммой и целевым значением должна быть минимальной
+    const maxIterations = 1000;
+    const epsilon = 1e-15; // Очень высокая точность
     
-    // Проверяем результат и корректируем при необходимости
-    const sum = geometricSum(initialAmount, x);
-    if (sum > targetExact) {
-        // Если сумма больше желаемой, немного уменьшаем x
-        return x - 0.0000000000001;
+    for (let i = 0; i < maxIterations; i++) {
+        const sum = geometricSum(initialAmount, x);
+        const diff = sum - targetTotal;
+        
+        // Если достигли нужной точности, возвращаем результат
+        if (Math.abs(diff) < epsilon) {
+            break;
+        }
+        
+        // Корректируем x в зависимости от разницы
+        // Если сумма больше целевой, уменьшаем x
+        // Если сумма меньше целевой, увеличиваем x
+        const adjustmentFactor = Math.min(Math.abs(diff) / targetTotal * 0.1, 0.0001);
+        if (diff > 0) {
+            x -= adjustmentFactor; // Уменьшаем x, если сумма больше целевой
+        } else {
+            x += adjustmentFactor; // Увеличиваем x, если сумма меньше целевой
+        }
     }
+    
+    // Проверяем, насколько близко мы к целевому значению
+    const finalSum = geometricSum(initialAmount, x);
+    console.log(`Итоговая разница: ${(finalSum - targetTotal).toFixed(15)}`);
     
     return x;
 }
 
 // Параметры задачи
-const initialAmount = 50;    // Количество NFT в первый день
-const targetTotal = 21000;   // Целевое общее количество NFT
+const initialAmount = 183;    // Количество NFT в первый день
+const targetTotal = 10000;   // Целевое общее количество NFT
+const useManualX = true;     // Использовать ручное значение x вместо вычисленного
+const manualX = 0.9817;      // Точное значение x из файла 98.ts
 
 // Находим значение x для бесконечной геометрической прогрессии
-const x = findXValue(targetTotal, initialAmount);
+const x = useManualX ? manualX : findXValue(targetTotal, initialAmount);
 
 console.log(`\nРезультат для бесконечной прогрессии:`);
 console.log(`Значение x = ${x.toFixed(16)}`);
+console.log(`Метод получения x: ${useManualX ? 'задано вручную' : 'вычислено автоматически'}`);
 
 // Проверяем результат для бесконечной прогрессии
 const infiniteSum = geometricSum(initialAmount, x);

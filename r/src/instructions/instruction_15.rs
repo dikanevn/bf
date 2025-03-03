@@ -43,7 +43,7 @@ pub fn process_instruction(
     // Проверяем только расширенный PDA
     let (expected_extended_mint_record_address, _) = Pubkey::find_program_address(
         &[
-            b"is_minted_ext",
+            b"minted",
             &[round_number as u8],
             payer.key.as_ref(),
         ],

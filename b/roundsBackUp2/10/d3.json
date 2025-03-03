@@ -1,0 +1,97 @@
+[
+  {
+    "number": 9,
+    "player": "2Mu3syhGFYTEXCJ6tgZEfTPkrNGLPjCh76auNWokxikq",
+    "randomValue": "0x056f8cddee476f769f285d216b022c640331b83374578c83a8c0243e32d95b40"
+  },
+  {
+    "number": 42,
+    "player": "3jhVNe87vQYKfDe9aTchD36ziYoqPNbpdrSUD9mSxMVU",
+    "randomValue": "0x06d16a7fa6ca070bcb4b912f3a0162f41435c33b2178a0fc1a2125bdc4f6ea48"
+  },
+  {
+    "number": 55,
+    "player": "4NwPSCMpLMSFFhJbqDMVKTA2JgwYgMjuLZs5x7Zj2NME",
+    "randomValue": "0x086effdfc8fb808a27450ea58df23248a2a0e6470c61ffc6faf16b4d5f926f1d"
+  },
+  {
+    "number": 80,
+    "player": "5kyTJo1v3BaV1qku2fHYVSpK6hvxvsQ3yG9pt9JZBDZ6",
+    "randomValue": "0x09da11832c43f0545b1bc23abbf48452ef3ab5699c9199b9c5707a97e27000c0"
+  },
+  {
+    "number": 99,
+    "player": "6Rha26Tasu1up1oBvyNLRwkgmBHicwaq63qty17oz6k8",
+    "randomValue": "0x0e52a5a645e42e22fad25a0b36984173b5bd1ccbc2d18cb774dd7fdcddac9633"
+  },
+  {
+    "number": 128,
+    "player": "7VpwsW2hyjaEsAKMwH9TEjHWvtAUarPKxCKNVogmcRks",
+    "randomValue": "0x08856995a80e791f1b5f1c192f524381a74d464f148013c32b9b08b03eb81fdc"
+  },
+  {
+    "number": 130,
+    "player": "7aK6mqyRmHzZk6iLDnXhttM5LbuUGtUUJrLvncDQkxop",
+    "randomValue": "0x06ebd7dd2d6bc3eef7be35949267abdad74e8ac1b1b8560e7c29017dd1ec7f35"
+  },
+  {
+    "number": 140,
+    "player": "7tgEjMrqWGviS78ULMrYRLcgQSr4D5Gx4taH8d5xGLho",
+    "randomValue": "0x09a4826b4c8e8abd01960bb939b51019af8ce77f84b7d3d145649c891b1cae8b"
+  },
+  {
+    "number": 146,
+    "player": "87R7UH8weXHHScKXhitScRDy8xu2RuUDD6JCDQE856xr",
+    "randomValue": "0x06fc816b0796f6ee089e5b6fa26882efb885c28e67423874f7bf6f0ec4668382"
+  },
+  {
+    "number": 162,
+    "player": "8gyXnNvuLEP8myMAyNw1SRiPAq1CxwTJuaVd2qW4FAUd",
+    "randomValue": "0x01e9e81a36560666ffc07578114b9dfa7f94c9983b42d8f25345a4663775fd86"
+  },
+  {
+    "number": 187,
+    "player": "A2RgjcE14E91tmh6MP6ZM5xA4ZmJ1HTRU9JHrXrCmZGq",
+    "randomValue": "0x050cea72169c54d87e39606a40ffd2a6bb196492749dc27f1c0006b9a3f08534"
+  },
+  {
+    "number": 196,
+    "player": "AQNZ4QbsqAxfuPwnvzUZkwpSfqUvbeCQXfH1Ux4A35jo",
+    "randomValue": "0x0a6763d8d5bdd9ce9c062236142fd74dff5e28af6396ae46595f6c252fc3688d"
+  },
+  {
+    "number": 212,
+    "player": "AtaUsE52qGxKDsW71WUiXmZzJZHiC8yjTtgB51txWyff",
+    "randomValue": "0x02d567c6f184ccaf0eadd42fd2fd3f8bdb2c0e61023c09b6e5ccf409880d34da"
+  },
+  {
+    "number": 256,
+    "player": "CkTCR4wno2PD7wGDG6fZrNMoB7ZR1qoGkft7gN8fvui3",
+    "randomValue": "0x05649cc4b990bd95602bf2f7e613b0f9e5f161136949ecb4437d2113e0b7ddf9"
+  },
+  {
+    "number": 270,
+    "player": "DHRTJWoAccNkUSwxh7cMmSNEJU63Pokdix6Aznn1k6EM",
+    "randomValue": "0x0a94ee682aada2055c8e6e69e0353838c07d964fb0df1bca12a96e9652b964c6"
+  },
+  {
+    "number": 285,
+    "player": "DvA7dkvmuH8Cghawhkn5A9nEfHL1C2CVKoDHoN8JgXhX",
+    "randomValue": "0x014609e35ecd2c72e458ec05738081370227804683a51c91e97527ca6916cb68"
+  },
+  {
+    "number": 311,
+    "player": "Eb2s1yUmNNVFHMku6t3kJwg1NkkSxpotoHDwXcRmQdBq",
+    "randomValue": "0x0a730c5ee5edcff42edfeafdf63893a51e4f117698795372809cb07443baefcb"
+  },
+  {
+    "number": 338,
+    "player": "FYuueDQQaHD5J63FDy8wxgauaHpxPeLSrr9asMRmr99H",
+    "randomValue": "0x03cc9d80f13fbf65cb371510ce98d5c6674703c26d94bb48434a1733af11cc48"
+  },
+  {
+    "number": 392,
+    "player": "HaWvBiL6xNah6PvvswtPZGrEEU1g1Tj8kFsLzWJRFN4J",
+    "randomValue": "0x0a78ec60352772863468eb7cb5c33e33b1f03c8c2cb0230a8b271268eecf5da1"
+  }
+]

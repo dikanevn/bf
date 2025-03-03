@@ -276,9 +276,9 @@ export default function HomeContent() {
 
           <div className="text-gray-400 mt-8 mb-8">
             <div className="text-xl font-bold">Global Statistics:</div>
-            <div>Total pNFT: ~10000</div>
+            <div>Total pNFT: ~21000</div>
             <div>Minted pNFT: {totalMinted}</div>
-            <div>Minted percentage: {((totalMinted / 10000) * 100).toFixed(1)}%</div>
+            <div>Minted percentage: {((totalMinted / 21000) * 100).toFixed(1)}%</div>
             <div>Total Games: {totalGames}</div>
             
             {lastGameStats && (
@@ -315,7 +315,7 @@ export default function HomeContent() {
                 </p>
 
                 <p>
-                  The total supply is approximately 10,000, assuming full minting, though the actual number will likely be lower.
+                  The total supply is approximately 21,000, assuming full minting, though the actual number will likely be lower.
                 </p>
 
                 <p>
@@ -323,7 +323,7 @@ export default function HomeContent() {
                 </p>
 
                 <p>
-                  Distribution begins with the first game, featuring 183 participants and 183 pNFTs. With each game, the number of pNFTs decreases by 1.83%, ensuring that the maximum supply remains around 10,000.
+                  Distribution begins with the first game, featuring 183 participants and 56 pNFTs. With each game, the number of pNFTs decreases by ~0.266% (324/325), ensuring that the maximum supply remains around 21,000.
                 </p>
 
                 <p>

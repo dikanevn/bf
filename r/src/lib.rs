@@ -46,8 +46,14 @@ pub fn process_instruction(
         return Err(ProgramError::InvalidInstructionData);
     }
 
+    msg!("Instruction data length: {}", instruction_data.len());
+    msg!("Instruction number: {}", instruction_data[0]);
+
     match instruction_data[0] {
-       
+        14 => {
+            msg!("Instruction: Manual mint record creation");
+            instructions::instruction_14::process_instruction(program_id, accounts, &instruction_data[1..])
+        }
         15 => {
             msg!("Instruction: Delete mint record for specific round");
             instructions::instruction_15::process_instruction(program_id, accounts, &instruction_data[1..])
@@ -105,6 +111,7 @@ pub fn process_instruction(
             instructions::instruction_41::process_instruction(program_id, accounts, &instruction_data[1..])
         }
             */
+/*
         42 => {
             msg!("Instruction: Withdraw SOL from program PDA to recipient");
             instructions::instruction_42::process_instruction(program_id, accounts, &instruction_data[1..])
@@ -113,6 +120,7 @@ pub fn process_instruction(
             msg!("Instruction: Universal update NFT metadata");
             instructions::instruction_43::process_instruction(program_id, accounts, &instruction_data[1..])
         }
+*/
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)

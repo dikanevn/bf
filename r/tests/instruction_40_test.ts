@@ -189,7 +189,7 @@ describe('Instruction 40', function() {
     const roundNumber = 10; // Используем раунд 11 для теста, так как данные берутся из раунда 11
     const [mintRecordAccount] = PublicKey.findProgramAddressSync(
       [
-        Buffer.from('is_minted_ext'),
+        Buffer.from('minted'),
         Buffer.from([roundNumber]),
         payer.publicKey.toBuffer(),
       ],
@@ -198,14 +198,15 @@ describe('Instruction 40', function() {
     console.log('Mint Record PDA:', mintRecordAccount.toBase58());
 
     // Создаем буфер данных для инструкции с Merkle доказательством
-    const dataLength = 1 + 1 + (proof.length * 32); // 1 байт для номера инструкции, 1 байт для номера раунда, и proof
+    const dataLength = 8 + (proof.length * 32); // 8 байт для номера раунда и proof
     const dataBuffer = Buffer.alloc(dataLength);
-    dataBuffer[0] = 40; // Номер инструкции
-    dataBuffer[1] = roundNumber; // Номер раунда
+    
+    // Записываем номер раунда как u64 LE
+    dataBuffer.writeBigUInt64LE(BigInt(roundNumber), 0);
     
     // Записываем каждый узел доказательства в буфер
     for (let i = 0; i < proof.length; i++) {
-      proof[i].copy(dataBuffer, 2 + (i * 32));
+        proof[i].copy(dataBuffer, 8 + (i * 32));
     }
 
     try {

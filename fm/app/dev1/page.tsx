@@ -183,10 +183,13 @@ async function createMintRecordPDA(
   mintRecord: PublicKey;
   mintRecordBump: number;
 }> {
+  const roundBytes = Buffer.alloc(8);
+  roundBytes.writeBigUInt64LE(BigInt(round));
+  
   const [mintRecord, mintRecordBump] = await PublicKey.findProgramAddress(
     [
-      Buffer.from("is_minted_ext", "utf-8"),
-      Buffer.from([round]),
+      Buffer.from("minted", "utf-8"),
+      roundBytes,
       wallet.publicKey.toBuffer(),
     ],
     programId
@@ -374,10 +377,12 @@ function DevContent() {
       );
 
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -535,10 +540,12 @@ function DevContent() {
       );
 
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -664,10 +671,12 @@ function DevContent() {
     
     try {
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -1131,10 +1140,12 @@ function DevContent() {
       console.log("Token Record PDA:", tokenRecord.toBase58());
 
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -1365,10 +1376,12 @@ function DevContent() {
       console.log("Token Record PDA:", tokenRecord.toBase58());
 
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -1497,10 +1510,12 @@ function DevContent() {
       }
 
       // Получаем адрес PDA для расширенного отслеживания минтинга
+      const roundBytes = Buffer.alloc(8);
+      roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("is_minted_ext"),
-          Buffer.from([roundNumber - 1]), // В контракте индексация с 0
+          roundBytes,
           publicKey.toBuffer(),
         ],
         PROGRAM_ID
@@ -1595,9 +1610,25 @@ function DevContent() {
                   <div key={result.round} className="text-green-400">
                     Раунд {result.round} | {result.date} | Выигрыш подтвержден! ✅
                     {result.extendedMinted !== undefined && (
-                      <span className={result.extendedMinted ? "text-purple-400 ml-2" : "text-gray-400 ml-2"}>
-                        {result.extendedMinted ? "Расширенный минт выполнен ✓" : "Расширенный минт не выполнен ✗"}
-                      </span>
+                      <>
+                        <span className={result.extendedMinted ? "text-purple-400 ml-2" : "text-gray-400 ml-2"}>
+                          {result.extendedMinted ? "Расширенный минт выполнен ✓" : "Расширенный минт не выполнен ✗"}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-2">
+                          (PDA: {(() => {
+                            const roundBytes = Buffer.alloc(8);
+                            roundBytes.writeBigUInt64LE(BigInt(result.round - 1));
+                            return PublicKey.findProgramAddressSync(
+                              [
+                                Buffer.from("is_minted_ext"),
+                                roundBytes,
+                                publicKey!.toBuffer(),
+                              ],
+                              PROGRAM_ID
+                            )[0].toBase58();
+                          })()})
+                        </span>
+                      </>
                     )}
                     {result.mintAddress && (
                       <div className="text-xs text-gray-400 ml-4 mt-1">

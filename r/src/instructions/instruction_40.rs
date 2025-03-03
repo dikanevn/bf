@@ -32,23 +32,23 @@ pub fn process_instruction(
     msg!("Starting create_and_mint_pnft_with_standard_token_merkle_proof_and_fixed_collection...");
     
     // Проверяем, что данные имеют правильный формат
-    if instruction_data.len() < 1 {
+    if instruction_data.len() < 8 {
         msg!("Invalid proof data: missing round number");
         return Err(ProgramError::InvalidInstructionData);
     }
     
-    // Получаем номер раунда из первого байта
-    let round_number = instruction_data[0] as usize;
+    // Получаем номер раунда из первых 8 байт
+    let round_number = u64::from_le_bytes(instruction_data[0..8].try_into().unwrap());
     msg!("Using round number: {}", round_number);
     
     // Проверяем, что номер раунда валидный
-    if round_number >= ALL_MERKLE_ROOTS.len() {
+    if round_number >= ALL_MERKLE_ROOTS.len() as u64 {
         msg!("Invalid round number: {}, max is {}", round_number, ALL_MERKLE_ROOTS.len() - 1);
         return Err(ProgramError::InvalidArgument);
     }
     
     // Получаем корень Merkle для указанного раунда
-    let merkle_root = ALL_MERKLE_ROOTS[round_number];
+    let merkle_root = ALL_MERKLE_ROOTS[round_number as usize];
     msg!("Using Merkle root for round {}", round_number);
     
     let accounts_iter = &mut accounts.iter();
@@ -122,16 +122,16 @@ pub fn process_instruction(
     msg!("Verifying Merkle proof...");
     
     // Проверяем, что данные доказательства имеют правильный формат
-    if (instruction_data.len() - 1) % 32 != 0 {
+    if (instruction_data.len() - 8) % 32 != 0 {
         msg!("Invalid proof data length");
         return Err(ProgramError::InvalidInstructionData);
     }
     
     // Преобразуем данные доказательства в вектор 32-байтных массивов
     let mut proof = Vec::new();
-    for i in 0..((instruction_data.len() - 1) / 32) {
+    for i in 0..((instruction_data.len() - 8) / 32) {
         let mut node = [0u8; 32];
-        node.copy_from_slice(&instruction_data[1 + i * 32..1 + (i + 1) * 32]);
+        node.copy_from_slice(&instruction_data[8 + i * 32..8 + (i + 1) * 32]);
         proof.push(node);
     }
     
@@ -149,8 +149,8 @@ pub fn process_instruction(
     // Проверяем PDA для отслеживания минтинга
     let (expected_mint_record_address, mint_record_bump) = Pubkey::find_program_address(
         &[
-            b"is_minted_ext",
-            &[round_number as u8],
+            b"minted",
+            &round_number.to_le_bytes(),
             payer.key.as_ref(),
         ],
         program_id
@@ -326,8 +326,8 @@ pub fn process_instruction(
     let mint_record_lamports = rent.minimum_balance(mint_record_size);
     
     let mint_record_signature_seeds = &[
-        b"is_minted_ext".as_ref(),
-        &[round_number as u8],
+        b"minted".as_ref(),
+        &round_number.to_le_bytes(),
         payer.key.as_ref(),
         &[mint_record_bump],
     ];

@@ -36,7 +36,7 @@ describe('Instruction 15 Test', function() {
     // Получаем адрес PDA для расширенного отслеживания минтинга
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
-        Buffer.from('is_minted_ext'),
+        Buffer.from('minted'),
         Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
         payer.publicKey.toBuffer(),
       ],

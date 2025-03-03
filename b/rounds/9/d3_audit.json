@@ -1,11 +1,11 @@
 {
   "blockHash": "000000000000000000013f580f4e7caf0cc5bc29caf3ba0271aab3c24118bf6f",
-  "threshold": "0x0df0b480d5102f96c3e5ee0cf263e18af3e45ec0b6d5976acba8e99674ec1524",
-  "thresholdPercent": "5.4454118207161833%",
+  "threshold": "0x1f2f386c6c0a6489bc807ba1d044df9570b4ebfe60a19ec7aaa1bb777ecf1931",
+  "thresholdPercent": "12.1814276190016786%",
   "totalPlayers": 450,
-  "coefficient": "24.504353193222825",
-  "coefficientHex": "0x570E94538862A9",
-  "winnersCount": 26,
+  "coefficient": "54.816424285507554",
+  "coefficientHex": "0xC2BF3F59650FE2",
+  "winnersCount": 64,
   "randomNumbers": [
     {
       "number": 1,
@@ -107,7 +107,7 @@
       "number": 17,
       "player": "2ftLAJjXAjy4U1RJF1AJ7bieSKTiwbuptqv9J58EFEbi",
       "randomValue": "0x14f0373521f5d164a089dd3c1f1e90c7339b9a063946ee5d52db580917175b4b",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 18,
@@ -131,7 +131,7 @@
       "number": 21,
       "player": "2sk9bYLNp3guCK1mRoKmvE8KEh8BoFRYLFN2eN2iWLaF",
       "randomValue": "0x18b15f3ee24f90ddc9669efdda74348cf0072a5e30e4675f08a5554df4af1c36",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 22,
@@ -215,7 +215,7 @@
       "number": 35,
       "player": "3n1TxLLDHjSfarT8q3g3egnQGkPZ4C7cKQurYS7MemET",
       "randomValue": "0x15c7f48099ee075d9963c3a2e36dfd1cd87cfbaf9254ad16b0063175d5aa553c",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 36,
@@ -269,7 +269,7 @@
       "number": 44,
       "player": "4NwPSCMpLMSFFhJbqDMVKTA2JgwYgMjuLZs5x7Zj2NME",
       "randomValue": "0x1e2bd49e20d0524cd0187385836dbe4cf55d248d65a8163be2bef4ac48a5f243",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 45,
@@ -371,7 +371,7 @@
       "number": 61,
       "player": "5289mDD8HdQhsrSNAW5PMCmXEzzVDbFU1p8AtE4M9Xsk",
       "randomValue": "0x0e2f377aa142670542a49dcb222453323ead74a54bd0fed2e3676186b94243da",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 62,
@@ -413,7 +413,7 @@
       "number": 68,
       "player": "5PZg2S9hxgqJyHisEJ6Fqq422k8ip6KoPAanpchazHJF",
       "randomValue": "0x1078d74f9cddcf46804aaf15d4155826ac6c17329846e77f80c8c101a32ce889",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 69,
@@ -521,7 +521,7 @@
       "number": 86,
       "player": "6FemxCBXd1AW5xc3soFKyXenGBhUC6RHRbiDjYpctbk2",
       "randomValue": "0x1229fdfe8615e9da71c5884a30dcf4c0cb79ba822a0820a13e3e642fd261da3c",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 87,
@@ -623,7 +623,7 @@
       "number": 103,
       "player": "6YKGT7WZLAsGQA4TywkuAmkE6up58coqHAo15aBdiKuf",
       "randomValue": "0x0e0dcbd6e3bdc998ca7344f5847e586df46c282e2745fbf752243f145e636455",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 104,
@@ -695,7 +695,7 @@
       "number": 115,
       "player": "765mn5gLEcxpL1eYUbo9Bv84jyzL5gbXaRu2sjqPurDL",
       "randomValue": "0x16fb05a337ca4933dbb7db9a3a5bb63bde999cf80167726dac9655f51fcfe77b",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 116,
@@ -707,7 +707,7 @@
       "number": 117,
       "player": "77Gs9sHPcKP5TSsqRxhBPkKFv15qXvvstFPbTUebXWVu",
       "randomValue": "0x10d00c5a48c9d649c660d690a2961a87a81a103c275177be1563164608e6e8c4",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 118,
@@ -779,7 +779,7 @@
       "number": 129,
       "player": "7aK6mqyRmHzZk6iLDnXhttM5LbuUGtUUJrLvncDQkxop",
       "randomValue": "0x10a672e775686a9ab52d165049b2f842e64b7ea89fa6e687ac6ef975cc43fbc1",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 130,
@@ -791,7 +791,7 @@
       "number": 131,
       "player": "7gwC528GdUze1RnozUhjLPkbGBnE3iGu18ZxivahfpTV",
       "randomValue": "0x18840b1b1705cd5dafe142d2cc37afb3895875db132ed01b49c263376a208b1a",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 132,
@@ -989,7 +989,7 @@
       "number": 164,
       "player": "8t8sfU4QdR9rAkqgz9XAJHxYsZvM443unyDKCp1wZ7JW",
       "randomValue": "0x1b6a1762094beee05b65c56b2ab6863c6c5be51a89afda63e708fb09bdc7f528",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 165,
@@ -1031,7 +1031,7 @@
       "number": 171,
       "player": "9BoVFSVmhqgiGa9oC1jTgtoCsyChyBg2g3rYfM1NTg8B",
       "randomValue": "0x1d1f96a6f8db4e05608cd60a2d6737cc9f29a86495b6a14aa4e8d74ad12edbf7",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 172,
@@ -1175,7 +1175,7 @@
       "number": 195,
       "player": "ASWiMNJaxHyRRWUJu9VvwsyKUEdzEqnDJdVXCBeZA5ir",
       "randomValue": "0x100da34171a6335034923de09861ef5775ef5aa6a9a99bc581d07c5a12520a17",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 196,
@@ -1259,7 +1259,7 @@
       "number": 209,
       "player": "AvXVfCGKKmB2Mpwq3P33LBdq7d7DQe1jqjnzLZpGcec2",
       "randomValue": "0x0f40355ae53b2c90b5e0479ee539c7e8b095673a007ad930cc5f2427d16aa2ac",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 210,
@@ -1283,7 +1283,7 @@
       "number": 213,
       "player": "B4paYMPTr4urPTXZVZBGLLhy3HjSMcVL3w3m5B2kGDRz",
       "randomValue": "0x16ca48f96004e6174f96df4f5078a52437b124db6f81411f5e8836e5bf24f288",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 214,
@@ -1367,7 +1367,7 @@
       "number": 227,
       "player": "BTJ465G7BFTX91fiDaFjiTNRrY2VdDEW1A74poPeTmP1",
       "randomValue": "0x1371abe4232caef27f7e9b13f33c4a9d0b8a04c9eb53d429b4a0e3205dfb036f",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 228,
@@ -1553,7 +1553,7 @@
       "number": 258,
       "player": "CRdydq59VVQWHjuN5MBmXicwZB53SRhpQZRPGFArJfFT",
       "randomValue": "0x120b4240f8c11edc1a60d3b3816ec25e5c67dbf6bd2fefb2a76271aedc63a640",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 259,
@@ -1565,7 +1565,7 @@
       "number": 260,
       "player": "CVRgcRWKNQ6g4WDsmaDNqgyPq7G38v7WHx2WDMgFsHZ",
       "randomValue": "0x0f2a78a53a8a5b4fe943e3b556593607c45716c00ca7cf7d202957177f49fbd4",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 261,
@@ -1619,7 +1619,7 @@
       "number": 269,
       "player": "CtD3AKgxeZXV48CuChYkJbJPRi9yic3Tm58igskUfnb1",
       "randomValue": "0x1ebbd379e624b3b861cf9ff7fe59c6bc20c2db6d3a3c8b17893ad7d70016c64f",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 270,
@@ -1697,7 +1697,7 @@
       "number": 282,
       "player": "DRmoQq4sY2RjC65nSskhs17SdDfjTi6JPwrBsFmtr34f",
       "randomValue": "0x12244c94a252e5185df76761684a3e0a90aa23c50d1930b10a361493d9ae0dbe",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 283,
@@ -1793,7 +1793,7 @@
       "number": 298,
       "player": "DzifMhytv3Bo4EoSDi2VYszqa9qsUEQJkSkcDEekXsgT",
       "randomValue": "0x0f3b703e2d4c6ca4bc33b6ff3a21603e84da03d864808b48e65471dfd16c7ca7",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 299,
@@ -1853,7 +1853,7 @@
       "number": 308,
       "player": "EFxnf1Bszo5P6vdoZR1zDKHMei8GZ5USoQmfiZRJ5rjP",
       "randomValue": "0x183fe7cb232d48ce362708f10f16aab779bc2764a7ecfb8d116b5bdac1031597",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 309,
@@ -1943,7 +1943,7 @@
       "number": 323,
       "player": "Emtj4ssqevVzasfvRfXQzUVjTqUSvPub8NGrDy2iD5fS",
       "randomValue": "0x12f16077ced17431047e1a3d01e3b351531e7e56706e34d8dc52fcdcd4b6965d",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 324,
@@ -1973,7 +1973,7 @@
       "number": 328,
       "player": "F6ATZDiMza4zCxxWQGxLvRLpm6tTs8CZoKrpX8vciP6a",
       "randomValue": "0x197d632f648f90528f94e103faf72e7e874b4853abc9df83826b489b1a44da40",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 329,
@@ -1985,7 +1985,7 @@
       "number": 330,
       "player": "FB7fj7Q51upPwZ32yXDJhwkibWTeXzgBcGGaZemQy63R",
       "randomValue": "0x1a4d6959b51ab87fb27ff0a7145580f63b732b5d769fae1f01bce535681607fe",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 331,
@@ -2225,7 +2225,7 @@
       "number": 370,
       "player": "GTjXShVjogohfZW1BZ4ve2suLGW1rE66gWjABWqUu7Js",
       "randomValue": "0x1ee0a5f7f7faa3041489dd4e0aeb66df32eabc511261eaebf4fcdc1cf1d2276e",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 371,
@@ -2249,7 +2249,7 @@
       "number": 374,
       "player": "GXnUJeT2XxcwsTkWPA2RczBaqybAZZ8Ut78CdTwzwiGp",
       "randomValue": "0x162a0c918c2239f7c7f0d0e44d97f925e9373a1563254e4836bbe973e086dbf7",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 375,
@@ -2285,7 +2285,7 @@
       "number": 380,
       "player": "GovvPoAGZjRGkP9LnBaEKNf1kRREcb1s88qyeYJ83vXf",
       "randomValue": "0x1add99b6926cc1f2490ee53e0ed8d9d7152e36a74854bbcb73601c44f1b0e8dd",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 381,
@@ -2303,7 +2303,7 @@
       "number": 383,
       "player": "GuLQejQmtxQbGrCUNZcoG3qh8F5hWi1ES9DVxygo8QZ2",
       "randomValue": "0x125887445ce256020316c7b622fa76dd09df393e0e76fa574593d407e6c78fdf",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 384,
@@ -2375,7 +2375,7 @@
       "number": 395,
       "player": "HAvFoFUBdU3qKjo74ZBXtMuw8BKSAoNntZWqihCNBVsz",
       "randomValue": "0x13822ac00011e193561cfc7f2d1584a5b2a8e79f510298ab4d88aebeaef49232",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 396,
@@ -2435,7 +2435,7 @@
       "number": 405,
       "player": "HVxtUv1aKbDuBaeUKidq13JkSwrXR1UdPujgParQNYMX",
       "randomValue": "0x1f2a17c459b897396b1787e259c5a363a862a1f6040fb33fdf78a0fd460732a6",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 406,
@@ -2483,7 +2483,7 @@
       "number": 413,
       "player": "HfRnTV1u7jAoJpgzFyxhsRs3w9yDcuYVLUWJdFLGsZ6T",
       "randomValue": "0x1e6b335e0a466cdaa9ba5ee50a5578b01f0a8d29d2fa34fd1c26446f431c2cd2",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 414,
@@ -2561,7 +2561,7 @@
       "number": 426,
       "player": "J71EzJD4KnyKn5XhW4HerVfuQiHGpwRERQniuG8qG1C5",
       "randomValue": "0x179e73d63025f966b46a409ac846e195317764d09dde2a0a7bf2d3971e37a770",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 427,
@@ -2633,13 +2633,13 @@
       "number": 438,
       "player": "VuSbcAysRZ2e5eRG7fC4XnheBAL2tf75ncffUebrpGc",
       "randomValue": "0x12dd166947c5b4e0458c65420be9e47bfd08472e6ce9b169a00ec133fa3ca273",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 439,
       "player": "aXviDQ7X1YL2F2yQRTA4ge1sbdyJHdt2czyhMKLnC4w",
       "randomValue": "0x12fa32256f884039a5b90a55134e5e13f0de25d8ebde9b673e4e0b9c17740553",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 440,
@@ -2687,7 +2687,7 @@
       "number": 447,
       "player": "tXHFMFR4jCMFYXDa2gMku3HRgTSY37docWUm4JsGv2Q",
       "randomValue": "0x1d82f94d42644277ef0700f77ebc203aa80372649846348c0958b32a549d0ca7",
-      "isWinner": false
+      "isWinner": true
     },
     {
       "number": 448,
