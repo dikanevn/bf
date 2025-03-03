@@ -1,9 +1,19 @@
+для полного переноса новый алгоритм - 
+
+
 log2.ts - исправить 1000 (строка 57) если надо 
 ts-node log2.ts обновить лог файл
 ts-node log5.ts дополнить лог файл
 ts-node log4.ts собрать agame_statistics.json
 
 открыть agame_statistics.json
+
+/*
+// для полного переноса
+ts-node d20.ts // для полного переноса новый алгоритм - Функция для переноса файлов d2.json из папки бэкапа в папку rounds
+ts-node d21.ts пропишет новые числа и удалит winners
+*/
+
 ts-node d14.ts 107     делает файл d2
 переименовываем папку
 потом копируем d02
@@ -12,6 +22,7 @@ ts-node d19.ts 8 заполняет время RewardsOrDeploy по game id . и
 добавлям блок
 ts-node d19.ts 8 бтс по номеру блока. и тотал игроки делает
 ts-node d08.ts 95-99 делает рандом и аудит
+
 cd ~\u1\bf
 git add . && git commit -m "a" && git push
 npm run deploy

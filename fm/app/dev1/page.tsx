@@ -733,11 +733,28 @@ function DevContent() {
       // Загружаем данные для каждого раунда
       for (let i = 1; i <= lastFoundRound; i++) {
         try {
-          const d2Data = await import(`../../../b/rounds/${i}/d2.json`);
-          const d3Data = await import(`../../../b/rounds/${i}/d3.json`);
+          // Загружаем d2.json
+          let d2Data;
+          try {
+            d2Data = await import(`../../../b/rounds/${i}/d2.json`);
+          } catch (err) {
+            console.error(`Ошибка при загрузке d2.json для раунда ${i}:`, err);
+            continue; // Пропускаем этот раунд, если d2.json не найден
+          }
+
+          // Загружаем d3.json
+          let d3Data;
+          let won = false;
+          try {
+            d3Data = await import(`../../../b/rounds/${i}/d3.json`);
+            won = d3Data.default.some((item: { player: string }) => item.player === address);
+          } catch (err) {
+            console.error(`Ошибка при загрузке d3.json для раунда ${i}:`, err);
+            // Продолжаем выполнение даже если d3.json не найден
+            // won остается false
+          }
 
           const participated = d2Data.default.some((item: { player: string }) => item.player === address);
-          const won = d3Data.default.some((item: { player: string }) => item.player === address);
           
           if (participated || won) {
             const date = i === lastFoundRound && lastRoundDate ? 
@@ -754,7 +771,7 @@ function DevContent() {
             });
           }
         } catch (err) {
-          console.error(`Ошибка при загрузке данных для раунда ${i}:`, err);
+          console.error(`Ошибка при обработке данных для раунда ${i}:`, err);
           continue;
         }
       }
@@ -768,13 +785,18 @@ function DevContent() {
         for (let i = 0; i < updatedResults.length; i++) {
           const result = updatedResults[i];
           if (result && typeof result.round === 'number') {
-            // Проверяем только расширенное отслеживание минтинга
-            const mintAddress = await checkIfMintedInRoundExtended(result.round);
-            if (mintAddress) {
-              result.extendedMinted = true;
-              result.mintAddress = mintAddress;
-            } else {
-              result.extendedMinted = false;
+            try {
+              // Проверяем только расширенное отслеживание минтинга
+              const mintAddress = await checkIfMintedInRoundExtended(result.round);
+              if (mintAddress) {
+                result.extendedMinted = true;
+                result.mintAddress = mintAddress;
+              } else {
+                result.extendedMinted = false;
+              }
+            } catch (err) {
+              console.error(`Ошибка при проверке минтинга для раунда ${result.round}:`, err);
+              // Продолжаем выполнение даже при ошибке проверки минтинга
             }
           }
         }
