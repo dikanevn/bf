@@ -62,6 +62,12 @@ function generateRandomNumber(hash: string, seed: number, max: number): number {
 
 // Функция для перемешивания массива lottery_numbers для winnersCount элементов
 function shuffleArrayForWinners(round: D02Round): void {
+    // Проверяем, что winnersCount не пустой
+    if (!round.winnersCount || round.winnersCount <= 0) {
+        console.error(`Раунд ${round.round}: winnersCount отсутствует или равен 0, пропускаем обработку`);
+        return;
+    }
+
     if (!round.lottery_numbers || round.lottery_numbers.length === 0) {
         console.error(`Раунд ${round.round}: lottery_numbers отсутствует или пуст`);
         return;
@@ -93,7 +99,15 @@ function shuffleArrayForWinners(round: D02Round): void {
         console.log(`Раунд ${round.round}: Шаг ${i+1}/${winnersCount} - поменяли местами элементы с индексами ${randomIndex} и ${lastIndex}`);
     }
     
+    // Создаем remaining_numbers как копию shuffled_numbers без winnersCount элементов справа
+    round.remaining_numbers = [...round.shuffled_numbers].slice(0, totalNumbers - winnersCount);
+    
+    // Записываем last_selected_index как последнее число в массиве lottery_numbers
+    round.last_selected_index = round.lottery_numbers[round.lottery_numbers.length - 1];
+    
     console.log(`Раунд ${round.round}: Перемешивание завершено`);
+    console.log(`Раунд ${round.round}: remaining_numbers содержит ${round.remaining_numbers.length} элементов`);
+    console.log(`Раунд ${round.round}: last_selected_index = ${round.last_selected_index}`);
 }
 
 async function main() {
