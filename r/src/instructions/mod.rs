@@ -34,3 +34,5 @@ pub mod instruction_41;
 
 pub mod instruction_42;
 pub mod instruction_43;
+pub mod instruction_44;
+pub mod instruction_45;

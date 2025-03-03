@@ -32,23 +32,27 @@ pub fn process_instruction(
     msg!("Starting create_and_mint_pnft_with_standard_token_merkle_proof_and_fixed_collection...");
     
     // Проверяем, что данные имеют правильный формат
-    if instruction_data.len() < 8 {
-        msg!("Invalid proof data: missing round number");
+    if instruction_data.len() < 10 { // 8 байт для раунда + 2 байта для NFTnumber
+        msg!("Invalid proof data: missing round number or NFTnumber");
         return Err(ProgramError::InvalidInstructionData);
     }
     
-    // Получаем номер раунда из первых 8 байт
-    let round_number = u64::from_le_bytes(instruction_data[0..8].try_into().unwrap());
+    // Получаем номер раунда из первого байта
+    let round_number = instruction_data[0] as usize;
     msg!("Using round number: {}", round_number);
     
+    // Получаем NFTnumber из следующих 2 байт (uint16)
+    let nft_number = u16::from_le_bytes([instruction_data[1], instruction_data[2]]);
+    msg!("Using NFTnumber: {}", nft_number);
+    
     // Проверяем, что номер раунда валидный
-    if round_number >= ALL_MERKLE_ROOTS.len() as u64 {
+    if round_number >= ALL_MERKLE_ROOTS.len() {
         msg!("Invalid round number: {}, max is {}", round_number, ALL_MERKLE_ROOTS.len() - 1);
         return Err(ProgramError::InvalidArgument);
     }
     
     // Получаем корень Merkle для указанного раунда
-    let merkle_root = ALL_MERKLE_ROOTS[round_number as usize];
+    let merkle_root = ALL_MERKLE_ROOTS[round_number];
     msg!("Using Merkle root for round {}", round_number);
     
     let accounts_iter = &mut accounts.iter();
@@ -122,29 +126,38 @@ pub fn process_instruction(
     msg!("Verifying Merkle proof...");
     
     // Проверяем, что данные доказательства имеют правильный формат
-    if (instruction_data.len() - 8) % 32 != 0 {
+    if (instruction_data.len() - 3) % 32 != 0 { // 3 байта для раунда и NFTnumber
         msg!("Invalid proof data length");
         return Err(ProgramError::InvalidInstructionData);
     }
     
     // Преобразуем данные доказательства в вектор 32-байтных массивов
     let mut proof = Vec::new();
-    for i in 0..((instruction_data.len() - 8) / 32) {
+    for i in 0..((instruction_data.len() - 3) / 32) {
         let mut node = [0u8; 32];
-        node.copy_from_slice(&instruction_data[8 + i * 32..8 + (i + 1) * 32]);
+        node.copy_from_slice(&instruction_data[3 + i * 32..3 + (i + 1) * 32]);
         proof.push(node);
     }
     
-    // Вычисляем хеш (лист) для адреса плательщика
-    let leaf = hash(payer.key.as_ref()).to_bytes();
+    // Создаем буфер для NFTnumber (2 байта)
+    let mut nft_number_bytes = [0u8; 2];
+    nft_number_bytes.copy_from_slice(&[instruction_data[1], instruction_data[2]]);
+    
+    // Вычисляем хеш (лист) для адреса плательщика с учетом NFTnumber
+    let mut combined_data = Vec::with_capacity(34); // 32 байта для адреса + 2 байта для NFTnumber
+    combined_data.extend_from_slice(payer.key.as_ref());
+    combined_data.extend_from_slice(&nft_number_bytes);
+    
+    let leaf = hash(&combined_data).to_bytes();
     
     // Проверяем доказательство
     if !verify_merkle_proof(leaf, &proof, merkle_root) {
-        msg!("Invalid Merkle proof for address: {} in round {}", payer.key, round_number);
+        msg!("Invalid Merkle proof for address: {} with NFTnumber: {} in round {}", 
+             payer.key, nft_number, round_number);
         return Err(ProgramError::InvalidArgument);
     }
     
-    msg!("Merkle proof verified successfully for round {}!", round_number);
+    msg!("Merkle proof verified successfully for round {} with NFTnumber {}!", round_number, nft_number);
 
     // Проверяем PDA для отслеживания минтинга
     let (expected_mint_record_address, mint_record_bump) = Pubkey::find_program_address(

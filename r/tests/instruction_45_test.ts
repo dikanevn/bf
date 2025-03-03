@@ -12,7 +12,8 @@ import {
   Transaction, 
   TransactionInstruction,
   sendAndConfirmTransaction,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  clusterApiUrl
 } from '@solana/web3.js';
 import { 
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -53,35 +54,85 @@ function sha256(data: Buffer): Buffer {
   return createHash('sha256').update(data).digest();
 }
 
-describe('Instruction 40', function() {
+describe('Instruction 45', function() {
   // Увеличиваем таймаут до 60 секунд
   this.timeout(60000);
-
-  // Подключение к девнет
-  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-  //const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-  // Загружаем приватный ключ из .env в формате base58
-  const privateKeyString = process.env.PRIVATE_KEY!;
-  const payer = Keypair.fromSecretKey(bs58.decode(privateKeyString));
   
-  // Создаем кейпару для минта
-  const mint = Keypair.generate();
-
   it('should create a pNFT with standard SPL Token, Merkle proof verification and add to fixed collection', async function() {
-    console.log('Начинаем тест создания pNFT с стандартным SPL Token, проверкой Merkle и добавлением в коллекцию (инструкция 40)');
-    console.log('Адрес плательщика:', payer.publicKey.toBase58());
-    console.log('Адрес минта:', mint.publicKey.toBase58());
+    console.log('Начинаем тест создания pNFT с стандартным SPL Token, проверкой Merkle и добавлением в коллекцию (инструкция 45)');
     
-    // Загружаем данные раунда 11
-    const d3Data = JSON.parse(fs.readFileSync(path.join(__dirname, '../../b/rounds/11/d3.json'), 'utf8'));
+    // Используем раунд 2 для теста (или 1, если указан в параметрах)
+    const roundNumber = process.env.TEST_ROUND_NUMBER ? parseInt(process.env.TEST_ROUND_NUMBER) : 2;
+    console.log(`Используем раунд ${roundNumber} для теста`);
     
-    // Получаем все адреса из d3
-    const addresses = d3Data.map((item: { player: string }) => item.player);
+    // Индекс в массиве ALL_MERKLE_ROOTS для раунда 2 - это 1 (массив начинается с 0)
+    const roundIndex = roundNumber - 1;
+    console.log(`Индекс в массиве ALL_MERKLE_ROOTS: ${roundIndex}`);
     
-    // Создаем листья для меркл-дерева
-    const leaves = addresses.map((addr: string) => {
-      const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
-      return createHash('sha256').update(pkBytes).digest();
+    // Проверяем, что PRIVATE_KEY доступен из переменных окружения
+    if (!process.env.PRIVATE_KEY) {
+      throw new Error('PRIVATE_KEY не найден в переменных окружения');
+    }
+    console.log('PRIVATE_KEY найден в переменных окружения');
+    
+    // Создаем подключение к devnet
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    
+    // Создаем кошелек плательщика из приватного ключа
+    // Приватный ключ может быть в формате base58
+    const payer = Keypair.fromSecretKey(bs58.decode(process.env.PRIVATE_KEY));
+    console.log(`Адрес плательщика: ${payer.publicKey.toBase58()}`);
+    
+    // Создаем новый keypair для минта
+    const mint = Keypair.generate();
+    console.log(`Адрес минта: ${mint.publicKey.toBase58()}`);
+    
+    // Загружаем данные указанного раунда
+    const roundDataPath = path.join(__dirname, `../../b/rounds/${roundNumber}/d3.json`);
+    if (!fs.existsSync(roundDataPath)) {
+      throw new Error(`Файл данных для раунда ${roundNumber} не найден: ${roundDataPath}`);
+    }
+    
+    const d3Data = JSON.parse(fs.readFileSync(roundDataPath, 'utf8'));
+    
+    // Находим NFTnumber для текущего адреса
+    const playerData = d3Data.find((item: { player: string, NFTnumber?: number }) => 
+      item.player === payer.publicKey.toBase58()
+    );
+    
+    // Если NFTnumber не найден, выдаем ошибку
+    if (!playerData || playerData.NFTnumber === undefined) {
+      throw new Error(`NFTnumber не найден для адреса ${payer.publicKey.toBase58()} в раунде ${roundNumber}`);
+    }
+    
+    const nftNumber = playerData.NFTnumber;
+    console.log(`Найден NFTnumber ${nftNumber} для адреса ${payer.publicKey.toBase58()}`);
+    
+    // Получаем все адреса и NFTnumber из d3
+    const playersData = d3Data.map((item: { player: string, NFTnumber?: number }) => {
+      if (item.NFTnumber === undefined) {
+        throw new Error(`NFTnumber не определен для игрока ${item.player}`);
+      }
+      return {
+        player: item.player,
+        NFTnumber: item.NFTnumber
+      };
+    });
+    
+    // Создаем листья для меркл-дерева, включая NFTnumber
+    const leaves = playersData.map(({ player, NFTnumber }: { player: string, NFTnumber: number }) => {
+      // Создаем буфер из адреса публичного ключа
+      const pkBytes = Buffer.from(new PublicKey(player).toBytes());
+      
+      // Создаем буфер для NFTnumber (2 байта, uint16)
+      const nftNumberBuffer = Buffer.alloc(2);
+      nftNumberBuffer.writeUInt16LE(NFTnumber, 0);
+      
+      // Объединяем буферы: сначала адрес, затем NFTnumber
+      const combinedBuffer = Buffer.concat([pkBytes, nftNumberBuffer]);
+      
+      // Хешируем объединенный буфер
+      return sha256(combinedBuffer);
     });
     
     // Сортируем листья для консистентности
@@ -90,8 +141,12 @@ describe('Instruction 40', function() {
     // Создаем меркл-дерево
     const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
     
-    // Вычисляем хеш (лист) для текущего адреса
-    const leaf = createHash('sha256').update(payer.publicKey.toBuffer()).digest();
+    // Вычисляем хеш (лист) для текущего адреса с учетом NFTnumber
+    const pkBytes = Buffer.from(payer.publicKey.toBytes());
+    const nftNumberBuffer = Buffer.alloc(2);
+    nftNumberBuffer.writeUInt16LE(nftNumber, 0);
+    const combinedBuffer = Buffer.concat([pkBytes, nftNumberBuffer]);
+    const leaf = sha256(combinedBuffer);
     
     // Получаем доказательство для текущего адреса
     const proof = tree.getProof(leaf).map(p => p.data);
@@ -101,7 +156,7 @@ describe('Instruction 40', function() {
     console.log('Merkle proof валиден:', isValid);
     
     if (!isValid) {
-      throw new Error('Адрес не найден в списке участников раунда 11');
+      throw new Error(`Адрес ${payer.publicKey.toBase58()} с NFTnumber ${nftNumber} не найден в списке участников раунда ${roundNumber}`);
     }
 
     // Проверяем баланс
@@ -186,28 +241,36 @@ describe('Instruction 40', function() {
     console.log('Collection Master Edition PDA:', collectionMasterEdition.toBase58());
 
     // Получаем PDA для отслеживания минтинга
-    const roundNumber = 10; // Используем раунд 11 для теста, так как данные берутся из раунда 11
     const [mintRecordAccount] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('minted'),
-        Buffer.from([roundNumber]),
+        Buffer.from([roundIndex]),
         payer.publicKey.toBuffer(),
       ],
       PROGRAM_ID
     );
     console.log('Mint Record PDA:', mintRecordAccount.toBase58());
 
-    // Создаем буфер данных для инструкции с Merkle доказательством
-    const dataLength = 8 + (proof.length * 32); // 8 байт для номера раунда и proof
+    // Создаем буфер данных для инструкции
+    // [0] - номер инструкции (1 байт)
+    // [1] - номер раунда (1 байт)
+    // [2-3] - NFTnumber (2 байта, uint16)
+    // [4..] - данные доказательства (каждый узел - 32 байта)
+    const dataLength = 4 + (proof.length * 32);
     const dataBuffer = Buffer.alloc(dataLength);
     
-    // Записываем номер раунда как u64 LE
-    dataBuffer.writeBigUInt64LE(BigInt(roundNumber), 0);
+    // Записываем номер инструкции (45)
+    dataBuffer.writeUInt8(45, 0);
     
-    // Записываем каждый узел доказательства в буфер
-    for (let i = 0; i < proof.length; i++) {
-        proof[i].copy(dataBuffer, 8 + (i * 32));
-    }
+    // Записываем индекс раунда в массиве ALL_MERKLE_ROOTS (для раунда 2 это 1)
+    dataBuffer.writeUInt8(roundIndex, 1);
+    
+    // Записываем NFTnumber (2 байта, uint16)
+    dataBuffer.writeUInt16LE(nftNumber, 2);
+    
+    // Копируем данные доказательства
+    const proofBuffer = Buffer.concat(proof);
+    proofBuffer.copy(dataBuffer, 4);
 
     try {
       console.log('Создаем инструкцию...');
@@ -258,6 +321,21 @@ describe('Instruction 40', function() {
         .add(instruction);
       
       console.log('Отправляем транзакцию...');
+      
+      // Добавляем логирование для отладки
+      console.log('Данные инструкции:');
+      console.log('Номер инструкции:', dataBuffer[0]);
+      console.log('Индекс раунда:', dataBuffer[1]);
+      console.log('NFTnumber:', dataBuffer.readUInt16LE(2));
+      console.log('Длина proof:', proof.length);
+      console.log('Общая длина данных:', dataBuffer.length);
+      
+      // Логируем все аккаунты
+      console.log('Аккаунты в инструкции:');
+      instruction.keys.forEach((key, index) => {
+        console.log(`${index}: ${key.pubkey.toBase58()} (signer: ${key.isSigner}, writable: ${key.isWritable})`);
+      });
+      
       const signature = await sendAndConfirmTransaction(
         connection,
         transaction,
