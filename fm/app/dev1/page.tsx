@@ -85,31 +85,125 @@ async function validateAndGetMerkleProof(
   wallet: { publicKey: PublicKey },
   round: number,
   allRoundsMerkleRoots: Buffer[],
-  allRoundsWinners: string[][]
+  allRoundsWinners: string[][],
+  nftNumber?: number // Добавляем опциональный параметр NFTnumber
 ): Promise<{ proof: Buffer[]; isValid: boolean }> {
-  if (!allRoundsWinners[round]) {
-    throw new Error("Раунд не найден");
+  try {
+    if (!wallet.publicKey) {
+      throw new Error("Кошелек не подключен");
+    }
+
+    // Проверяем, что раунд существует и у нас есть корень для него
+    if (round <= 0 || round > allRoundsMerkleRoots.length) {
+      throw new Error(`Неверный номер раунда: ${round}`);
+    }
+
+    // Получаем корень для указанного раунда
+    const root = allRoundsMerkleRoots[round - 1];
+    if (!root) {
+      throw new Error(`Merkle root для раунда ${round} не найден`);
+    }
+
+    // Получаем список победителей для указанного раунда
+    const winners = allRoundsWinners[round - 1];
+    if (!winners || winners.length === 0) {
+      throw new Error(`Список победителей для раунда ${round} не найден или пуст`);
+    }
+
+    // Проверяем, есть ли адрес кошелька в списке победителей
+    const walletAddress = wallet.publicKey.toString();
+    const isWinner = winners.includes(walletAddress);
+    if (!isWinner) {
+      return { proof: [], isValid: false };
+    }
+
+    // Создаем буфер из адреса публичного ключа
+    const pkBytes = Buffer.from(wallet.publicKey.toBytes());
+    
+    // Создаем хеш для текущего кошелька
+    let leafBuffer: Buffer;
+    
+    // Если предоставлен NFTnumber, включаем его в хеш
+    if (nftNumber !== undefined) {
+      // Создаем буфер для NFTnumber (2 байта, uint16)
+      const nftNumberBuffer = Buffer.alloc(2);
+      nftNumberBuffer.writeUInt16LE(nftNumber, 0);
+      
+      // Объединяем буферы: сначала адрес, затем NFTnumber
+      const combinedBuffer = Buffer.concat([pkBytes, nftNumberBuffer]);
+      
+      // Хешируем объединенный буфер
+      leafBuffer = sha256(combinedBuffer);
+    } else {
+      // Для обратной совместимости: если NFTnumber не предоставлен, используем только адрес
+      leafBuffer = sha256(pkBytes);
+    }
+
+    // Создаем листья для всех победителей
+    const leaves: Buffer[] = [];
+    
+    for (const winnerAddress of winners) {
+      // Если это адрес текущего кошелька и у нас есть уже созданный leafBuffer
+      if (winnerAddress === walletAddress) {
+        leaves.push(leafBuffer);
+        continue;
+      }
+      
+      // Для других адресов
+      let winnerNftNumber = 0;
+      
+      // Если нам нужно учитывать NFTnumber, пытаемся его найти
+      if (nftNumber !== undefined) {
+        try {
+          // Загружаем d3.json для текущего раунда
+          const d3 = await import(`../../../b/rounds/${round}/d3.json`);
+          
+          // Ищем данные для этого адреса
+          const playerData = d3.default.find((item: { player: string, NFTnumber?: number }) => 
+            item.player === winnerAddress
+          );
+          
+          if (playerData && playerData.NFTnumber !== undefined) {
+            winnerNftNumber = playerData.NFTnumber;
+          }
+        } catch (error) {
+          console.error(`Ошибка при загрузке данных для раунда ${round}:`, error);
+        }
+      }
+      
+      const winnerPkBytes = Buffer.from(new PublicKey(winnerAddress).toBytes());
+      
+      // Если NFTnumber нужен, включаем его в хеш
+      if (nftNumber !== undefined) {
+        const winnerNftBuffer = Buffer.alloc(2);
+        winnerNftBuffer.writeUInt16LE(winnerNftNumber, 0);
+        leaves.push(sha256(Buffer.concat([winnerPkBytes, winnerNftBuffer])));
+      } else {
+        leaves.push(sha256(winnerPkBytes));
+      }
+    }
+
+    // Сортируем листья для консистентности
+    const sortedLeaves = [...leaves].sort(Buffer.compare);
+
+    // Создаем меркл-дерево
+    const tree = new MerkleTree(sortedLeaves, sha256, { sortPairs: true });
+
+    // Получаем доказательство для нашего листа
+    const proof = tree.getProof(leafBuffer);
+    const proofBuffers = proof.map(p => p.data);
+
+    // Проверяем доказательство
+    const isValid = verifyMerkleProof(proofBuffers, leafBuffer, root);
+
+    return {
+      proof: proofBuffers,
+      isValid,
+    };
+  } catch (error) {
+    console.error("Ошибка при проверке Merkle Proof:", error);
+    throw error;
   }
-
-  const winners = allRoundsWinners[round];
-  if (!winners.includes(wallet.publicKey.toBase58())) {
-    throw new Error("Адрес не найден в списке победителей");
-  }
-
-  const leaves = winners.map(addr => sha256(Buffer.from(addr, 'utf8')));
-  const tree = new MerkleTree(leaves, sha256);
-  const leaf = sha256(Buffer.from(wallet.publicKey.toBase58(), 'utf8'));
-  const proof = tree.getProof(leaf).map(p => p.data);
-
-  const root = allRoundsMerkleRoots[round];
-  if (!root) {
-    throw new Error("Merkle root не найден для указанного раунда");
-  }
-
-  return {
-    proof,
-    isValid: verifyMerkleProof(proof, leaf, root)
-  };
 }
 
 async function createMintAndTokenAccounts(
@@ -916,13 +1010,26 @@ function DevContent() {
           // Загружаем d3.json текущего раунда
           const d3 = await import(`../../../b/rounds/${round}/d3.json`);
           
-          // Получаем все адреса из d3
-          const addresses = d3.default.map((item: { player: string }) => item.player);
+          // Получаем все адреса и NFTnumber из d3
+          const playersData = d3.default.map((item: { player: string, NFTnumber?: number }) => ({
+            player: item.player,
+            NFTnumber: item.NFTnumber || 0 // Используем 0, если NFTnumber не определен
+          }));
           
-          // Создаем листья для меркл-дерева
-          const leaves = addresses.map((addr: string) => {
-            const pkBytes = Buffer.from(new PublicKey(addr).toBytes());
-            return sha256(pkBytes);
+          // Создаем листья для меркл-дерева, включая NFTnumber
+          const leaves = playersData.map(({ player, NFTnumber }: { player: string, NFTnumber: number }) => {
+            // Создаем буфер из адреса публичного ключа
+            const pkBytes = Buffer.from(new PublicKey(player).toBytes());
+            
+            // Создаем буфер для NFTnumber (2 байта, uint16)
+            const nftNumberBuffer = Buffer.alloc(2);
+            nftNumberBuffer.writeUInt16LE(NFTnumber, 0);
+            
+            // Объединяем буферы: сначала адрес, затем NFTnumber
+            const combinedBuffer = Buffer.concat([pkBytes, nftNumberBuffer]);
+            
+            // Хешируем объединенный буфер
+            return sha256(combinedBuffer);
           });
           
           // Сортируем листья для консистентности
