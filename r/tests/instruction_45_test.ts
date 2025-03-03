@@ -244,7 +244,8 @@ describe('Instruction 45', function() {
     const [mintRecordAccount] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('minted'),
-        Buffer.from([roundIndex]),
+        // Используем 8-байтовое представление для соответствия u64.to_le_bytes() в Rust
+        Buffer.concat([Buffer.from([roundIndex]), Buffer.alloc(7)]), // 8 байт для u64
         payer.publicKey.toBuffer(),
       ],
       PROGRAM_ID

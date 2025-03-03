@@ -638,7 +638,7 @@ function DevContent() {
       roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
-          Buffer.from("is_minted_ext"),
+          Buffer.from("minted"),
           roundBytes,
           publicKey.toBuffer(),
         ],
@@ -769,7 +769,7 @@ function DevContent() {
       roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
-          Buffer.from("is_minted_ext"),
+          Buffer.from("minted"),
           roundBytes,
           publicKey.toBuffer(),
         ],
@@ -1251,7 +1251,7 @@ function DevContent() {
       roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
-          Buffer.from("is_minted_ext"),
+          Buffer.from("minted"),
           roundBytes,
           publicKey.toBuffer(),
         ],
@@ -1487,7 +1487,7 @@ function DevContent() {
       roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
-          Buffer.from("is_minted_ext"),
+          Buffer.from("minted"),
           roundBytes,
           publicKey.toBuffer(),
         ],
@@ -1621,7 +1621,7 @@ function DevContent() {
       roundBytes.writeBigUInt64LE(BigInt(roundNumber - 1));
       const [mintRecordPDA] = PublicKey.findProgramAddressSync(
         [
-          Buffer.from("is_minted_ext"),
+          Buffer.from("minted"),
           roundBytes,
           publicKey.toBuffer(),
         ],

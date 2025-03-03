@@ -4,11 +4,14 @@
  * Этот тест проверяет функциональность удаления PDA-аккаунта, который отслеживает
  * информацию о минтинге NFT для конкретного пользователя в раунде 10.
  */
-import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { expect } from 'chai';
-import * as dotenv from 'dotenv';
+import * as assert from 'assert';
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction, sendAndConfirmTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+import * as fs from 'fs';
 
+// Загружаем переменные окружения из .env файла
 dotenv.config();
 
 // Получаем ID программы из переменной окружения
@@ -29,77 +32,73 @@ describe('Instruction 15 Test', function() {
   const privateKeyString = process.env.PRIVATE_KEY!;
   const payer = Keypair.fromSecretKey(bs58.decode(privateKeyString));
 
-  it('should delete mint record for round 10', async function() {
+  it('should delete mint record for round 1', async function() {
     console.log('Начинаем тест удаления записи о минтинге (инструкция 15)');
     console.log('Адрес плательщика:', payer.publicKey.toBase58());
 
-    // Получаем адрес PDA для расширенного отслеживания минтинга
+    // Номер раунда для удаления
+    const roundNumber = 1;
+    console.log(`Удаляем запись для раунда ${roundNumber}`);
+
+    // Получаем адрес PDA для отслеживания минтинга
     const [mintRecordPDA] = PublicKey.findProgramAddressSync(
       [
         Buffer.from('minted'),
-        Buffer.from([10]), // Используем раунд 10 (соответствует раунду 11 в UI)
+        // Используем 8-байтовое представление для соответствия u64.to_le_bytes() в Rust
+        Buffer.concat([Buffer.from([roundNumber]), Buffer.alloc(7)]),
         payer.publicKey.toBuffer(),
       ],
       PROGRAM_ID
     );
     console.log('Mint Record PDA:', mintRecordPDA.toBase58());
 
+    // Проверяем, существует ли аккаунт перед удалением
+    const accountInfo = await connection.getAccountInfo(mintRecordPDA);
+    if (!accountInfo) {
+      console.log(`Аккаунт ${mintRecordPDA.toBase58()} не существует. Нечего удалять.`);
+      this.skip();
+      return;
+    }
+    console.log(`Аккаунт ${mintRecordPDA.toBase58()} существует. Размер: ${accountInfo.data.length} байт`);
+    console.log(`Владелец аккаунта: ${accountInfo.owner.toBase58()}`);
+
     // Создаем буфер данных для инструкции
     const dataBuffer = Buffer.alloc(2);
     dataBuffer[0] = 15; // Инструкция 15
-    dataBuffer[1] = 10; // Используем раунд 10 (соответствует раунду 11 в UI)
+    dataBuffer[1] = roundNumber; // Используем раунд 1
 
+    // Создаем инструкцию
+    const instruction = new TransactionInstruction({
+      keys: [
+        { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+        { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
+      ],
+      programId: PROGRAM_ID,
+      data: dataBuffer,
+    });
+
+    // Создаем и отправляем транзакцию
+    const transaction = new Transaction().add(instruction);
+    
     try {
-      console.log('Создаем инструкцию...');
-      const instruction = new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: payer.publicKey, isSigner: true, isWritable: true },
-          { pubkey: mintRecordPDA, isSigner: false, isWritable: true },
-        ],
-        data: dataBuffer
-      });
-
-      console.log('Создаем транзакцию...');
-      const transaction = new Transaction().add(instruction);
-      
-      console.log('Отправляем транзакцию...');
-      const signature = await connection.sendTransaction(
+      const signature = await sendAndConfirmTransaction(
+        connection,
         transaction,
         [payer],
-        { skipPreflight: true }
+        { commitment: 'confirmed' }
       );
-
-      console.log('Транзакция отправлена. Сигнатура:', signature);
-      console.log('Ожидаем подтверждения транзакции...');
+      console.log('Транзакция успешно выполнена. Сигнатура:', signature);
       
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      console.log('Статус подтверждения:', confirmation);
-
-      // Добавляем задержку перед проверкой аккаунта
-      console.log('Ждем 5 секунд перед проверкой аккаунта...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      console.log('Проверяем удаление аккаунта...');
-      
-      // Проверяем, что запись о минтинге была удалена
-      const mintRecordAccountInfo = await connection.getAccountInfo(mintRecordPDA);
-      console.log('Mint Record аккаунт существует:', mintRecordAccountInfo !== null);
-      expect(mintRecordAccountInfo).to.be.null;
-
-      console.log('Тест успешно завершен!');
-
-    } catch (err: any) {
-      console.error('Произошла ошибка при выполнении теста:');
-      console.error('Тип ошибки:', err.constructor.name);
-      console.error('Сообщение ошибки:', err.message);
-      if (err.logs) {
-        console.error('Логи программы:');
-        err.logs.forEach((log: string, index: number) => {
-          console.error(`${index + 1}:`, log);
-        });
+      // Проверяем, что аккаунт был удален
+      const accountInfoAfter = await connection.getAccountInfo(mintRecordPDA);
+      if (accountInfoAfter) {
+        throw new Error(`Аккаунт ${mintRecordPDA.toBase58()} все еще существует после удаления!`);
       }
-      throw err;
+      console.log(`Аккаунт ${mintRecordPDA.toBase58()} успешно удален.`);
+      
+    } catch (error) {
+      console.error('Ошибка при выполнении транзакции:', error);
+      throw error;
     }
   });
 }); 

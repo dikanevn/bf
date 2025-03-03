@@ -38,7 +38,7 @@ pub fn process_instruction(
     }
     
     // Получаем номер раунда из первого байта
-    let round_number = instruction_data[0] as usize;
+    let round_number = instruction_data[0] as u64;
     msg!("Using round number: {}", round_number);
     
     // Получаем NFTnumber из следующих 2 байт (uint16)
@@ -46,13 +46,13 @@ pub fn process_instruction(
     msg!("Using NFTnumber: {}", nft_number);
     
     // Проверяем, что номер раунда валидный
-    if round_number >= ALL_MERKLE_ROOTS.len() {
+    if (round_number as usize) >= ALL_MERKLE_ROOTS.len() {
         msg!("Invalid round number: {}, max is {}", round_number, ALL_MERKLE_ROOTS.len() - 1);
         return Err(ProgramError::InvalidArgument);
     }
     
     // Получаем корень Merkle для указанного раунда
-    let merkle_root = ALL_MERKLE_ROOTS[round_number];
+    let merkle_root = ALL_MERKLE_ROOTS[round_number as usize];
     msg!("Using Merkle root for round {}", round_number);
     
     let accounts_iter = &mut accounts.iter();
@@ -284,7 +284,13 @@ pub fn process_instruction(
         symbol: "YAPI39".to_string(),
         uri: "https://a.b/c.json".to_string(),
         seller_fee_basis_points: 1000,
-        creators: None,
+        creators: Some(vec![
+            mpl_token_metadata::types::Creator {
+                address: *program_authority.key,
+                verified: true,
+                share: 100,
+            }
+        ]),
         primary_sale_happened: false,
         is_mutable: true,
         token_standard: TokenStandard::ProgrammableNonFungible,

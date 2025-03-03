@@ -38,25 +38,28 @@ pub fn process_instruction(
         msg!("Invalid instruction data: missing round number");
         return Err(ProgramError::InvalidInstructionData);
     }
-    let round_number = instruction_data[0] as usize;
+    let round_number = instruction_data[0] as u64;
+    msg!("Deleting mint record for round {}", round_number);
     
     // Проверяем только расширенный PDA
-    let (expected_extended_mint_record_address, _) = Pubkey::find_program_address(
+    let (expected_mint_record_address, _) = Pubkey::find_program_address(
         &[
             b"minted",
-            &[round_number as u8],
+            &round_number.to_le_bytes(),
             payer.key.as_ref(),
         ],
         program_id
     );
     
     // Проверяем, что переданный mint_record_account соответствует ожидаемому адресу
-    if mint_record_account.key != &expected_extended_mint_record_address {
+    if mint_record_account.key != &expected_mint_record_address {
         msg!("Invalid mint record account address");
+        msg!("Expected: {}", expected_mint_record_address);
+        msg!("Received: {}", mint_record_account.key);
         return Err(ProgramError::InvalidArgument);
     }
     
-    msg!("Deleting extended mint record account");
+    msg!("Deleting mint record account");
     
     // Переводим все ламппорты с аккаунта на payer
     let dest_starting_lamports = payer.lamports();
