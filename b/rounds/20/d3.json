@@ -2,261 +2,313 @@
   {
     "number": 2,
     "player": "2ETkaSobrijrPppGTafp8gG6rpX49PAdwaFeMNAGoKw8",
-    "randomValue": "0x1150877b5623cf916068bcd68a8768b26736bc0adea30366cbeef4da7f403cf1"
+    "randomValue": "0x1150877b5623cf916068bcd68a8768b26736bc0adea30366cbeef4da7f403cf1",
+    "NFTnumber": 325
   },
   {
     "number": 3,
     "player": "2Gd8e1zgRvEUyPw1cZbcZQoD8KLD1xqAegCQWwpzNqnR",
-    "randomValue": "0x2ab9a79bd25cc3c1d49e6be7b19585ab1ca814893117b6462a664c96ceebe85c"
+    "randomValue": "0x2ab9a79bd25cc3c1d49e6be7b19585ab1ca814893117b6462a664c96ceebe85c",
+    "NFTnumber": 15
   },
   {
     "number": 4,
     "player": "2JYjbLBgK9EEs9KCHMvzcENmjGCH5vBEuihHoF6icoJZ",
-    "randomValue": "0x31630f495d1fed634bbf53310cddd34f8daa7f288ec838ec9faf7f2d07445c03"
+    "randomValue": "0x31630f495d1fed634bbf53310cddd34f8daa7f288ec838ec9faf7f2d07445c03",
+    "NFTnumber": 1933
   },
   {
     "number": 6,
     "player": "2NCjJ5cvxC8LjdXCybconkANSP6fuuNVrLCaiaEWdAkH",
-    "randomValue": "0x2acf6c62a1ac2763f6f70503241d9f8528d178ffd628819a13a59b0b7ff4655b"
+    "randomValue": "0x2acf6c62a1ac2763f6f70503241d9f8528d178ffd628819a13a59b0b7ff4655b",
+    "NFTnumber": 1618
   },
   {
     "number": 21,
     "player": "3pBfN5GFztDPQHJL1VszeZN2nJjvpU6AR8wm2gqCesi8",
-    "randomValue": "0x0bab78be0faa22caf719efd987b7979e322eb79b4e7e1c5fdafc6a37e78af7a5"
+    "randomValue": "0x0bab78be0faa22caf719efd987b7979e322eb79b4e7e1c5fdafc6a37e78af7a5",
+    "NFTnumber": 1861
   },
   {
     "number": 32,
     "player": "4fu6JHXM34qZ76JA1zdYaKufvPRWHg4GPqsg9TkM7Yqd",
-    "randomValue": "0x08e817cc4308749426b5fdc7491c31f4340074df155960b55bbe02170ef7f886"
+    "randomValue": "0x08e817cc4308749426b5fdc7491c31f4340074df155960b55bbe02170ef7f886",
+    "NFTnumber": 1621
   },
   {
     "number": 33,
     "player": "4q65Zn6tQyzhWEZBjomjbzk34uQxE2ytv6QWWaG7M472",
-    "randomValue": "0x15f95e2608c80f10dd18d96d8ed4484d80cde46a238d9a98281ef89a3a738e7f"
+    "randomValue": "0x15f95e2608c80f10dd18d96d8ed4484d80cde46a238d9a98281ef89a3a738e7f",
+    "NFTnumber": 1319
   },
   {
     "number": 36,
     "player": "4xvCgcNTrjjRoZJbAEjrAaAZZVf5d9rPvQ2dJ3HafPkg",
-    "randomValue": "0x2bbe9e502e0809eae60678fe807b335424d85a840b93b00364f1d7fb1a8ab4eb"
+    "randomValue": "0x2bbe9e502e0809eae60678fe807b335424d85a840b93b00364f1d7fb1a8ab4eb",
+    "NFTnumber": 1493
   },
   {
     "number": 43,
     "player": "5Sq3cJUenjbQ8ohRsJvioayCGkFAPCPEDqatv1h2qh1c",
-    "randomValue": "0x03803d5cf7ccbd3a3999b1a27f226bb92b7a2fdce2c1313fb9349bebb5558806"
+    "randomValue": "0x03803d5cf7ccbd3a3999b1a27f226bb92b7a2fdce2c1313fb9349bebb5558806",
+    "NFTnumber": 1506
   },
   {
     "number": 50,
     "player": "6Bh8shJ37whutfBvTQSpM1UGcg8WANDTD5UE9zx5Y9Qj",
-    "randomValue": "0x092141c21bfffbb4b8779d2550f1625e38e45477436b9e5639c30053aaf7254d"
+    "randomValue": "0x092141c21bfffbb4b8779d2550f1625e38e45477436b9e5639c30053aaf7254d",
+    "NFTnumber": 1578
   },
   {
     "number": 51,
     "player": "6CmxzpEBwN5UEbTmyCmdcn9gpLMMdAZjQiocCAsWgmXC",
-    "randomValue": "0x2b98d5327b584cf905f33eb8b0e63e9ca855db4ddedbce224e47a03b90e0471c"
+    "randomValue": "0x2b98d5327b584cf905f33eb8b0e63e9ca855db4ddedbce224e47a03b90e0471c",
+    "NFTnumber": 856
   },
   {
     "number": 58,
     "player": "6TP2sxahE1HKLSNJacpCnxSgN7LgXbtqcTfe9ktaDki7",
-    "randomValue": "0x3248854a0f296b181fcc63a097ad26e21e23196d0d308d36a4dd3027442fa764"
+    "randomValue": "0x3248854a0f296b181fcc63a097ad26e21e23196d0d308d36a4dd3027442fa764",
+    "NFTnumber": 682
   },
   {
     "number": 59,
     "player": "6TkMmaYwuSLkkHdgzJ35TU8cDb2KRtD2NXh9nZH8xGpQ",
-    "randomValue": "0x300079371167a0dcea4bd3eb6d8a9aede13799db955c5f46a78f28b67af66c4c"
+    "randomValue": "0x300079371167a0dcea4bd3eb6d8a9aede13799db955c5f46a78f28b67af66c4c",
+    "NFTnumber": 2058
   },
   {
     "number": 62,
     "player": "6gutHGrm3DH8pEQkhNsuDauTfaywGPB72buRMJgFSjC1",
-    "randomValue": "0x21f4561ba371a1218cb3c5ad0ebb06570eaf0c7aaa933f83b7fd682f1b28a012"
+    "randomValue": "0x21f4561ba371a1218cb3c5ad0ebb06570eaf0c7aaa933f83b7fd682f1b28a012",
+    "NFTnumber": 1789
   },
   {
     "number": 63,
     "player": "6iSQN1ahmfjH4YCHmFrDRSb3FGNWLTeLWt7q2MxXRzKD",
-    "randomValue": "0x10ac0ea7201ef953f8d2ca941f554ec01f13333b5b96e62821999dd1712d667e"
+    "randomValue": "0x10ac0ea7201ef953f8d2ca941f554ec01f13333b5b96e62821999dd1712d667e",
+    "NFTnumber": 974
   },
   {
     "number": 67,
     "player": "6qLCAeDSTg4fNdZ9xm7artFRtWGMzatiorTEqD1Xs7wi",
-    "randomValue": "0x1e30e7b4da419c96799bc1ef1531fa691901dac02fd7b476d21bbf9a06e88b04"
+    "randomValue": "0x1e30e7b4da419c96799bc1ef1531fa691901dac02fd7b476d21bbf9a06e88b04",
+    "NFTnumber": 1330
   },
   {
     "number": 71,
     "player": "765mn5gLEcxpL1eYUbo9Bv84jyzL5gbXaRu2sjqPurDL",
-    "randomValue": "0x028ce0095e39cf8f5c2bc5ee5c6a73c56745dbd134c9864499cdbd5579ff48a5"
+    "randomValue": "0x028ce0095e39cf8f5c2bc5ee5c6a73c56745dbd134c9864499cdbd5579ff48a5",
+    "NFTnumber": 409
   },
   {
     "number": 72,
     "player": "78pPpFpGLqdpYhMmtHG235af8GTQvv1QNR2KEApBE4Ac",
-    "randomValue": "0x19fc0aa61dc518c88b4e20f4707bfc41a12593d908545349b7073631a4193d32"
+    "randomValue": "0x19fc0aa61dc518c88b4e20f4707bfc41a12593d908545349b7073631a4193d32",
+    "NFTnumber": 1939
   },
   {
     "number": 78,
     "player": "7VpwsW2hyjaEsAKMwH9TEjHWvtAUarPKxCKNVogmcRks",
-    "randomValue": "0x0c2f40bbc35962885015ccdc44e81c70513393d5be07beaac215cdf3e4978e52"
+    "randomValue": "0x0c2f40bbc35962885015ccdc44e81c70513393d5be07beaac215cdf3e4978e52",
+    "NFTnumber": 1944
   },
   {
     "number": 90,
     "player": "84HdWPqvimV5ny7pjCLq9nNMWn22XivPQkB7pSxNamLF",
-    "randomValue": "0x2c169f78331002c97cc6cf49feeb5ed042d12f005de67053b967341e13d8b339"
+    "randomValue": "0x2c169f78331002c97cc6cf49feeb5ed042d12f005de67053b967341e13d8b339",
+    "NFTnumber": 1246
   },
   {
     "number": 95,
     "player": "8GeUdbrk79SD1m3VGbwaNrsNGUS7Qy5kYekhoA2fN7LR",
-    "randomValue": "0x1e947c044ddf30ba026341d4ed7d877265751a165e7733f1d526c66860115e91"
+    "randomValue": "0x1e947c044ddf30ba026341d4ed7d877265751a165e7733f1d526c66860115e91",
+    "NFTnumber": 1459
   },
   {
     "number": 98,
     "player": "8Z1wc4GGyHmyDbK5StDiEeVuEUYjPwq5jP3RSe7bwvQ",
-    "randomValue": "0x07c223a22a47d55d4428775cd2e4b17dfa5058f48cf9ef1f85e8756bda015235"
+    "randomValue": "0x07c223a22a47d55d4428775cd2e4b17dfa5058f48cf9ef1f85e8756bda015235",
+    "NFTnumber": 1649
   },
   {
     "number": 101,
     "player": "8yyPbbk2qeqHxULvFFAsRqjsG1RgCE7QXxqoxVYxFWYK",
-    "randomValue": "0x1efefd36644f68ef0034ee96259e356fbfb7938f88649302d3e6b0e6a62caf14"
+    "randomValue": "0x1efefd36644f68ef0034ee96259e356fbfb7938f88649302d3e6b0e6a62caf14",
+    "NFTnumber": 2018
   },
   {
     "number": 109,
     "player": "A6ETjGdMcyVwVS9skxmVJtVqB5kSYGmaBQ2qXFgioDTC",
-    "randomValue": "0x0a1fbd4c65675394e2e1c6cd3bbe11e189f9427f121b7f45a4e8d1855f7b7d86"
+    "randomValue": "0x0a1fbd4c65675394e2e1c6cd3bbe11e189f9427f121b7f45a4e8d1855f7b7d86",
+    "NFTnumber": 1556
   },
   {
     "number": 115,
     "player": "AS5QLh7LNc6oC2P2yEzqoePgnaFgrUp5ArJT9zusSSA1",
-    "randomValue": "0x1e32dc621c7b7895377b08962189bf7d4d037b8c1fbfd8217d3ff97fb695e155"
+    "randomValue": "0x1e32dc621c7b7895377b08962189bf7d4d037b8c1fbfd8217d3ff97fb695e155",
+    "NFTnumber": 1869
   },
   {
     "number": 123,
     "player": "AmgWNN6FsDpdyGF11QzBxZKkfBvcwfZsv6RjEzPzZnZc",
-    "randomValue": "0x11aa5b394d5e638e1abac54923893203616491a71c6fa1eec70e515c05311a6c"
+    "randomValue": "0x11aa5b394d5e638e1abac54923893203616491a71c6fa1eec70e515c05311a6c",
+    "NFTnumber": 1504
   },
   {
     "number": 128,
     "player": "BAh77CTB6RZx8k5d1UbFgM52eLpRfHo6BCPQ1AETfFnp",
-    "randomValue": "0x2e929f8fbe0f661157727b4b9dc898b1264b0f31fb51407b76ec141f6d31fe72"
+    "randomValue": "0x2e929f8fbe0f661157727b4b9dc898b1264b0f31fb51407b76ec141f6d31fe72",
+    "NFTnumber": 1513
   },
   {
     "number": 131,
     "player": "BFBRWoAhoqofxsnNDDzizYjciqXTzhwnK6ugsirW2VFo",
-    "randomValue": "0x062dbf5fdc32d626afc1d0c955d78a04e241adf4e270d5fdebbc101c940c0329"
+    "randomValue": "0x062dbf5fdc32d626afc1d0c955d78a04e241adf4e270d5fdebbc101c940c0329",
+    "NFTnumber": 971
   },
   {
     "number": 138,
     "player": "BVPR1KLLWrp3MRCo4aCzY3129kDqCLAr29ZjWKritM6L",
-    "randomValue": "0x0e92b2513776e10c3eeffa9e2f6168e921e86b6e997419e800aa41bbcb3ce6a1"
+    "randomValue": "0x0e92b2513776e10c3eeffa9e2f6168e921e86b6e997419e800aa41bbcb3ce6a1",
+    "NFTnumber": 730
   },
   {
     "number": 146,
     "player": "CLwKFAD1n1qUT5TbDrEq1sefD3kFNbK1qpJiPGf8ZfLY",
-    "randomValue": "0x0228949e9e225c31470a1348eaf2c737ed0eee8d0df86f3f2f7d8d8cbcaa221b"
+    "randomValue": "0x0228949e9e225c31470a1348eaf2c737ed0eee8d0df86f3f2f7d8d8cbcaa221b",
+    "NFTnumber": 1820
   },
   {
     "number": 148,
     "player": "CXnmBh9wKghhya24G7hZrcuWq88LUEWeH41Ewr3bY5kH",
-    "randomValue": "0x0b70f174e7adfcf530b5a848e302293e814992263a72993467d002df0e3744fd"
+    "randomValue": "0x0b70f174e7adfcf530b5a848e302293e814992263a72993467d002df0e3744fd",
+    "NFTnumber": 1675
   },
   {
     "number": 151,
     "player": "Cqx5WaBRRAdK1sYYYvXDMNoNCTHoY8Fz8QDpqaUzxQ1T",
-    "randomValue": "0x1385c19a6c2219bce594da736a840dd02717c5e36538981b00c9004c84163cfc"
+    "randomValue": "0x1385c19a6c2219bce594da736a840dd02717c5e36538981b00c9004c84163cfc",
+    "NFTnumber": 1952
   },
   {
     "number": 169,
     "player": "DjZzWqjdex6MUZzRT6zLPpkamcVd4cqvCdmZs2Z4g6ma",
-    "randomValue": "0x0c90b4c25d3f9a7a20324ee85273f240890bb777864e1143701eaa853671f1db"
+    "randomValue": "0x0c90b4c25d3f9a7a20324ee85273f240890bb777864e1143701eaa853671f1db",
+    "NFTnumber": 1899
   },
   {
     "number": 175,
     "player": "DzeKTNpYMn1Spf1q29CSMRdgodBYQZ7jXFQdCYgUgLny",
-    "randomValue": "0x0fc2850570b9d98ae9d306b02aebc104f224740b860664d24bc6d8788eaa834c"
+    "randomValue": "0x0fc2850570b9d98ae9d306b02aebc104f224740b860664d24bc6d8788eaa834c",
+    "NFTnumber": 2095
   },
   {
     "number": 184,
     "player": "EbiC4wETGPdhRhKayczi7YyaF49RmHXVMAfzjf7fSmsR",
-    "randomValue": "0x2d3cdec182ffa44c6aa7438149e299af4e3c569608a98bab65dcc635fd86247e"
+    "randomValue": "0x2d3cdec182ffa44c6aa7438149e299af4e3c569608a98bab65dcc635fd86247e",
+    "NFTnumber": 11
   },
   {
     "number": 190,
     "player": "F1EfY5ffNiXXZroBp5H9uQgee2d9t6E95Mm1K3JRRWwE",
-    "randomValue": "0x1d3e0f90c0777efebfde8f280944b1f723819f8e65ed97a1291786ca87e08067"
+    "randomValue": "0x1d3e0f90c0777efebfde8f280944b1f723819f8e65ed97a1291786ca87e08067",
+    "NFTnumber": 182
   },
   {
     "number": 198,
     "player": "FNCF6hMdLDWEqGAnCfnvWJsjgfbwYDxvRfN6f5geCkm1",
-    "randomValue": "0x23dcbb518bafb6ba19e2b24415f8992a1712afb2f801b39de7ef785185c0e37e"
+    "randomValue": "0x23dcbb518bafb6ba19e2b24415f8992a1712afb2f801b39de7ef785185c0e37e",
+    "NFTnumber": 1775
   },
   {
     "number": 199,
     "player": "FPqw6EeHc2akKrRut6BwErbBFp965hkLruYWfkSSsT6n",
-    "randomValue": "0x0aeb9f376feea9087b99ee5a0e32af79cfed073b3f420e5e3f86fe88b4f2f429"
+    "randomValue": "0x0aeb9f376feea9087b99ee5a0e32af79cfed073b3f420e5e3f86fe88b4f2f429",
+    "NFTnumber": 654
   },
   {
     "number": 200,
     "player": "FSfgxdRYVQXPa2DXbZSYNqsQi5WCmsQeX7Ug8FjHbWuD",
-    "randomValue": "0x15b42bbeabaa47fb15f6d8fe83aa8ba1988f9c593a772d7e7ae5ca683a39e84a"
+    "randomValue": "0x15b42bbeabaa47fb15f6d8fe83aa8ba1988f9c593a772d7e7ae5ca683a39e84a",
+    "NFTnumber": 1441
   },
   {
     "number": 203,
     "player": "FvYCfJ8H4qh3Putc2pPaUtmod337r6XxCiUujh1xo6zB",
-    "randomValue": "0x0248a4a6529424725e93c561e742a16c2fa30c5d5d1eb004668129d4461b22d6"
+    "randomValue": "0x0248a4a6529424725e93c561e742a16c2fa30c5d5d1eb004668129d4461b22d6",
+    "NFTnumber": 1924
   },
   {
     "number": 205,
     "player": "G5VNwBaqPYrBcA7oFgYKS61FdYHk7LTcPsdQ1PBkqrAE",
-    "randomValue": "0x262a3d65c067a46e5711ff6fcce61faa6e3b6cc7b6f7d506fd0ed7e989b541e6"
+    "randomValue": "0x262a3d65c067a46e5711ff6fcce61faa6e3b6cc7b6f7d506fd0ed7e989b541e6",
+    "NFTnumber": 437
   },
   {
     "number": 206,
     "player": "G5ad8bqEJ9HjzELf6rMd3vfTry9G5rce1MLwdJdqJNcf",
-    "randomValue": "0x2100f7cbf8c401f8b08bae0b2180b2e9e03a0590486dd414bcd0c5783445e1ce"
+    "randomValue": "0x2100f7cbf8c401f8b08bae0b2180b2e9e03a0590486dd414bcd0c5783445e1ce",
+    "NFTnumber": 452
   },
   {
     "number": 219,
     "player": "GbvVw7jU9jQ3Qzou4vSx2ym6dChBQ7PUdihgNfVhEzrX",
-    "randomValue": "0x028f384ad194aabb64ccb1b0318bdae7f07d856af5fe57db3f15098a37bc9f94"
+    "randomValue": "0x028f384ad194aabb64ccb1b0318bdae7f07d856af5fe57db3f15098a37bc9f94",
+    "NFTnumber": 1623
   },
   {
     "number": 228,
     "player": "H2yqE82ukLCZ2QDwYmu1jRdDEdY97HaYiSjBQ4dZF8Xi",
-    "randomValue": "0x25c569809111bc38b278f1cd693a9006c7d6032d7f933551a133c7083d56f671"
+    "randomValue": "0x25c569809111bc38b278f1cd693a9006c7d6032d7f933551a133c7083d56f671",
+    "NFTnumber": 1584
   },
   {
     "number": 230,
     "player": "H95ukEy9foXqzMKJh1XT15oe6KMAETNUvU1Mb3LgvtYM",
-    "randomValue": "0x14bb7a40544f358387126bee3e4e7febd01a09295e2d1c5b4b9979f8d4ffc17f"
+    "randomValue": "0x14bb7a40544f358387126bee3e4e7febd01a09295e2d1c5b4b9979f8d4ffc17f",
+    "NFTnumber": 1152
   },
   {
     "number": 236,
     "player": "HLYHpWAQbBNPh3GEGETVCVf2VCaz5DQhcrMsAVifNjaX",
-    "randomValue": "0x253553a3629f57a144d48a4af082f9bd3fbf5511aa61fa7871457aab66b63b6d"
+    "randomValue": "0x253553a3629f57a144d48a4af082f9bd3fbf5511aa61fa7871457aab66b63b6d",
+    "NFTnumber": 1779
   },
   {
     "number": 238,
     "player": "HR688kw9cxeYX5bXefafRt4PnSmZLHfMGPdiDgwsstTQ",
-    "randomValue": "0x0d75e3b7b600ffff2a19a7170286c4424f8aa5f2e8fd091714e0f2223193c391"
+    "randomValue": "0x0d75e3b7b600ffff2a19a7170286c4424f8aa5f2e8fd091714e0f2223193c391",
+    "NFTnumber": 1263
   },
   {
     "number": 242,
     "player": "Hg2kjFLSsbYBoSa4m7gDHcik1dMcHdkgJ8c85mwwnvSc",
-    "randomValue": "0x037d9a68f4ba250b7444db9cfb30db5bc4768fe6b5268ada4df7d0286dc2d6b8"
+    "randomValue": "0x037d9a68f4ba250b7444db9cfb30db5bc4768fe6b5268ada4df7d0286dc2d6b8",
+    "NFTnumber": 2068
   },
   {
     "number": 246,
     "player": "HnLeDpEoQkvBANuJJm2kb9bMs3Bx2WWjMtfdPGo5Ag5D",
-    "randomValue": "0x31eb0b87758124ff5ce36467e25d57a6aa72a1b78bcfdab8d7ae3f3ba6829842"
+    "randomValue": "0x31eb0b87758124ff5ce36467e25d57a6aa72a1b78bcfdab8d7ae3f3ba6829842",
+    "NFTnumber": 666
   },
   {
     "number": 247,
     "player": "HpsYRQyv6p6k7BS3kKJ46uh4K7rm2DjBYnsajMqCU71M",
-    "randomValue": "0x2ad4505b60c58c07b4db15152f3e6ae151dc3dc34ee844670b6ecb81582519a4"
+    "randomValue": "0x2ad4505b60c58c07b4db15152f3e6ae151dc3dc34ee844670b6ecb81582519a4",
+    "NFTnumber": 1773
   },
   {
     "number": 250,
     "player": "HwzCbVjNnwfN1DuRP5arEMA9pYv7AFR3K3oKyyrEXRE1",
-    "randomValue": "0x1fb3a04ad33ea19c63557bce6b18d4b49845d143e618e6b9b4cc10d885147f75"
+    "randomValue": "0x1fb3a04ad33ea19c63557bce6b18d4b49845d143e618e6b9b4cc10d885147f75",
+    "NFTnumber": 3
   },
   {
     "number": 261,
     "player": "tXHFMFR4jCMFYXDa2gMku3HRgTSY37docWUm4JsGv2Q",
-    "randomValue": "0x03afe2a2b560e7af42e2e1517e5fe52a93556231ae9d03dc1c8459547a58ec34"
+    "randomValue": "0x03afe2a2b560e7af42e2e1517e5fe52a93556231ae9d03dc1c8459547a58ec34",
+    "NFTnumber": 1831
   }
 ]
