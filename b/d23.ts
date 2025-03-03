@@ -77,39 +77,61 @@ async function main() {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const data = JSON.parse(fileContent) as D02Round[];
 
-        const firstRound = data[0];
-        if (!firstRound || !firstRound.winnersCount) {
-            throw new Error('Не найден первый раунд или winnersCount');
-        }
+        for (let i = 0; i < data.length; i++) {
+            const currentRound = data[i];
+            if (!currentRound || !currentRound.winnersCount) {
+                throw new Error(`Не найден раунд ${i} или winnersCount`);
+            }
 
-        console.log(`Найден первый раунд, winnersCount: ${firstRound.winnersCount}`);
+            console.log(`Обрабатываем раунд ${currentRound.round}, winnersCount: ${currentRound.winnersCount}`);
 
-        // Добавляем массив чисел от 1 до winnersCount + 1000
-        firstRound.lottery_numbers = Array.from(
-            { length: firstRound.winnersCount + 1000 },
-            (_, i) => i + 1
-        );
+            if (i === 0) {
+                // Для первого раунда используем фиксированный массив 1-1000
+                currentRound.lottery_numbers = Array.from(
+                    { length: 1000 },
+                    (_, i) => i + 1
+                );
+                currentRound.last_selected_index = 1000;
+            } else {
+                // Для последующих раундов используем remaining_numbers из предыдущего раунда
+                const previousRound = data[i - 1];
+                if (!previousRound.remaining_numbers || previousRound.last_selected_index === undefined) {
+                    throw new Error(`Не найдены remaining_numbers или last_selected_index в предыдущем раунде ${i-1}`);
+                }
 
-        console.log(`Добавлен lottery_numbers массив длиной ${firstRound.lottery_numbers.length}`);
+                // Создаем новый массив из remaining_numbers предыдущего раунда
+                currentRound.lottery_numbers = [...previousRound.remaining_numbers];
 
-        // Генерируем случайные числа на основе Bitcoin хеша
-        if (firstRound.BITCOIN_BLOCK_HASH) {
-            console.log(`Используем Bitcoin хеш: ${firstRound.BITCOIN_BLOCK_HASH}`);
-            const [selectedNumbers, shuffledNumbers, lastIndex] = generateRandomNumbers(
-                firstRound.BITCOIN_BLOCK_HASH,
-                firstRound.winnersCount,
-                firstRound.winnersCount + 1000
-            );
-            firstRound.winning_numbers = selectedNumbers;
-            firstRound.shuffled_numbers = shuffledNumbers;
-            firstRound.remaining_numbers = shuffledNumbers.slice(0, shuffledNumbers.length - firstRound.winnersCount);
-            firstRound.last_selected_index = firstRound.lottery_numbers[firstRound.lottery_numbers.length - 1];
-            
-            console.log(`Сгенерированы массивы:`);
-            console.log(`- winning_numbers: ${selectedNumbers.length} чисел`);
-            console.log(`- shuffled_numbers: ${shuffledNumbers.length} чисел`);
-            console.log(`- remaining_numbers: ${firstRound.remaining_numbers.length} чисел`);
-            console.log(`- last_selected_index: ${firstRound.last_selected_index}`);
+                // Добавляем новые элементы, начиная с last_selected_index + 1
+                const startIndex = previousRound.last_selected_index + 1;
+                const newNumbers = Array.from(
+                    { length: currentRound.winnersCount },
+                    (_, i) => startIndex + i
+                );
+                currentRound.lottery_numbers.push(...newNumbers);
+            }
+
+            console.log(`Добавлен lottery_numbers массив длиной ${currentRound.lottery_numbers.length}`);
+
+            // Генерируем случайные числа на основе Bitcoin хеша
+            if (currentRound.BITCOIN_BLOCK_HASH) {
+                console.log(`Используем Bitcoin хеш: ${currentRound.BITCOIN_BLOCK_HASH}`);
+                const [selectedNumbers, shuffledNumbers, lastIndex] = generateRandomNumbers(
+                    currentRound.BITCOIN_BLOCK_HASH,
+                    currentRound.winnersCount,
+                    currentRound.winnersCount + 1000
+                );
+                currentRound.winning_numbers = selectedNumbers;
+                currentRound.shuffled_numbers = shuffledNumbers;
+                currentRound.remaining_numbers = shuffledNumbers.slice(0, shuffledNumbers.length - currentRound.winnersCount);
+                currentRound.last_selected_index = currentRound.lottery_numbers[currentRound.lottery_numbers.length - 1];
+                
+                console.log(`Сгенерированы массивы:`);
+                console.log(`- winning_numbers: ${selectedNumbers.length} чисел`);
+                console.log(`- shuffled_numbers: ${shuffledNumbers.length} чисел`);
+                console.log(`- remaining_numbers: ${currentRound.remaining_numbers.length} чисел`);
+                console.log(`- last_selected_index: ${currentRound.last_selected_index}`);
+            }
         }
 
         const formattedJson = formatJson(data);
