@@ -17,11 +17,11 @@ interface D02Round {
     last_selected_index?: number;
 }
 
-function generateRandomNumbers(bitcoinHash: string, count: number, maxNumber: number): [number[], number[], number] {
+function generateRandomNumbers(bitcoinHash: string, count: number, lotteryNumbers: number[]): [number[], number[], number] {
     const numbersInOrder: number[] = [];
-    const shuffledArray = Array.from({ length: maxNumber }, (_, i) => i + 1);
+    const shuffledArray = [...lotteryNumbers]; // Копируем существующий массив
     let currentHash = bitcoinHash;
-    let availableCount = maxNumber;
+    let availableCount = lotteryNumbers.length;
     
     for (let i = 0; i < count; i++) {
         const hash = crypto.createHash('sha256')
@@ -100,7 +100,7 @@ async function main() {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const data = safeParseJson(fileContent) as D02Round[];
 
-        // Сначала очищаем все массивы
+        // Сначала очищаем все массивы, кроме раунда 0
         data.forEach(round => {
             if (round.round !== 0) { // Не удаляем поля из раунда 0
                 delete round.lottery_numbers;
@@ -165,7 +165,7 @@ async function main() {
                 const [selectedNumbers, shuffledNumbers, lastIndex] = generateRandomNumbers(
                     currentRound.BITCOIN_BLOCK_HASH,
                     currentRound.winnersCount,
-                    currentRound.lottery_numbers.length
+                    currentRound.lottery_numbers
                 );
                 currentRound.winning_numbers = selectedNumbers;
                 currentRound.shuffled_numbers = shuffledNumbers;
