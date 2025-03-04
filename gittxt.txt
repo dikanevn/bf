@@ -3,9 +3,7 @@ fuser -k 3000/tcp
 
 git add . && git commit -m "q" && git push -u origin main
 
-git checkout main
-git fetch
-git merge origin/main
+git checkout main && git fetch && git merge origin/main
 
 git fetch origin && git reset --hard origin/main && git clean -fd
 
