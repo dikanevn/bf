@@ -25,3 +25,12 @@ solana program close
 solana program deploy target/deploy/r.so --buffer buffer-keypair.json
 
 ./m.sh build-deploy
+
+Откройте файл конфигурации SSH:
+
+
+sudo nano /etc/ssh/sshd_config
+Добавьте или измените следующие строки:
+
+MaxAuthTries 3
+PermitRootLogin no

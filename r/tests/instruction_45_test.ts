@@ -29,6 +29,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
+// Укажите здесь номер раунда (1, 2, 3, ...)
+const ROUND_NUMBER = 3;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -61,11 +64,11 @@ describe('Instruction 45', function() {
   it('should create a pNFT with standard SPL Token, Merkle proof verification and add to fixed collection', async function() {
     console.log('Начинаем тест создания pNFT с стандартным SPL Token, проверкой Merkle и добавлением в коллекцию (инструкция 45)');
     
-    // Используем раунд 2 для теста (или 1, если указан в параметрах)
-    const roundNumber = process.env.TEST_ROUND_NUMBER ? parseInt(process.env.TEST_ROUND_NUMBER) : 2;
+    // Используем раунд из константы или из переменной окружения, если она задана
+    const roundNumber = process.env.TEST_ROUND_NUMBER ? parseInt(process.env.TEST_ROUND_NUMBER) : ROUND_NUMBER;
     console.log(`Используем раунд ${roundNumber} для теста`);
     
-    // Индекс в массиве ALL_MERKLE_ROOTS для раунда 2 - это 1 (массив начинается с 0)
+    // Индекс в массиве ALL_MERKLE_ROOTS для раунда - это (номер раунда - 1)
     const roundIndex = roundNumber - 1;
     console.log(`Индекс в массиве ALL_MERKLE_ROOTS: ${roundIndex}`);
     
@@ -345,6 +348,17 @@ describe('Instruction 45', function() {
       );
 
       console.log('Транзакция отправлена. Сигнатура:', signature);
+      
+      // Получаем логи транзакции для отладки
+      try {
+        const txInfo = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
+        console.log('Логи транзакции:');
+        if (txInfo && txInfo.meta && txInfo.meta.logMessages) {
+          txInfo.meta.logMessages.forEach(log => console.log(log));
+        }
+      } catch (error) {
+        console.error('Не удалось получить логи транзакции:', error);
+      }
       
       console.log('Проверяем создание аккаунтов...');
       

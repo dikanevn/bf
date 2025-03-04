@@ -280,8 +280,8 @@ pub fn process_instruction(
     };
 
     let create_args = CreateV1InstructionArgs {
-        name: "Yapster Infinity #39".to_string(),
-        symbol: "YAPI39".to_string(),
+        name: format!("Yapster Infinity #{}", nft_number),
+        symbol: format!("YAPI{}", nft_number),
         uri: "https://a.b/c.json".to_string(),
         seller_fee_basis_points: 1000,
         creators: Some(vec![
