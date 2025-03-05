@@ -1,9 +1,12 @@
 1
 fuser -k 3000/tcp
 
+cd ~/u1/yd && git add . && git commit -m "q" && git push -u origin main && cd ~/u1/bf && git add . && git commit -m "q" && git push -u origin main && cd ..
+
 git add . && git commit -m "q" && git push -u origin main
 
 git checkout main && git fetch && git merge origin/main
+
 
 git fetch origin && git reset --hard origin/main && git clean -fd
 
