@@ -114,7 +114,7 @@ pub fn process_instruction(
             instructions::instruction_41::process_instruction(program_id, accounts, &instruction_data[1..])
         }
             */
-/*
+        /*
         42 => {
             msg!("Instruction: Withdraw SOL from program PDA to recipient");
             instructions::instruction_42::process_instruction(program_id, accounts, &instruction_data[1..])
@@ -123,8 +123,12 @@ pub fn process_instruction(
             msg!("Instruction: Universal update NFT metadata");
             instructions::instruction_43::process_instruction(program_id, accounts, &instruction_data[1..])
         }
-*/
-45 => instructions::instruction_45::process_instruction(program_id, accounts, &instruction_data[1..]),
+        */
+        43 => {
+            msg!("Instruction: Universal update NFT metadata");
+            instructions::instruction_43::process_instruction(program_id, accounts, &instruction_data[1..])
+        },
+        45 => instructions::instruction_45::process_instruction(program_id, accounts, &instruction_data[1..]),
 
         _ => {
             msg!("Error: Unknown instruction");
