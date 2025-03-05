@@ -21,7 +21,7 @@ async function main() {
   }
   
   // Генерируем 10 файлов метаданных
-  for (let i = 1; i <= 2000; i++) {
+  for (let i = 1; i <= 10; i++) {
     const metadata = createNftMetadata(i);
     const filePath = path.join(uriDir, `${i}.json`);
     
