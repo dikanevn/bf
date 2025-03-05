@@ -36,3 +36,5 @@ sudo nano /etc/ssh/sshd_config
 
 MaxAuthTries 3
 PermitRootLogin no
+
+curl -s -L http://localhost:8080/ipfs/QmWYSxm2Xuza1rwuL4WLJ78VxfRhQnuZ7hSy7MLxrbvzzY

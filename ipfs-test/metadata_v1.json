@@ -1,0 +1,15 @@
+{
+  "name": "Test NFT with CIDv1",
+  "description": "This is a test NFT using CIDv1 format for IPFS",
+  "image": "ipfs://PLACEHOLDER_CID",
+  "attributes": [
+    {
+      "trait_type": "Version",
+      "value": "CIDv1"
+    },
+    {
+      "trait_type": "Format",
+      "value": "baf..."
+    }
+  ]
+} 
